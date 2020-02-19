@@ -2,59 +2,65 @@ pub struct Document {
 	pub root: Group,
 }
 
-pub enum Node {
-	Group(Group),
-	Label(Label)
-}
+pub trait Node {}
 
 pub struct Group {
 	pub name: String,
-	pub children: Vec<Node>,
+	pub children: Vec<Box<dyn Node>>,
 }
+
+impl Node for Group {}
 
 pub struct Label {
 	pub name: String,
 }
 
-pub struct Canvas {
+impl Node for Label {}
+
+pub struct Sprite {
 	pub name: String,
-	pub layers: Vec<CanvasLayer>,
+	pub layers: Vec<Box<dyn SpriteLayer>>,
 	pub width: i32,
 	pub height: i32,
 }
 
-pub enum CanvasLayer {
-	Group(CanvasLayerGroup),
-	DataRGBA(CanvasLayerDataRGBA),
-	DataI(CanvasLayerDataI),
-	DataUV(CanvasLayerDataUV)
-}
+impl Node for Sprite {}
 
-pub struct CanvasLayerGroup {
+pub trait SpriteLayer {}
+
+pub struct SpriteLayerGroup {
 	pub name: String,
-	pub children: Vec<CanvasLayer>,
+	pub children: Vec<Box<dyn SpriteLayer>>,
 }
 
-pub struct CanvasLayerDataRGBA {
+impl SpriteLayer for SpriteLayerGroup {}
+
+pub struct SpriteLayerDataRGBA {
 	pub name: String,
 	pub width: i32,
 	pub height: i32,
 	pub data: Vec<i32>,
 }
 
-pub struct CanvasLayerDataI {
+impl SpriteLayer for SpriteLayerDataRGBA {}
+
+pub struct SpriteLayerDataI {
 	pub name: String,
 	pub width: i32,
 	pub height: i32,
 	pub data: Vec<i8>,
 }
 
-pub struct CanvasLayerDataUV {
+impl SpriteLayer for SpriteLayerDataI {}
+
+pub struct SpriteLayerDataUV {
 	pub name: String,
 	pub width: i32,
 	pub height: i32,
 	pub data: Vec<i32>,
 }
+
+impl SpriteLayer for SpriteLayerDataUV {}
 
 
 
