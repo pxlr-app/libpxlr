@@ -14,21 +14,21 @@ impl Vector2 {
 	}
 
 	#[inline]
-	fn lengthSquared(self) -> f32 {
+	fn lengthSquared(&self) -> f32 {
 		self.x * self.x + self.y * self.y
 	}
 
 	#[inline]
-	fn length(self) -> f32 {
+	fn length(&self) -> f32 {
 		self.lengthSquared().sqrt()
 	}
 
 	#[inline]
-	fn lengthManhattan(self) -> f32 {
+	fn lengthManhattan(&self) -> f32 {
 		self.x.abs() + self.y.abs()
 	}
 
-	fn angle(self) -> f32 {
+	fn angle(&self) -> f32 {
 		let angle = self.y.atan2(self.x);
 		if (angle < 0.0) {
 			angle + 2.0 * f32::consts::PI
