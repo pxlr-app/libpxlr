@@ -51,12 +51,16 @@ impl Vector2 {
 		self
 	}
 
-	fn min(&self, other: &Vector2) -> Vector2 {
-		Vector2::new(self.x.min(other.x), self.y.min(other.y))
+	fn min(&mut self, other: &Vector2) -> &Vector2 {
+		self.x = self.x.min(other.x);
+		self.y = self.y.min(other.y);
+		self
 	}
 
-	fn max(&self, other: &Vector2) -> Vector2 {
-		Vector2::new(self.x.max(other.x), self.y.max(other.y))
+	fn max(&mut self, other: &Vector2) -> &Vector2 {
+		self.x = self.x.max(other.x);
+		self.y = self.y.max(other.y);
+		self
 	}
 
 	fn clamp(&mut self, min: &Vector2, max: &Vector2) -> &Vector2 {
@@ -72,6 +76,34 @@ impl Vector2 {
 		self.y /= length;
 		self.x *= clamped;
 		self.y *= clamped;
+		self
+	}
+
+	fn dot(lhs: &Vector2, rhs: &Vector2) -> f32 {
+		lhs.x * rhs.x + lhs.y * rhs.y
+	}
+
+	fn cross(lhs: &Vector2, rhs: &Vector2) -> f32 {
+		lhs.x * rhs.x - lhs.y * rhs.y
+	}
+
+	fn angle_between(lhs: &Vector2, rhs: &Vector2) -> f32 {
+		let t = Vector2::dot(lhs, rhs) / (lhs.length_squared() * rhs.length_squared()).sqrt();
+		t.max(-1.0).min(1.0).acos()
+	}
+
+	fn project(&mut self, normal: &Vector2) -> &Vector2 {
+		let d = Vector2::dot(normal, self);
+		let l = normal.length_squared();
+		self.x *= d / l;
+		self.y *= d / l;
+		self
+	}
+
+	fn reflect(&mut self, normal: &Vector2) -> &Vector2 {
+		let d = Vector2::dot(self, normal) * 2.0;
+		self.x -= normal.x * d;
+		self.y -= normal.y * d;
 		self
 	}
 }
