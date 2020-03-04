@@ -5,3 +5,8 @@ authors = ["Michael Grenier <grenim01@uqat.ca>"]
 edition = "2018"
 
 [dependencies]
+
+
+[lib]
+name = "document"
+crate-type = ["rlib"]
