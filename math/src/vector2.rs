@@ -4,73 +4,48 @@ use auto_ops::*;
 
 #[derive(Debug, Clone)]
 pub struct Vector2 {
-	x: f32,
-	y: f32,
+	pub x: f32,
+	pub y: f32,
 }
 
 impl Vector2 {
-	fn new(x: f32, y: f32) -> Vector2 {
+	pub fn new(x: f32, y: f32) -> Vector2 {
 		Vector2 { x, y }
 	}
 
-	#[inline]
-	fn length_squared(&self) -> f32 {
-		self.x * self.x + self.y * self.y
-	}
-
-	#[inline]
-	fn length(&self) -> f32 {
-		self.length_squared().sqrt()
-	}
-
-	#[inline]
-	fn length_manhattan(&self) -> f32 {
-		self.x.abs() + self.y.abs()
-	}
-
-	#[inline]
-	fn angle(&self) -> f32 {
-		let angle = self.y.atan2(self.x);
-		if angle < 0.0 {
-			angle + 2.0 * f32::consts::PI
-		} else {
-			angle
-		}
-	}
-
-	fn set(&mut self, x: f32, y: f32) -> &Vector2 {
+	pub fn set(&mut self, x: f32, y: f32) -> &Vector2 {
 		self.x = x;
 		self.y = y;
 		self
 	}
 
-	fn normalize(&mut self) -> &Vector2 {
-		let length = self.length();
+	pub fn normalize(&mut self) -> &Vector2 {
+		let length = Vector2::length(self);
 		self.x /= length;
 		self.y /= length;
 		self
 	}
 
-	fn min(&mut self, other: &Vector2) -> &Vector2 {
+	pub fn min(&mut self, other: &Vector2) -> &Vector2 {
 		self.x = self.x.min(other.x);
 		self.y = self.y.min(other.y);
 		self
 	}
 
-	fn max(&mut self, other: &Vector2) -> &Vector2 {
+	pub fn max(&mut self, other: &Vector2) -> &Vector2 {
 		self.x = self.x.max(other.x);
 		self.y = self.y.max(other.y);
 		self
 	}
 
-	fn clamp(&mut self, min: &Vector2, max: &Vector2) -> &Vector2 {
+	pub fn clamp(&mut self, min: &Vector2, max: &Vector2) -> &Vector2 {
 		self.x = self.x.max(min.x).min(max.x);
 		self.y = self.y.max(min.y).min(max.y);
 		self
 	}
 
-	fn clamp_length(&mut self, min: f32, max: f32) -> &Vector2 {
-		let length = self.length();
+	pub fn clamp_length(&mut self, min: f32, max: f32) -> &Vector2 {
+		let length = Vector2::length(self);
 		let clamped = length.min(max).max(min);
 		self.x /= length;
 		self.y /= length;
@@ -79,62 +54,105 @@ impl Vector2 {
 		self
 	}
 
-	fn dot(lhs: &Vector2, rhs: &Vector2) -> f32 {
-		lhs.x * rhs.x + lhs.y * rhs.y
-	}
-
-	fn cross(lhs: &Vector2, rhs: &Vector2) -> f32 {
-		lhs.x * rhs.x - lhs.y * rhs.y
-	}
-
-	fn angle_between(lhs: &Vector2, rhs: &Vector2) -> f32 {
-		let t = Vector2::dot(lhs, rhs) / (lhs.length_squared() * rhs.length_squared()).sqrt();
-		t.max(-1.0).min(1.0).acos()
-	}
-
-	fn project(&mut self, normal: &Vector2) -> &Vector2 {
+	pub fn project(&mut self, normal: &Vector2) -> &Vector2 {
 		let d = Vector2::dot(normal, self);
-		let l = normal.length_squared();
+		let l = Vector2::length_squared(normal);
 		self.x *= d / l;
 		self.y *= d / l;
 		self
 	}
 
-	fn reflect(&mut self, normal: &Vector2) -> &Vector2 {
+	pub fn reflect(&mut self, normal: &Vector2) -> &Vector2 {
 		let d = Vector2::dot(self, normal) * 2.0;
 		self.x -= normal.x * d;
 		self.y -= normal.y * d;
 		self
 	}
+
+	#[inline]
+	pub fn length_squared(vec: &Vector2) -> f32 {
+		vec.x * vec.x + vec.y * vec.y
+	}
+
+	#[inline]
+	pub fn length(vec: &Vector2) -> f32 {
+		Vector2::length_squared(vec).sqrt()
+	}
+
+	#[inline]
+	pub fn length_manhattan(vec: &Vector2) -> f32 {
+		vec.x.abs() + vec.y.abs()
+	}
+
+	#[inline]
+	pub fn angle(vec: &Vector2) -> f32 {
+		let angle = vec.y.atan2(vec.x);
+		if angle < 0.0 {
+			angle + 2.0 * f32::consts::PI
+		} else {
+			angle
+		}
+	}
+
+	#[inline]
+	pub fn dot(lhs: &Vector2, rhs: &Vector2) -> f32 {
+		lhs.x * rhs.x + lhs.y * rhs.y
+	}
+
+	#[inline]
+	pub fn cross(lhs: &Vector2, rhs: &Vector2) -> f32 {
+		lhs.x * rhs.x - lhs.y * rhs.y
+	}
+
+	pub fn angle_between(lhs: &Vector2, rhs: &Vector2) -> f32 {
+		let t = Vector2::dot(lhs, rhs) / (Vector2::length_squared(lhs) * Vector2::length_squared(rhs)).sqrt();
+		t.max(-1.0).min(1.0).acos()
+	}
+
+	pub fn distance(lhs: &Vector2, rhs: &Vector2) -> f32 {
+		Vector2::distance_squared(lhs, rhs).sqrt()
+	}
+
+	pub fn distance_squared(lhs: &Vector2, rhs: &Vector2) -> f32 {
+		let dx = lhs.x - rhs.x;
+		let dy = lhs.y - rhs.y;
+		dx * dx + dy * dy
+	}
+
+	pub fn distance_manhattan(lhs: &Vector2, rhs: &Vector2) -> f32 {
+		let dx = lhs.x - rhs.x;
+		let dy = lhs.y - rhs.y;
+		dx.abs() + dy.abs()
+	}
 }
 
 impl PartialEq for Vector2 {
 	fn eq(&self, other: &Self) -> bool {
-        self.x == other.x && self.y == other.y
-    }
+		self.x == other.x && self.y == other.y
+	}
 }
 
-impl_op_ex!(+ |a: &Vector2, b: &Vector2| -> Vector2 { Vector2::new(a.x + b.x, a.y + b.y) });
-impl_op_ex!(- |a: &Vector2, b: &Vector2| -> Vector2 { Vector2::new(a.x - b.x, a.y - b.y) });
-impl_op_ex!(* |a: &Vector2, b: &Vector2| -> Vector2 { Vector2::new(a.x * b.x, a.y * b.y) });
-impl_op_ex!(/ |a: &Vector2, b: &Vector2| -> Vector2 { Vector2::new(a.x / b.x, a.y / b.y) });
-impl_op_ex!(+ |a: &Vector2, b: &f32| -> Vector2 { Vector2::new(a.x + b, a.y + b) });
-impl_op_ex!(- |a: &Vector2, b: &f32| -> Vector2 { Vector2::new(a.x - b, a.y - b) });
-impl_op_ex!(* |a: &Vector2, b: &f32| -> Vector2 { Vector2::new(a.x * b, a.y * b) });
-impl_op_ex!(/ |a: &Vector2, b: &f32| -> Vector2 { Vector2::new(a.x / b, a.y / b) });
-impl_op_ex!(- |a: &Vector2| -> Vector2 { Vector2::new(-a.x, -a.x) });
-impl_op_ex!(+= |a: &mut Vector2, b: &Vector2| { a.x += b.x; a.y += b.y; });
-impl_op_ex!(-= |a: &mut Vector2, b: &Vector2| { a.x -= b.x; a.y -= b.y; });
-impl_op_ex!(*= |a: &mut Vector2, b: &Vector2| { a.x *= b.x; a.y *= b.y; });
-impl_op_ex!(/= |a: &mut Vector2, b: &Vector2| { a.x /= b.x; a.y /= b.y; });
-impl_op_ex!(+= |a: &mut Vector2, b: &f32| { a.x += b; a.y += b; });
-impl_op_ex!(-= |a: &mut Vector2, b: &f32| { a.x -= b; a.y -= b; });
-impl_op_ex!(*= |a: &mut Vector2, b: &f32| { a.x *= b; a.y *= b; });
-impl_op_ex!(/= |a: &mut Vector2, b: &f32| { a.x /= b; a.y /= b; });
+impl_op_ex!(+ |lhs: &Vector2, rhs: &Vector2| -> Vector2 { Vector2::new(lhs.x + rhs.x, lhs.y + rhs.y) });
+impl_op_ex!(- |lhs: &Vector2, rhs: &Vector2| -> Vector2 { Vector2::new(lhs.x - rhs.x, lhs.y - rhs.y) });
+impl_op_ex!(* |lhs: &Vector2, rhs: &Vector2| -> Vector2 { Vector2::new(lhs.x * rhs.x, lhs.y * rhs.y) });
+impl_op_ex!(/ |lhs: &Vector2, rhs: &Vector2| -> Vector2 { Vector2::new(lhs.x / rhs.x, lhs.y / rhs.y) });
+impl_op_ex!(+ |lhs: &Vector2, rhs: &f32| -> Vector2 { Vector2::new(lhs.x + rhs, lhs.y + rhs) });
+impl_op_ex!(- |lhs: &Vector2, rhs: &f32| -> Vector2 { Vector2::new(lhs.x - rhs, lhs.y - rhs) });
+impl_op_ex!(* |lhs: &Vector2, rhs: &f32| -> Vector2 { Vector2::new(lhs.x * rhs, lhs.y * rhs) });
+impl_op_ex!(/ |lhs: &Vector2, rhs: &f32| -> Vector2 { Vector2::new(lhs.x / rhs, lhs.y / rhs) });
+impl_op_ex!(- |lhs: &Vector2| -> Vector2 { Vector2::new(-lhs.x, -lhs.x) });
+impl_op_ex!(+= |lhs: &mut Vector2, rhs: &Vector2| { lhs.x += rhs.x; lhs.y += rhs.y; });
+impl_op_ex!(-= |lhs: &mut Vector2, rhs: &Vector2| { lhs.x -= rhs.x; lhs.y -= rhs.y; });
+impl_op_ex!(*= |lhs: &mut Vector2, rhs: &Vector2| { lhs.x *= rhs.x; lhs.y *= rhs.y; });
+impl_op_ex!(/= |lhs: &mut Vector2, rhs: &Vector2| { lhs.x /= rhs.x; lhs.y /= rhs.y; });
+impl_op_ex!(+= |lhs: &mut Vector2, rhs: &f32| { lhs.x += rhs; lhs.y += rhs; });
+impl_op_ex!(-= |lhs: &mut Vector2, rhs: &f32| { lhs.x -= rhs; lhs.y -= rhs; });
+impl_op_ex!(*= |lhs: &mut Vector2, rhs: &f32| { lhs.x *= rhs; lhs.y *= rhs; });
+impl_op_ex!(/= |lhs: &mut Vector2, rhs: &f32| { lhs.x /= rhs; lhs.y /= rhs; });
 
 #[cfg(test)]
 mod tests {
-	use super::Vector2;
+	use super::*;
 
 	#[test]
 	fn it_adds() {
