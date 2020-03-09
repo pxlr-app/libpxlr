@@ -5,7 +5,9 @@ authors = ["Michael Grenier <grenim01@uqat.ca>"]
 edition = "2018"
 
 [dependencies]
-
+uuid = "0.8.1"
+im = "14.3.0"
+math = { path = "../math" }
 
 [lib]
 name = "document"
