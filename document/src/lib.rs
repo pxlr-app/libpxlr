@@ -14,9 +14,7 @@ pub enum PatchPayload {
 }
 
 pub trait Patchable {
-	fn apply_patch(&self, patch: &Patch) -> Option<Self>
-	where
-		Self: Sized;
+	fn patch(&self, patch: &Patch) -> Option<Box<dyn Patchable>>;
 }
 
 pub trait Document: Patchable {
@@ -25,35 +23,44 @@ pub trait Document: Patchable {
 
 pub struct Group {
 	pub id: Uuid,
-	pub name: String,
-	pub children: Rc<Vec<Rc<Box<dyn Document>>>>,
+	pub name: Rc<String>,
+	pub children: Rc<Vec<Rc<Box<dyn Patchable>>>>,
 	pub position: Rc<Vec2>,
 }
 
 impl Patchable for Group {
-	fn apply_patch(&self, patch: &Patch) -> Option<Self> {
+	fn patch(&self, patch: &Patch) -> Option<Box<dyn Patchable>> {
 		if patch.target == self.id {
 			match &patch.payload {
-				PatchPayload::Rename(name) => Some(Group { id: self.id, name: name.clone(), children: Rc::clone(&self.children), position: Rc::clone(&self.position) }),
-				_ => None
+				PatchPayload::Rename(new_name) => Some(Box::new(Group {
+					id: self.id,
+					name: Rc::new(new_name.clone()),
+					children: Rc::clone(&self.children),
+					position: Rc::clone(&self.position),
+				})),
+				_ => None,
 			}
 		} else {
-			let t: Rc<Box<dyn Document>> = self.children[0];
-			t.apply_patch(patch);
-			// for child in (*self.children).into_iter() {
-			//  	// let _a = *child;
-			//  	child.apply_patch(patch);
-
-			// // 	//let a = (*child).apply_patch(patch);
-			// }
-			// let children: Vec<Rc<Box<dyn Document>>> = (*self.children).clone().into_iter().map(|child| {
-			// 	if let Some(new_child) = (*child).apply_patch(patch) {
-			// 		new_child
-			// 	} else {
-			// 		child
-			// 	}
-			// }).collect();
-			None
+			let mut mutated = false;
+			let children = self.children.iter().map(|child| {
+				if let Some(new_child) = child.patch(patch) {
+					mutated = true;
+					Rc::new(new_child)
+				} else {
+					Rc::clone(child)
+				}
+			}).collect::<Vec<_>>();
+			
+			if mutated {
+				Some(Box::new(Group {
+					id: self.id,
+					name: Rc::clone(&self.name),
+					children: Rc::new(children),
+					position: Rc::clone(&self.position),
+				}))
+			} else {
+				None
+			}
 		}
 	}
 }
@@ -66,19 +73,19 @@ impl Document for Group {
 
 pub struct Label {
 	pub id: Uuid,
-	pub name: String,
+	pub name: Rc<String>,
 	pub position: Rc<Vec2>,
 }
 
 impl Patchable for Label {
-	fn apply_patch(&self, patch: &Patch) -> Option<Self> {
+	fn patch(&self, patch: &Patch) -> Option<Box<dyn Patchable>> {
 		if patch.target == self.id {
 			match &patch.payload {
-				PatchPayload::Rename(new_name) => Some(Label {
+				PatchPayload::Rename(new_name) => Some(Box::new(Label {
 					id: self.id,
-					name: new_name.clone(),
+					name: Rc::new(new_name.clone()),
 					position: Rc::clone(&self.position),
-				}),
+				})),
 				_ => None,
 			}
 		} else {
@@ -96,21 +103,6 @@ impl Document for Label {
 #[cfg(test)]
 mod tests {
 	// use super::*;
-	use std::rc::Rc;
-
-	trait Printable {
-		fn stringify(&self) -> String;
-	}
-
-	impl Printable for i32 {
-		fn stringify(&self) -> String { self.to_string() }
-	}
-
-	fn print(a: Rc<Vec<Rc<Box<dyn Printable>>>>) {
-		println!("{}", a[0].stringify());
-		let t: Rc<Box<dyn Printable>> = a[0];
-		t.stringify();
-	}
 
 	#[test]
 	fn it_adds() {
@@ -119,6 +111,5 @@ mod tests {
 		// let mut v1 = Vector2::new(0.0, 0.0);
 		// v1 += 2.0;
 		// assert_eq!(v1, Vector2::new(2.0, 2.0));
-		print(Rc::new(vec![Rc::new(Box::new(10))]));
 	}
 }
