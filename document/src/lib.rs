@@ -1,7 +1,11 @@
+#[macro_use]
+extern crate downcast_rs;
+
 use std::rc::Rc;
 use uuid::Uuid;
 // use im::Vector as List;
 use math::{Rect, Vec2};
+use downcast_rs::Downcast;
 
 pub struct Patch {
 	target: Uuid,
@@ -13,9 +17,10 @@ pub enum PatchPayload {
 	Resize(u32, u32),
 }
 
-pub trait Patchable {
+pub trait Patchable: Downcast {
 	fn patch(&self, patch: &Patch) -> Option<Box<dyn Patchable>>;
 }
+impl_downcast!(Patchable);
 
 pub trait Document: Patchable {
 	fn get_bounds(&self) -> Rect;
@@ -26,6 +31,17 @@ pub struct Group {
 	pub name: Rc<String>,
 	pub children: Rc<Vec<Rc<Box<dyn Patchable>>>>,
 	pub position: Rc<Vec2>,
+}
+
+impl Group {
+	fn new(id: Option<Uuid>, name: &str, position: Vec2, children: Vec<Rc<Box<dyn Patchable>>>) -> Group {
+		Group {
+			id: id.or(Some(Uuid::new_v4())).unwrap(),
+			name: Rc::new(name.to_owned()),
+			position: Rc::new(position),
+			children: Rc::new(children)
+		}
+	}
 }
 
 impl Patchable for Group {
@@ -102,10 +118,16 @@ impl Document for Label {
 
 #[cfg(test)]
 mod tests {
-	// use super::*;
+	use super::*;
+	use uuid::Uuid;
+	use std::any::Any;
 
 	#[test]
 	fn it_adds() {
+		let root = Group::new(None, "Root", Vec2::new(0., 0.), vec![] );
+		let fork = root.patch(&Patch { target: root.id, payload: PatchPayload::Rename("Ruut".to_owned()) }).unwrap();
+		let blp = fork.downcast_ref::<Group>().unwrap();
+		assert_eq!(root.name, blp.name);
 		// assert_eq!(Vector2::new(1.0, 1.0) + Vector2::new(1.0, 1.0), Vector2::new(2.0, 2.0));
 		// assert_eq!(Vector2::new(0.0, 0.0) + 2.0, Vector2::new(2.0, 2.0));
 		// let mut v1 = Vector2::new(0.0, 0.0);
