@@ -1,40 +1,35 @@
-#[macro_use]
-extern crate downcast_rs;
-
 use std::rc::Rc;
 use uuid::Uuid;
-// use im::Vector as List;
 use math::{Rect, Vec2};
-use downcast_rs::Downcast;
 
-pub struct Patch {
+pub struct Patch<'a> {
 	target: Uuid,
-	payload: PatchPayload,
+	payload: PatchPayload<'a>,
 }
 
-pub enum PatchPayload {
-	Rename(String),
+pub enum PatchPayload<'a> {
+	Rename(&'a str),
 	Resize(u32, u32),
 }
 
-pub trait Patchable: Downcast {
-	fn patch(&self, patch: &Patch) -> Option<Box<dyn Patchable>>;
+pub enum Document {
+	Group(Group),
+	Label(Label)
 }
-impl_downcast!(Patchable);
 
-pub trait Document: Patchable {
-	fn get_bounds(&self) -> Rect;
+pub trait Patchable {
+	fn patch(&self, patch: &Patch) -> Option<Document>;
 }
 
 pub struct Group {
 	pub id: Uuid,
 	pub name: Rc<String>,
-	pub children: Rc<Vec<Rc<Box<dyn Patchable>>>>,
+	pub children: Rc<Vec<Rc<Document>>>,
 	pub position: Rc<Vec2>,
 }
 
 impl Group {
-	fn new(id: Option<Uuid>, name: &str, position: Vec2, children: Vec<Rc<Box<dyn Patchable>>>) -> Group {
+	fn new(id: Option<Uuid>, name: &str, position: Vec2, children: Vec<Rc<Document>>) -> Group {
 		Group {
 			id: id.or(Some(Uuid::new_v4())).unwrap(),
 			name: Rc::new(name.to_owned()),
@@ -45,12 +40,12 @@ impl Group {
 }
 
 impl Patchable for Group {
-	fn patch(&self, patch: &Patch) -> Option<Box<dyn Patchable>> {
+	fn patch(&self, patch: &Patch) -> Option<Document> {
 		if patch.target == self.id {
 			match &patch.payload {
-				PatchPayload::Rename(new_name) => Some(Box::new(Group {
+				PatchPayload::Rename(new_name) => Some(Document::Group(Group {
 					id: self.id,
-					name: Rc::new(new_name.clone()),
+					name: Rc::new(new_name.to_string()),
 					children: Rc::clone(&self.children),
 					position: Rc::clone(&self.position),
 				})),
@@ -59,16 +54,29 @@ impl Patchable for Group {
 		} else {
 			let mut mutated = false;
 			let children = self.children.iter().map(|child| {
-				if let Some(new_child) = child.patch(patch) {
-					mutated = true;
-					Rc::new(new_child)
-				} else {
-					Rc::clone(child)
+				match &**child {
+					Document::Group(group) => {
+						if let Some(doc) = group.patch(patch) {
+							mutated = true;
+							Rc::new(doc)
+						} else {
+							child.clone()
+						}
+					},
+					Document::Label(label) => {
+						if let Some(doc) = label.patch(patch) {
+							mutated = true;
+							Rc::new(doc)
+						} else {
+							child.clone()
+						}
+					}
+					_ => child.clone()
 				}
 			}).collect::<Vec<_>>();
 			
 			if mutated {
-				Some(Box::new(Group {
+				Some(Document::Group(Group {
 					id: self.id,
 					name: Rc::clone(&self.name),
 					children: Rc::new(children),
@@ -81,25 +89,29 @@ impl Patchable for Group {
 	}
 }
 
-impl Document for Group {
-	fn get_bounds(&self) -> Rect {
-		Rect::new(*self.position, *self.position)
-	}
-}
-
 pub struct Label {
 	pub id: Uuid,
 	pub name: Rc<String>,
 	pub position: Rc<Vec2>,
 }
 
+impl Label {
+	fn new(id: Option<Uuid>, name: &str, position: Vec2) -> Label {
+		Label {
+			id: id.or(Some(Uuid::new_v4())).unwrap(),
+			name: Rc::new(name.to_owned()),
+			position: Rc::new(position),
+		}
+	}
+}
+
 impl Patchable for Label {
-	fn patch(&self, patch: &Patch) -> Option<Box<dyn Patchable>> {
+	fn patch(&self, patch: &Patch) -> Option<Document> {
 		if patch.target == self.id {
 			match &patch.payload {
-				PatchPayload::Rename(new_name) => Some(Box::new(Label {
+				PatchPayload::Rename(new_name) => Some(Document::Label(Label {
 					id: self.id,
-					name: Rc::new(new_name.clone()),
+					name: Rc::new(new_name.to_string()),
 					position: Rc::clone(&self.position),
 				})),
 				_ => None,
@@ -110,28 +122,43 @@ impl Patchable for Label {
 	}
 }
 
-impl Document for Label {
-	fn get_bounds(&self) -> Rect {
-		Rect::new(*self.position, *self.position)
-	}
-}
-
 #[cfg(test)]
 mod tests {
 	use super::*;
 	use uuid::Uuid;
-	use std::any::Any;
 
 	#[test]
-	fn it_adds() {
+	fn it_rename() {
 		let root = Group::new(None, "Root", Vec2::new(0., 0.), vec![] );
-		let fork = root.patch(&Patch { target: root.id, payload: PatchPayload::Rename("Ruut".to_owned()) }).unwrap();
-		let blp = fork.downcast_ref::<Group>().unwrap();
-		assert_eq!(root.name, blp.name);
-		// assert_eq!(Vector2::new(1.0, 1.0) + Vector2::new(1.0, 1.0), Vector2::new(2.0, 2.0));
-		// assert_eq!(Vector2::new(0.0, 0.0) + 2.0, Vector2::new(2.0, 2.0));
-		// let mut v1 = Vector2::new(0.0, 0.0);
-		// v1 += 2.0;
-		// assert_eq!(v1, Vector2::new(2.0, 2.0));
+		let new_root = root.patch(&Patch { target: root.id, payload: PatchPayload::Rename("Ruut") });
+		assert_eq!(new_root.is_some(), true);
+		if let Some(Document::Group(new_root)) = new_root {
+			assert_eq!(root.id, new_root.id);
+			assert_eq!(*root.name, "Root");
+			assert_eq!(*new_root.name, "Ruut");
+			assert_eq!(Rc::strong_count(&root.name), 1);
+			assert_eq!(Rc::strong_count(&new_root.name), 1);
+		}
+
+		let root = Group::new(None, "Root", Vec2::new(0., 0.), vec![] );
+		let new_root = root.patch(&Patch { target: Uuid::new_v4(), payload: PatchPayload::Rename("Ruut") });
+		assert_eq!(new_root.is_some(), false);
+
+		let label_id = Uuid::new_v4();
+		let root = Group::new(None, "Root", Vec2::new(0., 0.), vec![Rc::new(Document::Label(Label::new(Some(label_id), "Label", Vec2::new(0., 0.))))] );
+		if let Document::Label(label) = &**root.children.get(0).unwrap() {
+			let new_root = root.patch(&Patch { target: label_id, payload: PatchPayload::Rename("Labell") });
+			assert_eq!(new_root.is_some(), true);
+			if let Some(Document::Group(new_root)) = new_root {
+				if let Document::Label(new_label) = &**new_root.children.get(0).unwrap() {
+					assert_eq!(*label.name, "Label");
+					assert_eq!(*new_label.name, "Labell");
+					assert_eq!(Rc::strong_count(&label.name), 1);
+					assert_eq!(Rc::strong_count(&new_label.name), 1);
+					assert_eq!(Rc::strong_count(&root.name), 2);
+					assert_eq!(Rc::strong_count(&new_root.name), 2);
+				}
+			}
+		}
 	}
 }
