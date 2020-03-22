@@ -1,3 +1,3 @@
 fn main() {
-	println!("Hello World!");
+	println!("image-rs : https://github.com/image-rs/image#61-opening-and-saving-images");
 }
