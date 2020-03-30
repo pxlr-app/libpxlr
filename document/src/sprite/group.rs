@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use uuid::Uuid;
-use math::{Vec2};
+use math::{Vec2, Extent2};
 
 use crate::document::*;
 use crate::node::*;
@@ -11,16 +11,18 @@ pub struct Group {
 	pub id: Uuid,
 	pub name: Rc<String>,
 	pub children: Rc<Vec<Rc<Layer>>>,
-	pub position: Rc<Vec2>,
+	pub position: Rc<Vec2<f32>>,
+	pub size: Rc<Extent2<u16>>,
 }
 
 impl Group {
-	pub fn new(id: Option<Uuid>, name: &str, position: Vec2, children: Vec<Rc<Layer>>) -> Group {
+	pub fn new(id: Option<Uuid>, name: &str, children: Vec<Rc<Layer>>, position: Vec2<f32>, size: Extent2<u16>) -> Group {
 		Group {
 			id: id.or(Some(Uuid::new_v4())).unwrap(),
 			name: Rc::new(name.to_owned()),
+			children: Rc::new(children),
 			position: Rc::new(position),
-			children: Rc::new(children)
+			size: Rc::new(size),
 		}
 	}
 }
@@ -34,93 +36,70 @@ impl INode for Group {
 	}
 }
 
-impl ILayer for Group {
-	fn patch(&self, patch: &Patch) -> Option<Layer> {
-		if patch.target == self.id {
-			match &patch.payload {
-				PatchAction::Rename(new_name) => Some(Layer::Group(Group {
-					id: self.id,
+macro_rules! patch_children {
+	($children:expr, $mutated:expr, $patch:expr) => {{
+		$children.iter().map(|child| {
+			macro_rules! patch_layer {
+				($x:expr) => {{
+					if let Some(doc) = ILayer::patch($x, $patch) {
+						$mutated = true;
+						Rc::new(doc)
+					} else {
+						child.clone()
+					}
+				}};
+			}
+			match &**child {
+				Layer::Group(group) => patch_layer!(group),
+				_ => child.clone()
+			}
+		}).collect::<Vec<_>>()
+	}}
+}
+
+macro_rules! patch_group {
+	($group:expr, $enum:expr, $patch:expr) => {{
+		if $patch.target == $group.id {
+			match &$patch.payload {
+				PatchAction::Rename(new_name) => Some($enum(Group {
+					id: $group.id,
 					name: Rc::new(new_name.to_string()),
-					children: Rc::clone(&self.children),
-					position: Rc::clone(&self.position),
+					children: Rc::clone(&$group.children),
+					position: Rc::clone(&$group.position),
+					size: Rc::clone(&$group.size),
 				})),
 				_ => None,
 			}
 		} else {
 			let mut mutated = false;
-			let children = self.children.iter().map(|child| {
-				macro_rules! patch_layer {
-					($x:expr) => {{
-						if let Some(doc) = ILayer::patch($x, patch) {
-							mutated = true;
-							Rc::new(doc)
-						} else {
-							child.clone()
-						}
-					}};
-				}
-				match &**child {
-					Layer::Group(group) => patch_layer!(group),
-				}
-			}).collect::<Vec<_>>();
+			let children = patch_children!($group.children, mutated, $patch);
 			
 			if mutated {
-				Some(Layer::Group(Group {
-					id: self.id,
-					name: Rc::clone(&self.name),
+				Some($enum(Group {
+					id: $group.id,
+					name: Rc::clone(&$group.name),
 					children: Rc::new(children),
-					position: Rc::clone(&self.position),
+					position: Rc::clone(&$group.position),
+					size: Rc::clone(&$group.size),
 				}))
 			} else {
 				None
 			}
 		}
+	}}
+}
+
+impl ILayer for Group {
+	fn patch(&self, patch: &Patch) -> Option<Layer> {
+		patch_group!(self, Layer::Group, patch)
 	}
 }
 
 impl IDocument for Group {
-	fn position(&self) -> Vec2 {
+	fn position(&self) -> Vec2<f32> {
 		*(self.position).clone()
 	}
 	fn patch(&self, patch: &Patch) -> Option<Document> {
-		if patch.target == self.id {
-			match &patch.payload {
-				PatchAction::Rename(new_name) => Some(Document::Sprite(Group {
-					id: self.id,
-					name: Rc::new(new_name.to_string()),
-					children: Rc::clone(&self.children),
-					position: Rc::clone(&self.position),
-				})),
-				_ => None,
-			}
-		} else {
-			let mut mutated = false;
-			let children = self.children.iter().map(|child| {
-				macro_rules! patch_doc {
-					($x:expr) => {{
-						if let Some(doc) = ILayer::patch($x, patch) {
-							mutated = true;
-							Rc::new(doc)
-						} else {
-							child.clone()
-						}
-					}};
-				}
-				match &**child {
-					Layer::Group(group) => patch_doc!(group),
-				}
-			}).collect::<Vec<_>>();
-			
-			if mutated {
-				Some(Document::Sprite(Group {
-					id: self.id,
-					name: Rc::clone(&self.name),
-					children: Rc::new(children),
-					position: Rc::clone(&self.position),
-				}))
-			} else {
-				None
-			}
-		}
+		patch_group!(self, Document::Sprite, patch)
 	}
 }

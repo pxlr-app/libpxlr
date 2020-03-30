@@ -9,11 +9,11 @@ use crate::patch::*;
 pub struct Label {
 	pub id: Uuid,
 	pub name: Rc<String>,
-	pub position: Rc<Vec2>,
+	pub position: Rc<Vec2<f32>>,
 }
 
 impl Label {
-	pub fn new(id: Option<Uuid>, name: &str, position: Vec2) -> Label {
+	pub fn new(id: Option<Uuid>, name: &str, position: Vec2<f32>) -> Label {
 		Label {
 			id: id.or(Some(Uuid::new_v4())).unwrap(),
 			name: Rc::new(name.to_owned()),
@@ -32,7 +32,7 @@ impl INode for Label {
 }
 
 impl IDocument for Label {
-	fn position(&self) -> Vec2 {
+	fn position(&self) -> Vec2<f32> {
 		*(self.position).clone()
 	}
 	fn patch(&self, patch: &Patch) -> Option<Document> {

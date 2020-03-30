@@ -13,7 +13,7 @@ pub enum Document {
 }
 
 pub trait IDocument: INode {
-	fn position(&self) -> Vec2;
+	fn position(&self) -> Vec2<f32>;
 	fn patch(&self, patch: &Patch) -> Option<Document>;
 }
 

@@ -10,11 +10,11 @@ pub struct Group {
 	pub id: Uuid,
 	pub name: Rc<String>,
 	pub children: Rc<Vec<Rc<Document>>>,
-	pub position: Rc<Vec2>,
+	pub position: Rc<Vec2<f32>>,
 }
 
 impl Group {
-	pub fn new(id: Option<Uuid>, name: &str, position: Vec2, children: Vec<Rc<Document>>) -> Group {
+	pub fn new(id: Option<Uuid>, name: &str, position: Vec2<f32>, children: Vec<Rc<Document>>) -> Group {
 		Group {
 			id: id.or(Some(Uuid::new_v4())).unwrap(),
 			name: Rc::new(name.to_owned()),
@@ -34,7 +34,7 @@ impl INode for Group {
 }
 
 impl IDocument for Group {
-	fn position(&self) -> Vec2 {
+	fn position(&self) -> Vec2<f32> {
 		*(self.position).clone()
 	}
 	fn patch(&self, patch: &Patch) -> Option<Document> {
