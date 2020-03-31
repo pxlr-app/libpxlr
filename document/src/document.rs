@@ -20,7 +20,7 @@ pub trait IDocument: INode {
 #[cfg(test)]
 mod tests {
 	use crate::document::*;
-	use crate::patch::*;
+	// use crate::patch::*;
 	use math::{Vec2};
 	use std::rc::Rc;
 	use uuid::Uuid;

@@ -51,7 +51,6 @@ macro_rules! patch_children {
 			}
 			match &**child {
 				Layer::Group(group) => patch_layer!(group),
-				_ => child.clone()
 			}
 		}).collect::<Vec<_>>()
 	}}

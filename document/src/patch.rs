@@ -1,5 +1,4 @@
 use uuid::Uuid;
-use crate::document::*;
 
 pub struct Patch<'a> {
 	pub target: Uuid,

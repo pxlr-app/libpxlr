@@ -10,3 +10,15 @@ pub struct ImageI {
 	// GL.R8
 	pub data: Rc<[u8]>,
 }
+
+impl ImageI {
+	pub fn new(id: Option<Uuid>, name: &str, position: Vec2<f32>, size: Extent2<u16>, data: Rc<[u8]>) -> ImageI {
+		ImageI {
+			id: id.or(Some(Uuid::new_v4())).unwrap(),
+			name: Rc::new(name.to_owned()),
+			position: Rc::new(position),
+			size: Rc::new(size),
+			data: Rc::clone(&data),
+		}
+	}
+}
