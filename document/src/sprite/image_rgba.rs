@@ -13,17 +13,17 @@ pub struct ImageRGBA {
 	pub position: Rc<Vec2<f32>>,
 	pub size: Rc<Extent2<u16>>,
 	// GL.RGBA
-	pub data: Rc<[(u8, u8, u8, u8)]>,
+	pub data: Rc<Vec<(u8, u8, u8, u8)>>,
 }
 
 impl ImageRGBA {
-	pub fn new(id: Option<Uuid>, name: &str, position: Vec2<f32>, size: Extent2<u16>, data: Rc<[(u8, u8, u8, u8)]>) -> ImageRGBA {
+	pub fn new(id: Option<Uuid>, name: &str, position: Vec2<f32>, size: Extent2<u16>, data: Vec<(u8, u8, u8, u8)>) -> ImageRGBA {
 		ImageRGBA {
 			id: id.or(Some(Uuid::new_v4())).unwrap(),
 			name: Rc::new(name.to_owned()),
 			position: Rc::new(position),
 			size: Rc::new(size),
-			data: Rc::clone(&data),
+			data: Rc::new(data),
 		}
 	}
 }
@@ -43,7 +43,7 @@ impl IDocument for ImageRGBA {
 	}
 }
 
-impl ILayer for ImageRGBA {
+impl Patchable<Layer> for ImageRGBA {
 	fn patch(&self, patch: &Patch) -> Option<Layer> {
 		if patch.target == self.id {
 			match &patch.payload {

@@ -3,7 +3,6 @@ use math::{Vec2};
 use crate::group::Group;
 use crate::label::Label;
 use crate::node::INode;
-use crate::patch::*;
 use crate::sprite::Sprite;
 
 pub enum Document {
@@ -14,13 +13,12 @@ pub enum Document {
 
 pub trait IDocument: INode {
 	fn position(&self) -> Vec2<f32>;
-	fn patch(&self, patch: &Patch) -> Option<Document>;
 }
 
 #[cfg(test)]
 mod tests {
 	use crate::document::*;
-	// use crate::patch::*;
+	use crate::patch::*;
 	use math::{Vec2};
 	use std::rc::Rc;
 	use uuid::Uuid;

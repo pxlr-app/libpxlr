@@ -41,7 +41,7 @@ macro_rules! patch_children {
 		$children.iter().map(|child| {
 			macro_rules! patch_layer {
 				($x:expr) => {{
-					if let Some(doc) = ILayer::patch($x, $patch) {
+					if let Some(doc) = Patchable::<Layer>::patch($x, $patch) {
 						$mutated = true;
 						Rc::new(doc)
 					} else {
@@ -51,6 +51,7 @@ macro_rules! patch_children {
 			}
 			match &**child {
 				Layer::Group(group) => patch_layer!(group),
+				Layer::ImageRGBA(image) => patch_layer!(image),
 			}
 		}).collect::<Vec<_>>()
 	}}
@@ -88,7 +89,9 @@ macro_rules! patch_group {
 	}}
 }
 
-impl ILayer for Group {
+impl ILayer for Group {}
+
+impl Patchable<Layer> for Group {
 	fn patch(&self, patch: &Patch) -> Option<Layer> {
 		patch_group!(self, Layer::Group, patch)
 	}
@@ -98,6 +101,9 @@ impl IDocument for Group {
 	fn position(&self) -> Vec2<f32> {
 		*(self.position).clone()
 	}
+}
+
+impl Patchable<Document> for Group {
 	fn patch(&self, patch: &Patch) -> Option<Document> {
 		patch_group!(self, Document::Sprite, patch)
 	}

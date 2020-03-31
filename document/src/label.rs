@@ -35,6 +35,9 @@ impl IDocument for Label {
 	fn position(&self) -> Vec2<f32> {
 		*(self.position).clone()
 	}
+}
+
+impl Patchable<Document> for Label {
 	fn patch(&self, patch: &Patch) -> Option<Document> {
 		if patch.target == self.id {
 			match &patch.payload {

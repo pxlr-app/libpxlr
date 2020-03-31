@@ -9,3 +9,7 @@ pub enum PatchAction<'a> {
 	Rename(&'a str),
 	Resize(u32, u32),
 }
+
+pub trait Patchable<T> {
+	fn patch(&self, patch: &Patch) -> Option<T>;
+}

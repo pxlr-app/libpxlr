@@ -37,6 +37,9 @@ impl IDocument for Group {
 	fn position(&self) -> Vec2<f32> {
 		*(self.position).clone()
 	}
+}
+
+impl Patchable<Document> for Group {
 	fn patch(&self, patch: &Patch) -> Option<Document> {
 		if patch.target == self.id {
 			match &patch.payload {
