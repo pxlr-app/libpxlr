@@ -2,8 +2,8 @@ use std::rc::Rc;
 use uuid::Uuid;
 use math::{Vec2};
 
-use crate::document::*;
-use crate::node::*;
+use crate::node::Node;
+use crate::document::Document;
 use crate::patch::*;
 
 pub struct Label {
@@ -22,31 +22,29 @@ impl Label {
 	}
 }
 
-impl INode for Label {
+impl Node for Label {
 	fn id(&self) -> Uuid {
 		self.id
 	}
-	fn display(&self) -> String {
-		self.name.to_string()
-	}
 }
 
-impl IDocument for Label {
+impl Document for Label {
 	fn position(&self) -> Vec2<f32> {
 		*(self.position).clone()
 	}
 }
 
-impl Patchable<Document> for Label {
-	fn patch(&self, patch: &Patch) -> Option<Document> {
-		if patch.target == self.id {
-			match &patch.payload {
-				PatchAction::Rename(new_name) => Some(Document::Label(Label {
+impl Patchable for Label {
+	fn patch(&self, patch: &dyn PatchImpl) -> Option<Box<Self>> {
+		if patch.target() == self.id {
+			if let Some(rename) = patch.as_any().downcast_ref::<RenamePatch>() {
+				Some(Box::new(Label {
 					id: self.id,
-					name: Rc::new(new_name.to_string()),
-					position: Rc::clone(&self.position),
-				})),
-				_ => None,
+					name: Rc::new(rename.new_name.clone()),
+					position: self.position.clone()
+				}))
+			} else {
+				None
 			}
 		} else {
 			None

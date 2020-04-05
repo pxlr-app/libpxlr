@@ -1,14 +1,18 @@
-use crate::node::INode;
-use crate::sprite::Group;
-use crate::sprite::ImageRGBA;
-// use crate::sprite::ImageI;
-// use crate::sprite::ImageUV;
+use std::any::Any;
 
-pub enum Layer {
-	Group(Group),
-	ImageRGBA(ImageRGBA),
-	// ImageI(ImageI),
-	// ImageUV(ImageUV),
+use crate::node::Node;
+
+pub trait Layer: Node {}
+
+pub trait LayerImpl: Layer {
+	fn as_any(&self) -> &dyn Any;
 }
 
-pub trait ILayer: INode {}
+impl<T> LayerImpl for T
+where
+	T: Layer + Any,
+{
+	fn as_any(&self) -> &dyn Any {
+		self
+	}
+}

@@ -1,4 +1,6 @@
+use std::any::Any;
 use std::rc::Rc;
+
 use uuid::Uuid;
 use math::{Vec2};
 
@@ -6,15 +8,34 @@ use crate::document::*;
 use crate::node::*;
 use crate::patch::*;
 
+pub trait GroupChild: Node {
+	fn patch_rc(&self, patch: &dyn PatchImpl) -> Option<Rc<dyn GroupChild + 'static>>;
+	fn as_any(&self) -> &dyn Any;
+}
+impl<T> GroupChild for T
+where
+	T: Patchable + Document + Any,
+{
+	fn patch_rc(&self, patch: &dyn PatchImpl) -> Option<Rc<dyn GroupChild + 'static>> {
+		match self.patch(patch) {
+			Some(new_self) => Some(Rc::new(*new_self)),
+			None => None
+		}
+	}
+	fn as_any(&self) -> &dyn Any {
+		self
+	}
+}
+
 pub struct Group {
 	pub id: Uuid,
 	pub name: Rc<String>,
-	pub children: Rc<Vec<Rc<Document>>>,
+	pub children: Rc<Vec<Rc<dyn GroupChild>>>,
 	pub position: Rc<Vec2<f32>>,
 }
 
 impl Group {
-	pub fn new(id: Option<Uuid>, name: &str, position: Vec2<f32>, children: Vec<Rc<Document>>) -> Group {
+	pub fn new(id: Option<Uuid>, name: &str, position: Vec2<f32>, children: Vec<Rc<dyn GroupChild>>) -> Group {
 		Group {
 			id: id.or(Some(Uuid::new_v4())).unwrap(),
 			name: Rc::new(name.to_owned()),
@@ -24,55 +45,45 @@ impl Group {
 	}
 }
 
-impl INode for Group {
+impl Node for Group {
 	fn id(&self) -> Uuid {
 		self.id
 	}
-	fn display(&self) -> String {
-		self.name.to_string()
-	}
 }
 
-impl IDocument for Group {
+impl Document for Group {
 	fn position(&self) -> Vec2<f32> {
 		*(self.position).clone()
 	}
 }
 
-impl Patchable<Document> for Group {
-	fn patch(&self, patch: &Patch) -> Option<Document> {
-		if patch.target == self.id {
-			match &patch.payload {
-				PatchAction::Rename(new_name) => Some(Document::Group(Group {
+impl Patchable for Group {
+	fn patch(&self, patch: &dyn PatchImpl) -> Option<Box<Self>> {
+		if patch.target() == self.id {
+			if let Some(rename) = patch.as_any().downcast_ref::<RenamePatch>() {
+				Some(Box::new(Group {
 					id: self.id,
-					name: Rc::new(new_name.to_string()),
-					children: Rc::clone(&self.children),
-					position: Rc::clone(&self.position),
-				})),
-				_ => None,
+					name: Rc::new(rename.new_name.clone()),
+					position: self.position.clone(),
+					children: self.children.clone()
+				}))
+			} else {
+				None
 			}
 		} else {
 			let mut mutated = false;
 			let children = self.children.iter().map(|child| {
-				macro_rules! patch_doc {
-					($x:expr) => {{
-						if let Some(doc) = $x.patch(patch) {
-							mutated = true;
-							Rc::new(doc)
-						} else {
-							child.clone()
-						}
-					}};
-				}
-				match &**child {
-					Document::Group(group) => patch_doc!(group),
-					Document::Label(label) => patch_doc!(label),
-					Document::Sprite(sprite) => patch_doc!(sprite),
+				match child.patch_rc(patch) {
+					Some(new_child) => {
+						mutated = true;
+						new_child
+					},
+					None => child.clone()
 				}
 			}).collect::<Vec<_>>();
 			
 			if mutated {
-				Some(Document::Group(Group {
+				Some(Box::new(Group {
 					id: self.id,
 					name: Rc::clone(&self.name),
 					children: Rc::new(children),

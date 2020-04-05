@@ -1,13 +1,9 @@
-mod layer;
 mod group;
-mod image_rgba;
-mod image_i;
-mod image_uv;
+mod image;
+mod layer;
 
-pub use layer::*;
-pub use group::*;
-pub use image_rgba::*;
-pub use image_i::*;
-pub use image_uv::*;
+pub use self::group::*;
+pub use self::image::*;
+pub use self::layer::*;
 
 pub type Sprite = Group;
