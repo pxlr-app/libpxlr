@@ -64,7 +64,7 @@ impl Document for Group {
 
 impl<'a> Renamable<'a> for Group {
 	fn rename(&self, new_name: &'a str) -> RenamePatch {
-		RenamePatch { target: self.id, new_name: new_name.to_owned() }
+		RenamePatch { target: self.id, name: new_name.to_owned() }
 	}
 }
 
@@ -74,7 +74,7 @@ impl Patchable for Group {
 			if let Some(rename) = patch.as_any().downcast_ref::<RenamePatch>() {
 				Some(Box::new(Group {
 					id: self.id,
-					name: Rc::new(rename.new_name.clone()),
+					name: Rc::new(rename.name.clone()),
 					position: self.position.clone(),
 					size: self.size.clone(),
 					children: self.children.clone()

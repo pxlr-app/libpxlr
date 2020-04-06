@@ -38,7 +38,7 @@ mod tests {
 		}
 		{
 			let group = Group::new(None, "Root", Vec2::new(0., 0.), vec![]);
-			let rename = RenamePatch { target: Uuid::new_v4(), new_name: "Boot".to_owned() };
+			let rename = RenamePatch { target: Uuid::new_v4(), name: "Boot".to_owned() };
 			let new_group = group.patch(&rename);
 			assert_eq!(new_group.is_none(), true);
 			assert_eq!(Rc::strong_count(&group.name), 1);
@@ -67,7 +67,7 @@ mod tests {
 		{
 			let label = Rc::new(Label::new(None, "Foo", Vec2::new(0., 0.)));
 			let group = Group::new(None, "Root", Vec2::new(0., 0.), vec![label.clone()]);
-			let rename = RenamePatch { target: Uuid::new_v4(), new_name: "Bar".to_owned() };
+			let rename = RenamePatch { target: Uuid::new_v4(), name: "Bar".to_owned() };
 			let new_group = group.patch(&rename);
 			assert_eq!(new_group.is_none(), true);
 			assert_eq!(Rc::strong_count(&group.name), 1);

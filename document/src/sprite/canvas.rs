@@ -34,7 +34,7 @@ impl<T> Layer for Canvas<T> {}
 
 impl<'a, T> Renamable<'a> for Canvas<T> {
 	fn rename(&self, new_name: &'a str) -> RenamePatch {
-		RenamePatch { target: self.id, new_name: new_name.to_owned() }
+		RenamePatch { target: self.id, name: new_name.to_owned() }
 	}
 }
 
@@ -44,7 +44,7 @@ impl<T> Patchable for Canvas<T> {
 			if let Some(rename) = patch.as_any().downcast_ref::<RenamePatch>() {
 				Some(Box::new(Canvas::<T> {
 					id: self.id,
-					name: Rc::new(rename.new_name.clone()),
+					name: Rc::new(rename.name.clone()),
 					size: self.size.clone(),
 					data: self.data.clone(),
 				}))
