@@ -18,8 +18,7 @@ pub use self::sprite::*;
 mod tests {
 	use super::group::Group;
 	use super::label::Label;
-	use super::patch::RenamePatch;
-	use crate::patch::Patchable;
+	use super::patch::*;
 	use math::Vec2;
 
 	use uuid::Uuid;
@@ -29,7 +28,7 @@ mod tests {
 	fn it_patches() {
 		{
 			let group = Group::new(None, "Root", Vec2::new(0., 0.), vec![]);
-			let rename = RenamePatch { target: group.id, new_name: "Boot".to_owned() };
+			let rename = group.rename("Boot");
 			let new_group = group.patch(&rename).unwrap();
 			assert_eq!(*new_group.name, "Boot");
 			assert_eq!(Rc::strong_count(&group.name), 1);
@@ -53,7 +52,7 @@ mod tests {
 		{
 			let label = Rc::new(Label::new(None, "Foo", Vec2::new(0., 0.)));
 			let group = Group::new(None, "Root", Vec2::new(0., 0.), vec![label.clone()]);
-			let rename = RenamePatch { target: label.id, new_name: "Bar".to_owned() };
+			let rename = label.rename("Bar");
 			let new_group = group.patch(&rename).unwrap();
 			let new_label = new_group.children.get(0).unwrap().as_any().downcast_ref::<Label>().unwrap();
 			assert_eq!(*new_group.name, "Root");

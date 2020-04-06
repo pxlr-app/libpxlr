@@ -10,3 +10,7 @@ pub struct RenamePatch {
 impl Patch for RenamePatch {
 	fn target(&self) -> Uuid { self.target }
 }
+
+pub trait Renamable<'a> {
+	fn rename(&self, new_name: &'a str) -> RenamePatch;
+}

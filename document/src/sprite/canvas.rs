@@ -32,6 +32,12 @@ impl<T> Node for Canvas<T> {
 
 impl<T> Layer for Canvas<T> {}
 
+impl<'a, T> Renamable<'a> for Canvas<T> {
+	fn rename(&self, new_name: &'a str) -> RenamePatch {
+		RenamePatch { target: self.id, new_name: new_name.to_owned() }
+	}
+}
+
 impl<T> Patchable for Canvas<T> {
 	fn patch(&self, patch: &dyn PatchImpl) -> Option<Box<Self>> {
 		if patch.target() == self.id {

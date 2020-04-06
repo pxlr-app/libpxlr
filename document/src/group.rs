@@ -57,6 +57,12 @@ impl Document for Group {
 	}
 }
 
+impl<'a> Renamable<'a> for Group {
+	fn rename(&self, new_name: &'a str) -> RenamePatch {
+		RenamePatch { target: self.id, new_name: new_name.to_owned() }
+	}
+}
+
 impl Patchable for Group {
 	fn patch(&self, patch: &dyn PatchImpl) -> Option<Box<Self>> {
 		if patch.target() == self.id {
