@@ -161,11 +161,17 @@ impl Document for Group {
 }
 
 impl<'a> Renamable<'a> for Group {
-	fn rename(&self, new_name: &'a str) -> RenamePatch {
-		RenamePatch {
-			target: self.id,
-			name: new_name.to_owned(),
-		}
+	fn rename(&self, new_name: &'a str) -> (RenamePatch, RenamePatch) {
+		(
+			RenamePatch {
+				target: self.id,
+				name: new_name.to_owned(),
+			},
+			RenamePatch {
+				target: self.id,
+				name: (*self.name).to_owned(),
+			},
+		)
 	}
 }
 
@@ -208,12 +214,12 @@ impl Patchable for Group {
 	fn patch(&self, patch: &dyn PatchImpl) -> Option<Box<Self>> {
 		if patch.target() == self.id {
 			if let Some(patch) = patch.as_any().downcast_ref::<RenamePatch>() {
-				Some(Box::new(Group {
+				return Some(Box::new(Group {
 					id: self.id,
 					name: Rc::new(patch.name.clone()),
 					position: self.position.clone(),
 					children: self.children.clone(),
-				}))
+				}));
 			} else if let Some(patch) = patch.as_any().downcast_ref::<AddChildPatch>() {
 				let mut children = self
 					.children
@@ -225,12 +231,12 @@ impl Patchable for Group {
 				} else {
 					children.insert(patch.position, patch.child.clone());
 				}
-				Some(Box::new(Group {
+				return Some(Box::new(Group {
 					id: self.id,
 					name: self.name.clone(),
 					position: self.position.clone(),
 					children: Rc::new(children),
-				}))
+				}));
 			} else if let Some(patch) = patch.as_any().downcast_ref::<RemoveChildPatch>() {
 				let children = self
 					.children
@@ -243,12 +249,12 @@ impl Patchable for Group {
 						}
 					})
 					.collect::<Vec<_>>();
-				Some(Box::new(Group {
+				return Some(Box::new(Group {
 					id: self.id,
 					name: self.name.clone(),
 					position: self.position.clone(),
 					children: Rc::new(children),
-				}))
+				}));
 			} else if let Some(patch) = patch.as_any().downcast_ref::<MoveChildPatch>() {
 				let mut children = self
 					.children
@@ -265,14 +271,12 @@ impl Patchable for Group {
 				} else {
 					children.insert(patch.position, child);
 				}
-				Some(Box::new(Group {
+				return Some(Box::new(Group {
 					id: self.id,
 					name: self.name.clone(),
 					position: self.position.clone(),
 					children: Rc::new(children),
-				}))
-			} else {
-				None
+				}));
 			}
 		} else {
 			let mut mutated = false;
@@ -288,15 +292,14 @@ impl Patchable for Group {
 				})
 				.collect::<Vec<_>>();
 			if mutated {
-				Some(Box::new(Group {
+				return Some(Box::new(Group {
 					id: self.id,
 					name: Rc::clone(&self.name),
 					children: Rc::new(children),
 					position: Rc::clone(&self.position),
 				}))
-			} else {
-				None
 			}
 		}
+		return None;
 	}
 }

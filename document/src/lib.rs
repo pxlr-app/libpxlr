@@ -28,7 +28,7 @@ mod tests {
 	fn it_patches() {
 		{
 			let group = Group::new(None, "Root", Vec2::new(0., 0.), vec![]);
-			let rename = group.rename("Boot");
+			let (rename, _) = group.rename("Boot");
 			let new_group = group.patch(&rename).unwrap();
 			assert_eq!(*new_group.name, "Boot");
 			assert_eq!(Rc::strong_count(&group.name), 1);
@@ -52,7 +52,7 @@ mod tests {
 		{
 			let label = Rc::new(Label::new(None, "Foo", Vec2::new(0., 0.)));
 			let group = Group::new(None, "Root", Vec2::new(0., 0.), vec![label.clone()]);
-			let rename = label.rename("Bar");
+			let (rename, _) = label.rename("Bar");
 			let new_group = group.patch(&rename).unwrap();
 			let new_label = new_group.children.get(0).unwrap().as_any().downcast_ref::<Label>().unwrap();
 			assert_eq!(*new_group.name, "Root");

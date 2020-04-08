@@ -12,5 +12,5 @@ impl Patch for RenamePatch {
 }
 
 pub trait Renamable<'a> {
-	fn rename(&self, new_name: &'a str) -> RenamePatch;
+	fn rename(&self, new_name: &'a str) -> (RenamePatch, RenamePatch);
 }

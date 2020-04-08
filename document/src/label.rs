@@ -1,9 +1,9 @@
+use math::Vec2;
 use std::rc::Rc;
 use uuid::Uuid;
-use math::{Vec2};
 
-use crate::node::Node;
 use crate::document::Document;
+use crate::node::Node;
 use crate::patch::*;
 
 pub struct Label {
@@ -35,8 +35,17 @@ impl Document for Label {
 }
 
 impl<'a> Renamable<'a> for Label {
-	fn rename(&self, new_name: &'a str) -> RenamePatch {
-		RenamePatch { target: self.id, name: new_name.to_owned() }
+	fn rename(&self, new_name: &'a str) -> (RenamePatch, RenamePatch) {
+		(
+			RenamePatch {
+				target: self.id,
+				name: new_name.to_owned(),
+			},
+			RenamePatch {
+				target: self.id,
+				name: (*self.name).to_owned(),
+			},
+		)
 	}
 }
 
@@ -44,16 +53,13 @@ impl Patchable for Label {
 	fn patch(&self, patch: &dyn PatchImpl) -> Option<Box<Self>> {
 		if patch.target() == self.id {
 			if let Some(rename) = patch.as_any().downcast_ref::<RenamePatch>() {
-				Some(Box::new(Label {
+				return Some(Box::new(Label {
 					id: self.id,
 					name: Rc::new(rename.name.clone()),
-					position: self.position.clone()
-				}))
-			} else {
-				None
+					position: self.position.clone(),
+				}));
 			}
-		} else {
-			None
 		}
+		return None;
 	}
 }

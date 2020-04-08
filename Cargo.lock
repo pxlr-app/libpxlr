@@ -111,6 +111,7 @@ dependencies = [
 name = "document"
 version = "0.1.0"
 dependencies = [
+ "image 0.23.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "math 0.1.0",
  "uuid 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

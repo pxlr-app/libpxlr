@@ -1,7 +1,7 @@
 use math::Extent2;
 
 pub struct Stencil<T> {
-	pub size: Extent2<u16>,
+	pub size: Extent2<u32>,
 	pub mask: Vec<u8>,
 	pub data: Vec<T>,
 }
@@ -9,8 +9,8 @@ pub struct Stencil<T> {
 pub struct StencilDataIterator<'a, T> {
 	bit_offset: u32,
 	data_offset: u32,
-	width: u16,
-	height: u16,
+	width: u32,
+	height: u32,
 	mask: &'a [u8],
 	data: &'a [T],
 }
@@ -40,7 +40,7 @@ impl<T> Stencil<T>
 where
 	T: Clone,
 {
-	pub fn from_buffer(size: Extent2<u16>, buffer: &[T]) -> Stencil<T> {
+	pub fn from_buffer(size: Extent2<u32>, buffer: &[T]) -> Stencil<T> {
 		assert_eq!((size.w * size.h) as usize, buffer.len());
 		let closest_bytes = 1 + (((size.w * size.h) - 1) / 8); // ceil
 		let mut mask: Vec<u8> = vec![255u8; closest_bytes as usize];
