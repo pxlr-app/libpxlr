@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::document::Document;
 use crate::node::*;
 use crate::patch::*;
-use crate::sprite::Layer;
+use crate::sprite::*;
 
 pub trait GroupLayer: Layer {
 	fn patch_rc(&self, patch: &dyn PatchImpl) -> Option<Rc<dyn GroupLayer + 'static>>;

@@ -1,6 +1,8 @@
 use std::any::Any;
 use math::{Extent2, Vec2};
 
+use uuid::Uuid;
+
 use crate::patch::*;
 use crate::node::Node;
 
@@ -19,4 +21,14 @@ where
 	fn as_any(&self) -> &dyn Any {
 		self
 	}
+}
+
+pub struct CropPatch {
+	pub target: Uuid,
+	pub offset: Vec2<u32>,
+	pub size: Extent2<u32>,
+}
+
+impl Patch for CropPatch {
+	fn target(&self) -> Uuid { self.target }
 }
