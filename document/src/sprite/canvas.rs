@@ -9,7 +9,7 @@ use crate::sprite::*;
 
 pub struct Canvas<T>
 where
-	T: Default + Copy,
+	T: Default + Copy + Lerp<f32, Output = T>,
 {
 	pub id: Uuid,
 	pub name: Rc<String>,
@@ -93,7 +93,7 @@ where
 
 impl<'a, T> Renamable<'a> for Canvas<T>
 where
-	T: Default + Copy,
+	T: Default + Copy + Lerp<f32, Output = T>,
 {
 	fn rename(&self, new_name: &'a str) -> (RenamePatch, RenamePatch) {
 		(
