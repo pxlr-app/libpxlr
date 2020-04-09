@@ -81,6 +81,27 @@ impl Layer for Group {
 			}),
 		)
 	}
+
+	fn resize(&self, size: Extent2<u32>, interpolation: Interpolation) -> (ResizePatch, Box<dyn PatchImpl>) {
+		(
+			ResizePatch {
+				target: self.id,
+				size: size,
+				interpolation: interpolation,
+			},
+			Box::new(RestoreGroupPatch {
+				target: self.id,
+				name: (*self.name).to_owned(),
+				position: (*self.position).clone(),
+				size: (*self.size).clone(),
+				children: self
+					.children
+					.iter()
+					.map(|child| child.resize(size, interpolation).1)
+					.collect::<Vec<_>>(),
+			}),
+		)
+	}
 }
 
 impl Document for Group {

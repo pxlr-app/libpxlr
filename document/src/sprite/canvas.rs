@@ -1,5 +1,6 @@
 use math::{Extent2, Vec2, Lerp};
 use std::rc::Rc;
+
 use uuid::Uuid;
 
 use crate::node::*;
@@ -8,7 +9,7 @@ use crate::sprite::*;
 
 pub struct Canvas<T>
 where
-	T: Default + Copy + Lerp<f32>,
+	T: Default + Copy,
 {
 	pub id: Uuid,
 	pub name: Rc<String>,
@@ -18,7 +19,7 @@ where
 
 impl<T> Canvas<T>
 where
-	T: Default + Copy + Lerp<f32>,
+	T: Default + Copy + Lerp<f32, Output = T>,
 {
 	pub fn new(id: Option<Uuid>, name: &str, size: Extent2<u32>, data: Vec<T>) -> Canvas<T> {
 		Canvas::<T> {
@@ -32,7 +33,7 @@ where
 
 impl<T> std::ops::Index<(u32, u32)> for Canvas<T>
 where
-	T: Default + Copy + Lerp<f32>,
+	T: Default + Copy + Lerp<f32, Output = T>,
 {
 	type Output = T;
 
@@ -44,7 +45,7 @@ where
 
 impl<T> Node for Canvas<T>
 where
-	T: Default + Copy + Lerp<f32>,
+	T: Default + Copy + Lerp<f32, Output = T>,
 {
 	fn id(&self) -> Uuid {
 		self.id
@@ -53,7 +54,7 @@ where
 
 impl<T> Layer for Canvas<T>
 where
-	T: Default + Copy + Lerp<f32> + 'static,
+	T: Default + Copy + Lerp<f32, Output = T> + 'static,
 {
 	fn crop(&self, offset: Vec2<u32>, size: Extent2<u32>) -> (CropPatch, Box<dyn PatchImpl>) {
 		assert_eq!(size.w + offset.x <= self.size.w, true);
@@ -72,11 +73,27 @@ where
 			}),
 		)
 	}
+
+	fn resize(&self, size: Extent2<u32>, interpolation: Interpolation) -> (ResizePatch, Box<dyn PatchImpl>) {
+		(
+			ResizePatch {
+				target: self.id,
+				size: size,
+				interpolation: interpolation,
+			},
+			Box::new(RestoreCanvasPatch::<T> {
+				target: self.id,
+				name: (*self.name).to_owned(),
+				size: (*self.size).clone(),
+				data: (*self.data).to_owned(),
+			}),
+		)
+	}
 }
 
 impl<'a, T> Renamable<'a> for Canvas<T>
 where
-	T: Default + Copy + Lerp<f32>,
+	T: Default + Copy,
 {
 	fn rename(&self, new_name: &'a str) -> (RenamePatch, RenamePatch) {
 		(
@@ -113,7 +130,7 @@ where
 
 impl<T> Patchable for Canvas<T>
 where
-	T: Default + Copy + Lerp<f32> + 'static,
+	T: Default + Copy + Lerp<f32, Output = T> + 'static,
 {
 	fn patch(&self, patch: &dyn PatchImpl) -> Option<Box<Self>> {
 		if patch.target() == self.id {
@@ -146,6 +163,15 @@ where
 					size: Rc::new(patch.size),
 					data: Rc::new(data),
 				}));
+			} else if let Some(patch) = patch.as_any().downcast_ref::<ResizePatch>() {
+				let mut data: Vec<T> = vec![Default::default(); (patch.size.w * patch.size.h) as usize];
+				patch.interpolation.sample(&self.size, &self.data, &patch.size, &mut data);
+				return Some(Box::new(Canvas::<T> {
+					id: self.id,
+					name: self.name.clone(),
+					size: Rc::new(patch.size),
+					data: Rc::new(data),
+				}));
 			}
 		}
 		return None;
@@ -155,7 +181,7 @@ where
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use math::{Lerp, Vec2, Extent2};
+	use math::{Vec2, Extent2, Lerp};
 	use image::{ImageBuffer};
 
 	#[derive(Copy, Clone)]
@@ -167,11 +193,13 @@ mod tests {
 
 	impl Lerp<f32> for RGB {
 		type Output = RGB;
-		fn lerp_unclamped_precise(from: Self, to: Self, factor: f32) -> Self {
-			RGB(Lerp::lerp_unclamped_precise(from.0, to.0, factor), Lerp::lerp_unclamped_precise(from.1, to.1, factor), Lerp::lerp_unclamped_precise(from.2, to.2, factor))
-		}
+
 		fn lerp_unclamped(from: Self, to: Self, factor: f32) -> Self {
-			RGB(Lerp::lerp_unclamped(from.0, to.0, factor), Lerp::lerp_unclamped(from.1, to.1, factor), Lerp::lerp_unclamped(from.2, to.2, factor))
+			RGB(
+				Lerp::lerp_unclamped(from.0 as f32, to.0 as f32, factor) as u8,
+				Lerp::lerp_unclamped(from.1 as f32, to.1 as f32, factor) as u8,
+				Lerp::lerp_unclamped(from.2 as f32, to.2 as f32, factor) as u8
+			)
 		}
 	}
 
@@ -221,5 +249,31 @@ mod tests {
 		});
 
 		img.save("tests/canvas.it_crops_2.png").unwrap();
+	}
+
+	#[test]
+	fn it_resizes() {
+		let c1 = Canvas::new(
+			None,
+			"red",
+			Extent2::new(2u32, 2u32),
+			vec![RGB(255u8, 0u8, 0u8), RGB(255u8, 0u8, 0u8), RGB(0u8, 255u8, 0u8), RGB(0u8, 255u8, 0u8)],
+		);
+
+		let img = ImageBuffer::from_fn(2, 2, |x, y| {
+			image::Rgb::from(&c1[(x, y)])
+		});
+
+		img.save("tests/canvas.it_resizes_1.png").unwrap();
+
+
+		let (crop, _) = c1.resize(Extent2::new(4, 4), Interpolation::Bilinear);
+		let c2 = c1.patch(&crop).unwrap();
+
+		let img = ImageBuffer::from_fn(4, 4, |x, y| {
+			image::Rgb::from(&c2[(x, y)])
+		});
+
+		img.save("tests/canvas.it_resizes_2.png").unwrap();
 	}
 }
