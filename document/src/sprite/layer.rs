@@ -1,5 +1,4 @@
 use std::any::Any;
-use std::ops::{Add, Sub, Mul, Div};
 use math::{Extent2, Lerp, Vec2};
 
 use uuid::Uuid;
