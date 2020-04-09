@@ -8,7 +8,7 @@ use crate::sprite::*;
 
 pub struct Canvas<T>
 where
-	T: Default + Clone + Lerp<f32>,
+	T: Default + Copy + Lerp<f32>,
 {
 	pub id: Uuid,
 	pub name: Rc<String>,
@@ -18,7 +18,7 @@ where
 
 impl<T> Canvas<T>
 where
-	T: Default + Clone + Lerp<f32>,
+	T: Default + Copy + Lerp<f32>,
 {
 	pub fn new(id: Option<Uuid>, name: &str, size: Extent2<u32>, data: Vec<T>) -> Canvas<T> {
 		Canvas::<T> {
@@ -32,7 +32,7 @@ where
 
 impl<T> std::ops::Index<(u32, u32)> for Canvas<T>
 where
-	T: Default + Clone + Lerp<f32>,
+	T: Default + Copy + Lerp<f32>,
 {
 	type Output = T;
 
@@ -44,7 +44,7 @@ where
 
 impl<T> Node for Canvas<T>
 where
-	T: Default + Clone + Lerp<f32>,
+	T: Default + Copy + Lerp<f32>,
 {
 	fn id(&self) -> Uuid {
 		self.id
@@ -53,7 +53,7 @@ where
 
 impl<T> Layer for Canvas<T>
 where
-	T: Default + Clone + Lerp<f32> + 'static,
+	T: Default + Copy + Lerp<f32> + 'static,
 {
 	fn crop(&self, offset: Vec2<u32>, size: Extent2<u32>) -> (CropPatch, Box<dyn PatchImpl>) {
 		assert_eq!(size.w + offset.x <= self.size.w, true);
@@ -76,7 +76,7 @@ where
 
 impl<'a, T> Renamable<'a> for Canvas<T>
 where
-	T: Default + Clone + Lerp<f32>,
+	T: Default + Copy + Lerp<f32>,
 {
 	fn rename(&self, new_name: &'a str) -> (RenamePatch, RenamePatch) {
 		(
@@ -113,7 +113,7 @@ where
 
 impl<T> Patchable for Canvas<T>
 where
-	T: Default + Clone + Lerp<f32> + 'static,
+	T: Default + Copy + Lerp<f32> + 'static,
 {
 	fn patch(&self, patch: &dyn PatchImpl) -> Option<Box<Self>> {
 		if patch.target() == self.id {
@@ -132,7 +132,14 @@ where
 					data: Rc::new(patch.data.to_owned()),
 				}));
 			} else if let Some(patch) = patch.as_any().downcast_ref::<CropPatch>() {
-				let data: Vec<T> = vec![Default::default(); (patch.size.w * patch.size.h) as usize];
+				assert_eq!(patch.size.w + patch.offset.x <= self.size.w, true);
+				assert_eq!(patch.size.h + patch.offset.y <= self.size.h, true);
+				let mut data: Vec<T> = vec![Default::default(); (patch.size.w * patch.size.h) as usize];
+				for i in 0..data.len() {
+					let x = patch.offset.x + ((i as u32) % patch.size.w);
+					let y = patch.offset.y + ((i as u32) / patch.size.w);
+					data[i] = self[(x, y)];
+				}
 				return Some(Box::new(Canvas::<T> {
 					id: self.id,
 					name: self.name.clone(),
@@ -148,10 +155,10 @@ where
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use math::Lerp;
+	use math::{Lerp, Vec2, Extent2};
 	use image::{ImageBuffer};
 
-	#[derive(Clone)]
+	#[derive(Copy, Clone)]
 	struct RGB(u8, u8, u8);
 
 	impl Default for RGB {
@@ -175,18 +182,44 @@ mod tests {
 	}
 
 	#[test]
-	fn it_from_buffer() {
+	fn from_buffer() {
 		let canvas = Canvas::new(
 			None,
 			"red",
 			Extent2::new(2u32, 2u32),
 			vec![RGB(255u8, 0u8, 0u8), RGB(255u8, 0u8, 0u8), RGB(0u8, 255u8, 0u8), RGB(0u8, 255u8, 0u8)],
 		);
-		assert_eq!(canvas.data.len(), 4);
+		
 		let img = ImageBuffer::from_fn(2, 2, |x, y| {
 			image::Rgb::from(&canvas[(x, y)])
 		});
 
-		img.save("tests/canvas.it_from_buffer.png").unwrap();
+		img.save("tests/canvas.from_buffer.png").unwrap();
+	}
+
+	#[test]
+	fn it_crops() {
+		let c1 = Canvas::new(
+			None,
+			"red",
+			Extent2::new(2u32, 2u32),
+			vec![RGB(255u8, 0u8, 0u8), RGB(255u8, 0u8, 0u8), RGB(0u8, 255u8, 0u8), RGB(0u8, 255u8, 0u8)],
+		);
+
+		let img = ImageBuffer::from_fn(2, 2, |x, y| {
+			image::Rgb::from(&c1[(x, y)])
+		});
+
+		img.save("tests/canvas.it_crops_1.png").unwrap();
+
+
+		let (crop, _) = c1.crop(Vec2::new(1, 0), Extent2::new(1, 2));
+		let c2 = c1.patch(&crop).unwrap();
+
+		let img = ImageBuffer::from_fn(1, 2, |x, y| {
+			image::Rgb::from(&c2[(x, y)])
+		});
+
+		img.save("tests/canvas.it_crops_2.png").unwrap();
 	}
 }
