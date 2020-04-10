@@ -36,6 +36,27 @@ pub struct Group {
 	pub size: Rc<Extent2<u32>>,
 }
 
+#[derive(Debug)]
+pub enum GroupLayerError {
+	LayerFound,
+	LayerNotFound,
+}
+
+impl std::fmt::Display for GroupLayerError {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		match *self {
+			GroupLayerError::LayerFound => write!(f, "Child already exists in this group."),
+			GroupLayerError::LayerNotFound => write!(f, "Child not found in this group."),
+		}
+	}
+}
+
+impl std::error::Error for GroupLayerError {
+	fn cause(&self) -> Option<&dyn std::error::Error> {
+		None
+	}
+}
+
 impl Group {
 	pub fn new(
 		id: Option<Uuid>,
@@ -50,6 +71,85 @@ impl Group {
 			children: Rc::new(children),
 			position: Rc::new(position),
 			size: Rc::new(size),
+		}
+	}
+
+	pub fn add_child(
+		&self,
+		add_child: Rc<dyn GroupLayer>,
+	) -> Result<(AddLayerPatch, RemoveLayerPatch), GroupLayerError> {
+		let index = self
+			.children
+			.iter()
+			.position(|child| Rc::ptr_eq(&child, &add_child));
+		if index.is_some() {
+			Err(GroupLayerError::LayerFound)
+		} else {
+			Ok((
+				AddLayerPatch {
+					target: self.id,
+					child: add_child.clone(),
+					position: self.children.len(),
+				},
+				RemoveLayerPatch {
+					target: self.id,
+					child_id: add_child.id(),
+				},
+			))
+		}
+	}
+
+	pub fn remove_child(
+		&self,
+		child_id: Uuid,
+	) -> Result<(RemoveLayerPatch, AddLayerPatch), GroupLayerError> {
+		let index = self
+			.children
+			.iter()
+			.position(|child| child.id() == child_id);
+		if index.is_none() {
+			Err(GroupLayerError::LayerNotFound)
+		} else {
+			let index = index.unwrap();
+			Ok((
+				RemoveLayerPatch {
+					target: self.id,
+					child_id: child_id,
+				},
+				AddLayerPatch {
+					target: self.id,
+					child: self.children.get(index).unwrap().clone(),
+					position: index,
+				},
+			))
+		}
+	}
+
+	pub fn move_child(
+		&self,
+		child_id: Uuid,
+		position: usize,
+	) -> Result<(MoveLayerPatch, MoveLayerPatch), GroupLayerError> {
+		let index = self
+			.children
+			.iter()
+			.position(|child| child.id() == child_id);
+		if index.is_none() {
+			Err(GroupLayerError::LayerNotFound)
+		} else {
+			let index = index.unwrap();
+			Ok((
+				MoveLayerPatch {
+					target: self.id,
+					child_id: child_id,
+					position: position,
+				},
+				MoveLayerPatch {
+					target: self.id,
+					child_id: child_id,
+					position: index,
+				},
+			))
 		}
 	}
 }
@@ -82,7 +182,11 @@ impl Layer for Group {
 		)
 	}
 
-	fn resize(&self, size: Extent2<u32>, interpolation: Interpolation) -> (ResizePatch, Box<dyn PatchImpl>) {
+	fn resize(
+		&self,
+		size: Extent2<u32>,
+		interpolation: Interpolation,
+	) -> (ResizePatch, Box<dyn PatchImpl>) {
 		(
 			ResizePatch {
 				target: self.id,
@@ -245,6 +349,38 @@ impl Patchable for Group {
 					size: self.size.clone(),
 					children: Rc::new(children),
 				}));
+			} else if let Some(patch) = patch.as_any().downcast_ref::<CropPatch>() {
+				let children = self
+					.children
+					.iter()
+					.map(|child| match child.patch_rc(patch) {
+						Some(new_child) => new_child,
+						None => child.clone(),
+					})
+					.collect::<Vec<_>>();
+				return Some(Box::new(Group {
+					id: self.id,
+					name: Rc::clone(&self.name),
+					position: Rc::clone(&self.position),
+					size: Rc::clone(&self.size),
+					children: Rc::new(children),
+				}));
+			} else if let Some(patch) = patch.as_any().downcast_ref::<ResizePatch>() {
+				let children = self
+					.children
+					.iter()
+					.map(|child| match child.patch_rc(patch) {
+						Some(new_child) => new_child,
+						None => child.clone(),
+					})
+					.collect::<Vec<_>>();
+				return Some(Box::new(Group {
+					id: self.id,
+					name: Rc::clone(&self.name),
+					position: Rc::clone(&self.position),
+					size: Rc::clone(&self.size),
+					children: Rc::new(children),
+				}));
 			}
 		} else {
 			let mut mutated = false;
@@ -270,5 +406,93 @@ impl Patchable for Group {
 			}
 		}
 		return None;
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use math::{Extent2, Vec2};
+	use std::rc::Rc;
+
+	#[test]
+	fn it_adds_child() {
+		let g1 = Group::new(
+			None,
+			"group",
+			vec![],
+			Vec2::new(0., 0.),
+			Extent2::new(4u32, 4u32),
+		);
+		let c1 = Rc::new(Canvas::new(
+			None,
+			"canvas",
+			Extent2::new(2u32, 2u32),
+			vec![255u8, 128u8, 64u8, 32u8],
+		));
+
+		let (patch, _) = g1.add_child(c1.clone()).unwrap();
+		let g2 = g1.patch(&patch).unwrap();
+
+		assert_eq!(g2.children.len(), 1);
+		assert_eq!(Rc::strong_count(&c1), 3);
+	}
+
+	#[test]
+	fn it_removes_child() {
+		let c1 = Rc::new(Canvas::new(
+			None,
+			"canvas",
+			Extent2::new(2u32, 2u32),
+			vec![255u8, 128u8, 64u8, 32u8],
+		));
+		let g1 = Group::new(
+			None,
+			"group",
+			vec![
+				c1.clone()
+			],
+			Vec2::new(0., 0.),
+			Extent2::new(4u32, 4u32),
+		);
+
+		let (patch, _) = g1.remove_child(c1.id).unwrap();
+		let g2 = g1.patch(&patch).unwrap();
+
+		assert_eq!(g2.children.len(), 0);
+		assert_eq!(Rc::strong_count(&c1), 2);
+	}
+
+	#[test]
+	fn it_moves_child() {
+		let c1 = Rc::new(Canvas::new(
+			None,
+			"canvas",
+			Extent2::new(2u32, 2u32),
+			vec![255u8, 128u8, 64u8, 32u8],
+		));
+		let c2 = Rc::new(Canvas::new(
+			None,
+			"canvas",
+			Extent2::new(2u32, 2u32),
+			vec![255u8, 128u8, 64u8, 32u8],
+		));
+		let g1 = Group::new(
+			None,
+			"group",
+			vec![
+				c1.clone(),
+				c2.clone()
+			],
+			Vec2::new(0., 0.),
+			Extent2::new(4u32, 4u32),
+		);
+
+		let (patch, _) = g1.move_child(c2.id, 0).unwrap();
+		let g2 = g1.patch(&patch).unwrap();
+
+		assert_eq!(g2.children.len(), 2);
+		assert_eq!(g2.children.get(0).unwrap().id(), c2.id);
+		assert_eq!(g2.children.get(1).unwrap().id(), c1.id);
 	}
 }

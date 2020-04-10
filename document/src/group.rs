@@ -97,24 +97,25 @@ impl Group {
 
 	pub fn remove_child(
 		&self,
-		remove_child: Rc<dyn GroupChild>,
+		child_id: Uuid,
 	) -> Result<(RemoveChildPatch, AddChildPatch), GroupError> {
 		let index = self
 			.children
 			.iter()
-			.position(|child| Rc::ptr_eq(&child, &remove_child));
+			.position(|child| child.id() == child_id);
 		if index.is_none() {
 			Err(GroupError::ChildNotFound)
 		} else {
+			let index = index.unwrap();
 			Ok((
 				RemoveChildPatch {
 					target: self.id,
-					child_id: remove_child.id(),
+					child_id: child_id,
 				},
 				AddChildPatch {
 					target: self.id,
-					child: remove_child.clone(),
-					position: index.unwrap(),
+					child: self.children.get(index).unwrap().clone(),
+					position: index,
 				},
 			))
 		}
@@ -122,26 +123,27 @@ impl Group {
 
 	pub fn move_child(
 		&self,
-		move_child: Rc<dyn GroupChild>,
+		child_id: Uuid,
 		position: usize,
 	) -> Result<(MoveChildPatch, MoveChildPatch), GroupError> {
 		let index = self
 			.children
 			.iter()
-			.position(|child| Rc::ptr_eq(&child, &move_child));
+			.position(|child| child.id() == child_id);
 		if index.is_none() {
 			Err(GroupError::ChildNotFound)
 		} else {
+			let index = index.unwrap();
 			Ok((
 				MoveChildPatch {
 					target: self.id,
-					child_id: move_child.id(),
+					child_id: child_id,
 					position: position,
 				},
 				MoveChildPatch {
 					target: self.id,
-					child_id: move_child.id(),
-					position: index.unwrap(),
+					child_id: child_id,
+					position: index,
 				},
 			))
 		}

@@ -196,141 +196,63 @@ where
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use image::ImageBuffer;
-	use math::{Extent2, Lerp, Vec2};
-
-	#[derive(Copy, Clone, Debug, PartialEq)]
-	struct RGB(u8, u8, u8);
-
-	impl Default for RGB {
-		fn default() -> Self {
-			RGB(0u8, 0u8, 0u8)
-		}
-	}
-
-	impl Lerp<f32> for RGB {
-		type Output = RGB;
-
-		fn lerp_unclamped(from: Self, to: Self, factor: f32) -> Self {
-			RGB(
-				Lerp::lerp_unclamped(from.0 as f32, to.0 as f32, factor) as u8,
-				Lerp::lerp_unclamped(from.1 as f32, to.1 as f32, factor) as u8,
-				Lerp::lerp_unclamped(from.2 as f32, to.2 as f32, factor) as u8,
-			)
-		}
-	}
-
-	impl From<&RGB> for image::Rgb<u8> {
-		fn from(color: &RGB) -> Self {
-			image::Rgb([color.0, color.1, color.2])
-		}
-	}
+	use math::{Extent2, Vec2};
 
 	#[test]
 	fn from_buffer() {
-		let canvas = Canvas::new(
+		let c1 = Canvas::new(
 			None,
-			"red",
+			"canvas",
 			Extent2::new(2u32, 2u32),
-			vec![
-				RGB(255u8, 0u8, 0u8),
-				RGB(255u8, 0u8, 0u8),
-				RGB(0u8, 255u8, 0u8),
-				RGB(0u8, 255u8, 0u8),
-			],
+			vec![255u8, 128u8, 64u8, 32u8],
 		);
 
-		let img = ImageBuffer::from_fn(2, 2, |x, y| image::Rgb::from(&canvas[(x, y)]));
-		img.save("tests/canvas.from_buffer.png").unwrap();
+		assert_eq!(*c1.data, vec![255, 128, 64, 32]);
 	}
 
 	#[test]
 	fn it_crops() {
 		let c1 = Canvas::new(
 			None,
-			"red",
+			"canvas",
 			Extent2::new(2u32, 2u32),
-			vec![
-				RGB(255, 0, 0),
-				RGB(255, 0, 0),
-				RGB(0, 255, 0),
-				RGB(0, 255, 0),
-			],
+			vec![255, 128, 64, 32],
 		);
 
-		let (crop, _) = c1.crop(Vec2::new(1, 0), Extent2::new(1, 2));
-		let c2 = c1.patch(&crop).unwrap();
+		let (patch, _) = c1.crop(Vec2::new(1, 0), Extent2::new(1, 2));
+		let c2 = c1.patch(&patch).unwrap();
 
-		assert_eq!(*c2.data, vec![RGB(0, 255, 0), RGB(0, 255, 0)]);
+		assert_eq!(*c2.data, vec![64, 32]);
 	}
 
 	#[test]
 	fn it_resizes() {
 		let c1 = Canvas::new(
 			None,
-			"red_n_green",
+			"canvas",
 			Extent2::new(2u32, 2u32),
-			vec![
-				RGB(255u8, 0u8, 0u8),
-				RGB(255u8, 0u8, 0u8),
-				RGB(0u8, 255u8, 0u8),
-				RGB(0u8, 255u8, 0u8),
-			],
+			vec![255, 128, 64, 32],
 		);
 
-		let (crop, _) = c1.resize(Extent2::new(4, 4), Interpolation::Nearest);
-		let c2 = c1.patch(&crop).unwrap();
+		let (patch, _) = c1.resize(Extent2::new(4, 4), Interpolation::Nearest);
+		let c2 = c1.patch(&patch).unwrap();
 
 		assert_eq!(
 			*c2.data,
-			vec![
-				RGB(255, 0, 0),
-				RGB(255, 0, 0),
-				RGB(255, 0, 0),
-				RGB(255, 0, 0),
-				RGB(255, 0, 0),
-				RGB(255, 0, 0),
-				RGB(255, 0, 0),
-				RGB(255, 0, 0),
-				RGB(0, 255, 0),
-				RGB(0, 255, 0),
-				RGB(0, 255, 0),
-				RGB(0, 255, 0),
-				RGB(0, 255, 0),
-				RGB(0, 255, 0),
-				RGB(0, 255, 0),
-				RGB(0, 255, 0)
-			]
+			vec![255, 255, 128, 128, 255, 255, 128, 128, 64, 64, 32, 32, 64, 64, 32, 32]
 		);
 
-		let (crop, _) = c1.resize(Extent2::new(4, 4), Interpolation::Bilinear);
-		let c2 = c1.patch(&crop).unwrap();
-
+		let (patch, _) = c1.resize(Extent2::new(4, 4), Interpolation::Bilinear);
+		let c2 = c1.patch(&patch).unwrap();
+		
 		assert_eq!(
 			*c2.data,
-			vec![
-				RGB(255, 0, 0),
-				RGB(255, 0, 0),
-				RGB(255, 0, 0),
-				RGB(255, 0, 0),
-				RGB(191, 63, 0),
-				RGB(191, 63, 0),
-				RGB(191, 63, 0),
-				RGB(191, 63, 0),
-				RGB(127, 127, 0),
-				RGB(127, 127, 0),
-				RGB(127, 127, 0),
-				RGB(127, 127, 0),
-				RGB(63, 191, 0),
-				RGB(63, 191, 0),
-				RGB(63, 191, 0),
-				RGB(63, 191, 0)
-			]
+			vec![255, 223, 192, 160, 207, 181, 156, 130, 160, 140, 120, 100, 112, 98, 84, 70]
 		);
 
-		let (crop, _) = c1.resize(Extent2::new(2, 1), Interpolation::Nearest);
-		let c2 = c1.patch(&crop).unwrap();
+		let (patch, _) = c1.resize(Extent2::new(2, 1), Interpolation::Nearest);
+		let c2 = c1.patch(&patch).unwrap();
 
-		assert_eq!(*c2.data, vec![RGB(255, 0, 0), RGB(0, 255, 0)]);
+		assert_eq!(*c2.data, vec![255, 64]);
 	}
 }
