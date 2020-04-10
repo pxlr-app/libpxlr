@@ -449,9 +449,7 @@ mod tests {
 		let g1 = Group::new(
 			None,
 			"group",
-			vec![
-				c1.clone()
-			],
+			vec![c1.clone()],
 			Vec2::new(0., 0.),
 			Extent2::new(4u32, 4u32),
 		);
@@ -480,10 +478,7 @@ mod tests {
 		let g1 = Group::new(
 			None,
 			"group",
-			vec![
-				c1.clone(),
-				c2.clone()
-			],
+			vec![c1.clone(), c2.clone()],
 			Vec2::new(0., 0.),
 			Extent2::new(4u32, 4u32),
 		);

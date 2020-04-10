@@ -299,7 +299,7 @@ impl Patchable for Group {
 					name: Rc::clone(&self.name),
 					children: Rc::new(children),
 					position: Rc::clone(&self.position),
-				}))
+				}));
 			}
 		}
 		return None;
