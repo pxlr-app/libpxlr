@@ -465,13 +465,13 @@ mod tests {
 	fn it_moves_child() {
 		let c1 = Rc::new(Canvas::new(
 			None,
-			"canvas",
+			"canvas_a",
 			Extent2::new(2u32, 2u32),
 			vec![255u8, 128u8, 64u8, 32u8],
 		));
 		let c2 = Rc::new(Canvas::new(
 			None,
-			"canvas",
+			"canvas_b",
 			Extent2::new(2u32, 2u32),
 			vec![255u8, 128u8, 64u8, 32u8],
 		));
@@ -489,5 +489,38 @@ mod tests {
 		assert_eq!(g2.children.len(), 2);
 		assert_eq!(g2.children.get(0).unwrap().id(), c2.id);
 		assert_eq!(g2.children.get(1).unwrap().id(), c1.id);
+	}
+
+	#[test]
+	fn it_patchs_child() {
+		let c1 = Rc::new(Canvas::new(
+			None,
+			"canvas_a",
+			Extent2::new(2u32, 2u32),
+			vec![255u8, 128u8, 64u8, 32u8],
+		));
+		let c2 = Rc::new(Canvas::new(
+			None,
+			"canvas_b",
+			Extent2::new(2u32, 2u32),
+			vec![255u8, 128u8, 64u8, 32u8],
+		));
+		let g1 = Group::new(
+			None,
+			"group",
+			vec![c1.clone(), c2.clone()],
+			Vec2::new(0., 0.),
+			Extent2::new(4u32, 4u32),
+		);
+
+		let (patch, _) = c1.rename("canvas_aa");
+		let g2 = g1.patch(&patch).unwrap();
+
+		assert_eq!(Rc::strong_count(&c1), 2);
+		assert_eq!(Rc::strong_count(&c1.name), 1);
+		assert_eq!(Rc::strong_count(&c2), 3);
+		assert_eq!(Rc::strong_count(&c2.name), 1);
+		assert_eq!(*g2.children.get(0).unwrap().as_any().downcast_ref::<Canvas<u8>>().unwrap().name, "canvas_aa");
+		assert_eq!(*g2.children.get(1).unwrap().as_any().downcast_ref::<Canvas<u8>>().unwrap().name, "canvas_b");
 	}
 }
