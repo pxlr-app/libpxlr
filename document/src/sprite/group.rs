@@ -353,7 +353,7 @@ impl Patchable for Group {
 				let children = self
 					.children
 					.iter()
-					.map(|child| match child.patch_rc(patch) {
+					.map(|child| match child.patch_rc(&CropPatch { target: child.id(), ..*patch }) {
 						Some(new_child) => new_child,
 						None => child.clone(),
 					})
@@ -362,14 +362,14 @@ impl Patchable for Group {
 					id: self.id,
 					name: Rc::clone(&self.name),
 					position: Rc::clone(&self.position),
-					size: Rc::clone(&self.size),
+					size: Rc::new(patch.size),
 					children: Rc::new(children),
 				}));
 			} else if let Some(patch) = patch.as_any().downcast_ref::<ResizePatch>() {
 				let children = self
 					.children
 					.iter()
-					.map(|child| match child.patch_rc(patch) {
+					.map(|child| match child.patch_rc(&ResizePatch { target: child.id(), ..*patch }) {
 						Some(new_child) => new_child,
 						None => child.clone(),
 					})
@@ -378,7 +378,7 @@ impl Patchable for Group {
 					id: self.id,
 					name: Rc::clone(&self.name),
 					position: Rc::clone(&self.position),
-					size: Rc::clone(&self.size),
+					size: Rc::new(patch.size),
 					children: Rc::new(children),
 				}));
 			}
@@ -503,7 +503,7 @@ mod tests {
 			None,
 			"canvas_b",
 			Extent2::new(2u32, 2u32),
-			vec![255u8, 128u8, 64u8, 32u8],
+			vec![32u8, 64u8, 128u8, 255u8],
 		));
 		let g1 = Group::new(
 			None,
@@ -522,5 +522,14 @@ mod tests {
 		assert_eq!(Rc::strong_count(&c2.name), 1);
 		assert_eq!(*g2.children.get(0).unwrap().as_any().downcast_ref::<Canvas<u8>>().unwrap().name, "canvas_aa");
 		assert_eq!(*g2.children.get(1).unwrap().as_any().downcast_ref::<Canvas<u8>>().unwrap().name, "canvas_b");
+
+		let (patch, _) = g1.resize(Extent2::new(4, 1), Interpolation::Nearest);
+		let g2 = g1.patch(&patch).unwrap();
+
+		assert_eq!(*g2.size, Extent2::new(4, 1));
+		assert_eq!(*g2.children.get(0).unwrap().as_any().downcast_ref::<Canvas<u8>>().unwrap().size, Extent2::new(4, 1));
+		assert_eq!(*g2.children.get(1).unwrap().as_any().downcast_ref::<Canvas<u8>>().unwrap().size, Extent2::new(4, 1));
+		assert_eq!(*g2.children.get(0).unwrap().as_any().downcast_ref::<Canvas<u8>>().unwrap().data, vec![255, 255, 64, 64]);
+		assert_eq!(*g2.children.get(1).unwrap().as_any().downcast_ref::<Canvas<u8>>().unwrap().data, vec![32, 32, 128, 128]);
 	}
 }
