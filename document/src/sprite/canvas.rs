@@ -113,25 +113,6 @@ where
 	}
 }
 
-pub struct RestoreCanvasPatch<T>
-where
-	T: Clone,
-{
-	pub target: Uuid,
-	pub name: String,
-	pub size: Extent2<u32>,
-	pub data: Vec<T>,
-}
-
-impl<T> Patch for RestoreCanvasPatch<T>
-where
-	T: Clone,
-{
-	fn target(&self) -> Uuid {
-		self.target
-	}
-}
-
 impl<T> Patchable for Canvas<T>
 where
 	T: Default + Copy + Lerp<f32, Output = T> + 'static,

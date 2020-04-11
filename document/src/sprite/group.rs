@@ -229,55 +229,6 @@ impl<'a> Renamable<'a> for Group {
 	}
 }
 
-pub struct AddLayerPatch {
-	pub target: Uuid,
-	pub child: Rc<dyn GroupLayer>,
-	pub position: usize,
-}
-
-impl Patch for AddLayerPatch {
-	fn target(&self) -> Uuid {
-		self.target
-	}
-}
-
-pub struct RemoveLayerPatch {
-	pub target: Uuid,
-	pub child_id: Uuid,
-}
-
-impl Patch for RemoveLayerPatch {
-	fn target(&self) -> Uuid {
-		self.target
-	}
-}
-
-pub struct MoveLayerPatch {
-	pub target: Uuid,
-	pub child_id: Uuid,
-	pub position: usize,
-}
-
-impl Patch for MoveLayerPatch {
-	fn target(&self) -> Uuid {
-		self.target
-	}
-}
-
-pub struct RestoreGroupPatch {
-	pub target: Uuid,
-	pub name: String,
-	pub position: Vec2<f32>,
-	pub size: Extent2<u32>,
-	pub children: Vec<Box<dyn PatchImpl>>,
-}
-
-impl Patch for RestoreGroupPatch {
-	fn target(&self) -> Uuid {
-		self.target
-	}
-}
-
 impl Patchable for Group {
 	fn patch(&self, patch: &dyn PatchImpl) -> Option<Box<Self>> {
 		if patch.target() == self.id {

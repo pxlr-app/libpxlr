@@ -177,41 +177,6 @@ impl<'a> Renamable<'a> for Group {
 	}
 }
 
-pub struct AddChildPatch {
-	pub target: Uuid,
-	pub child: Rc<dyn GroupChild>,
-	pub position: usize,
-}
-
-impl Patch for AddChildPatch {
-	fn target(&self) -> Uuid {
-		self.target
-	}
-}
-
-pub struct RemoveChildPatch {
-	pub target: Uuid,
-	pub child_id: Uuid,
-}
-
-impl Patch for RemoveChildPatch {
-	fn target(&self) -> Uuid {
-		self.target
-	}
-}
-
-pub struct MoveChildPatch {
-	pub target: Uuid,
-	pub child_id: Uuid,
-	pub position: usize,
-}
-
-impl Patch for MoveChildPatch {
-	fn target(&self) -> Uuid {
-		self.target
-	}
-}
-
 impl Patchable for Group {
 	fn patch(&self, patch: &dyn PatchImpl) -> Option<Box<Self>> {
 		if patch.target() == self.id {
