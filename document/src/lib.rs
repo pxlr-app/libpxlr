@@ -2,14 +2,14 @@
 
 mod document;
 mod group;
-mod label;
+mod note;
 mod node;
 mod patch;
 mod sprite;
 
 pub use self::document::*;
 pub use self::group::*;
-pub use self::label::*;
+pub use self::note::*;
 pub use self::node::*;
 pub use self::patch::*;
 pub use self::sprite::*;
@@ -17,7 +17,7 @@ pub use self::sprite::*;
 #[cfg(test)]
 mod tests {
 	use super::group::Group;
-	use super::label::Label;
+	use super::note::Note;
 	use super::patch::*;
 	use math::Vec2;
 
@@ -50,31 +50,31 @@ mod tests {
 	#[test]
 	fn it_patches_nested() {
 		{
-			let label = Rc::new(Label::new(None, "Foo", Vec2::new(0., 0.)));
-			let group = Group::new(None, "Root", Vec2::new(0., 0.), vec![label.clone()]);
-			let (rename, _) = label.rename("Bar");
+			let note = Rc::new(Note::new(None, "Foo", Vec2::new(0., 0.)));
+			let group = Group::new(None, "Root", Vec2::new(0., 0.), vec![note.clone()]);
+			let (rename, _) = note.rename("Bar");
 			let new_group = group.patch(&rename).unwrap();
-			let new_label = new_group.children.get(0).unwrap().as_any().downcast_ref::<Label>().unwrap();
+			let new_note = new_group.children.get(0).unwrap().as_any().downcast_ref::<Note>().unwrap();
 			assert_eq!(*new_group.name, "Root");
-			assert_eq!(*label.name, "Foo");
-			assert_eq!(*new_label.name, "Bar");
+			assert_eq!(*note.name, "Foo");
+			assert_eq!(*new_note.name, "Bar");
 			assert_eq!(Rc::strong_count(&group.name), 2);
 			assert_eq!(Rc::strong_count(&group.position), 2);
 			assert_eq!(Rc::strong_count(&group.children), 1);
-			assert_eq!(Rc::strong_count(&label.name), 1);
-			assert_eq!(Rc::strong_count(&label.position), 2);
+			assert_eq!(Rc::strong_count(&note.name), 1);
+			assert_eq!(Rc::strong_count(&note.position), 2);
 		}
 		{
-			let label = Rc::new(Label::new(None, "Foo", Vec2::new(0., 0.)));
-			let group = Group::new(None, "Root", Vec2::new(0., 0.), vec![label.clone()]);
+			let note = Rc::new(Note::new(None, "Foo", Vec2::new(0., 0.)));
+			let group = Group::new(None, "Root", Vec2::new(0., 0.), vec![note.clone()]);
 			let rename = RenamePatch { target: Uuid::new_v4(), name: "Bar".to_owned() };
 			let new_group = group.patch(&rename);
 			assert_eq!(new_group.is_none(), true);
 			assert_eq!(Rc::strong_count(&group.name), 1);
 			assert_eq!(Rc::strong_count(&group.position), 1);
 			assert_eq!(Rc::strong_count(&group.children), 1);
-			assert_eq!(Rc::strong_count(&label.name), 1);
-			assert_eq!(Rc::strong_count(&label.position), 1);
+			assert_eq!(Rc::strong_count(&note.name), 1);
+			assert_eq!(Rc::strong_count(&note.position), 1);
 		}
 	}
 }
