@@ -4,15 +4,13 @@ mod document;
 mod group;
 mod node;
 mod note;
-mod patch;
-mod sprite;
+pub mod patch;
+pub mod sprite;
 
 pub use self::document::*;
 pub use self::group::*;
 pub use self::node::*;
 pub use self::note::*;
-pub use self::patch::*;
-pub use self::sprite::*;
 
 #[cfg(test)]
 mod tests {
