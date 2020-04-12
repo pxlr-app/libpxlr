@@ -3,14 +3,16 @@ use uuid::Uuid;
 use crate::patch::Patch;
 
 pub struct RenamePatch {
-	pub target: Uuid,
-	pub name: String,
+    pub target: Uuid,
+    pub name: String,
 }
 
 impl Patch for RenamePatch {
-	fn target(&self) -> Uuid { self.target }
+    fn target(&self) -> Uuid {
+        self.target
+    }
 }
 
 pub trait Renamable<'a> {
-	fn rename(&self, new_name: &'a str) -> (RenamePatch, RenamePatch);
+    fn rename(&self, new_name: &'a str) -> (RenamePatch, RenamePatch);
 }
