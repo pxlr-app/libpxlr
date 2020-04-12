@@ -5,5 +5,7 @@
 	"files.exclude": {
 		".cargo-husky": true,
 		"target": true
-	}
+	},
+	"editor.formatOnSave": true,
+	"editor.defaultFormatter": "esbenp.prettier-vscode",
 }
