@@ -1,6 +1,7 @@
 [workspace]
 members = [
-	"math",
 	"cli",
-	"document"
+	"document",
+	"editor",
+	"math"
 ]
