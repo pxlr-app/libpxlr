@@ -1,5 +1,9 @@
 {
 	"editor.insertSpaces": false,
 	"editor.detectIndentation": false,
-	"debug.allowBreakpointsEverywhere": true
+	"debug.allowBreakpointsEverywhere": true,
+	"files.exclude": {
+		".cargo-husky": true,
+		"target": true
+	}
 }
