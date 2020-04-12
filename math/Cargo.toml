@@ -7,6 +7,11 @@ edition = "2018"
 [dependencies]
 vek = { version = "0.9.12", features = ["uv"] }
 
+[dev-dependencies.cargo-husky]
+version = "1"
+default-features = false
+features = ["user-hooks"]
+
 [lib]
 name = "math"
 crate-type = ["rlib"]
