@@ -6,8 +6,8 @@ use uuid::Uuid;
 
 use crate::node::*;
 use crate::patch::*;
-use crate::sprite::*;
 use crate::sprite::patch::*;
+use crate::sprite::*;
 
 pub struct Canvas<T>
 where
