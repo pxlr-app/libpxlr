@@ -64,7 +64,7 @@ where
 	type Output = T;
 
 	fn index(&self, (x, y): (u32, u32)) -> &T {
-		let i = (x * self.size.h + y) as usize;
+		let i = (y * self.size.w + x) as usize;
 		&self.data[i]
 	}
 }
@@ -258,7 +258,7 @@ mod tests {
 		let (patch, _) = c1.crop(Vec2::new(1, 0), Extent2::new(1, 2));
 		let c2 = c1.patch(&patch).unwrap();
 
-		assert_eq!(*c2.data, vec![64, 32]);
+		assert_eq!(*c2.data, vec![128, 32]);
 	}
 
 	#[test]
