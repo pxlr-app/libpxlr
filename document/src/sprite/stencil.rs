@@ -83,7 +83,7 @@ where
 	T: Default + Copy,
 {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		let translate: Vec<Vec<u32>> = vec![vec![1,2,4,64],vec![8,16,32,128]];
+		let translate: Vec<Vec<u32>> = vec![vec![1, 2, 4, 64], vec![8, 16, 32, 128]];
 		let w = ((self.size.w as f32) / 2.).ceil() as usize;
 		let h = ((self.size.h as f32) / 4.).ceil() as usize;
 		let mut grid = vec![vec![0u32; h]; w];
@@ -117,7 +117,12 @@ where
 
 	fn add(self, other: Self) -> Self {
 		assert_eq!(self.size, other.size);
-		let mask: Vec<u8> = self.mask.iter().enumerate().map(|(i, m)| m | other.mask[i]).collect();
+		let mask: Vec<u8> = self
+			.mask
+			.iter()
+			.enumerate()
+			.map(|(i, m)| m | other.mask[i])
+			.collect();
 		let mut data: Vec<T> = Vec::with_capacity(mask.len() * 8);
 		let mut count_a: usize = 0;
 		let mut count_b: usize = 0;
@@ -133,7 +138,6 @@ where
 				data.push(other.data[count_b]);
 				count_b += 1;
 			}
-			
 		}
 		Stencil {
 			size: self.size,
