@@ -43,6 +43,11 @@ impl<T> Stencil<T>
 where
 	T: Default + Copy,
 {
+	pub fn new(size: Extent2<u32>) -> Stencil<T> {
+		let buffer = vec![Default::default(); (size.w * size.h) as usize];
+		Stencil::from_buffer(size, &buffer)
+	}
+
 	pub fn from_buffer(size: Extent2<u32>, buffer: &[T]) -> Stencil<T> {
 		assert_eq!((size.w * size.h) as usize, buffer.len());
 		let closest_bytes = 1 + (((size.w * size.h) - 1) / 8); // ceil
@@ -73,6 +78,71 @@ where
 	}
 }
 
+impl<T> std::fmt::Debug for Stencil<T>
+where
+	T: Default + Copy,
+{
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		let translate: Vec<Vec<u32>> = vec![vec![1,2,4,64],vec![8,16,32,128]];
+		let w = ((self.size.w as f32) / 2.).ceil() as usize;
+		let h = ((self.size.h as f32) / 4.).ceil() as usize;
+		let mut grid = vec![vec![0u32; h]; w];
+		for (x, y, _) in self.iter() {
+			let ix = ((x as f32) / 2.).floor() as usize;
+			let iy = ((y as f32) / 4.).floor() as usize;
+			let tx = (x as usize) % 2;
+			let ty = (y as usize) % 4;
+			grid[ix][iy] += translate[tx][ty];
+		}
+		let mut out: String = "".into();
+		for y in 0..h {
+			for x in 0..w {
+				let x = x as usize;
+				let y = y as usize;
+				out.push(std::char::from_u32(0x2800 + grid[x][y]).unwrap());
+			}
+			if y + 1 < h {
+				out.push_str("\n  ");
+			}
+		}
+		write!(f, "Stencil {{\n  {}\n}}", out)
+	}
+}
+
+impl<T> std::ops::Add for Stencil<T>
+where
+	T: Default + Copy,
+{
+	type Output = Self;
+
+	fn add(self, other: Self) -> Self {
+		assert_eq!(self.size, other.size);
+		let mask: Vec<u8> = self.mask.iter().enumerate().map(|(i, m)| m | other.mask[i]).collect();
+		let mut data: Vec<T> = Vec::with_capacity(mask.len() * 8);
+		let mut count_a: usize = 0;
+		let mut count_b: usize = 0;
+		for i in 0..mask.len() * 8 {
+			let uchar = (i / 8) | 0;
+			let bit_a = self.mask[uchar] & (1 << (i - uchar * 8));
+			let bit_b = other.mask[uchar] & (1 << (i - uchar * 8));
+			if bit_a != 0 {
+				data.push(self.data[count_a]);
+				count_a += 1;
+			}
+			if bit_b != 0 {
+				data.push(other.data[count_b]);
+				count_b += 1;
+			}
+			
+		}
+		Stencil {
+			size: self.size,
+			mask: mask,
+			data: data,
+		}
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -82,6 +152,18 @@ mod tests {
 		let s = Stencil::from_buffer(Extent2::new(2, 2), &[1u8, 2u8, 3u8, 4u8]);
 		assert_eq!(*s.mask, [15u8]); // layout ⠛
 		assert_eq!(*s.data, [1u8, 2u8, 3u8, 4u8]);
+	}
+
+	#[test]
+	fn it_debugs() {
+		let s = Stencil::<u8>::new(Extent2::new(3, 1));
+		assert_eq!(format!("{:?}", s), "Stencil {\n  ⠉⠁\n}");
+		let s = Stencil::<u8>::new(Extent2::new(1, 3));
+		assert_eq!(format!("{:?}", s), "Stencil {\n  ⠇\n}");
+		let s = Stencil::<u8>::new(Extent2::new(5, 3));
+		assert_eq!(format!("{:?}", s), "Stencil {\n  ⠿⠿⠇\n}");
+		let s = Stencil::<u8>::new(Extent2::new(3, 5));
+		assert_eq!(format!("{:?}", s), "Stencil {\n  ⣿⡇\n  ⠉⠁\n}");
 	}
 
 	#[test]
@@ -107,5 +189,27 @@ mod tests {
 		assert_eq!(i.next(), Some((0, 0, &1u8)));
 		assert_eq!(i.next(), Some((1, 1, &4u8)));
 		assert_eq!(i.next(), None);
+	}
+
+	#[test]
+	fn it_combines() {
+		let s1 = Stencil {
+			size: Extent2::new(2, 2),
+			mask: vec![9u8], // layout ⠑
+			data: vec![1u8, 4u8],
+		};
+		assert_eq!(format!("{:?}", s1), "Stencil {\n  ⠑\n}");
+
+		let s2 = Stencil {
+			size: Extent2::new(2, 2),
+			mask: vec![6u8], // layout ⠊
+			data: vec![2u8, 3u8],
+		};
+		assert_eq!(format!("{:?}", s2), "Stencil {\n  ⠊\n}");
+
+		let s3 = s1 + s2;
+		assert_eq!(*s3.mask, [15u8]); // layout ⠛
+		assert_eq!(*s3.data, [1u8, 2u8, 3u8, 4u8]);
+		assert_eq!(format!("{:?}", s3), "Stencil {\n  ⠛\n}");
 	}
 }
