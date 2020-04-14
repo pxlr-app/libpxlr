@@ -90,7 +90,12 @@ mod tests {
 			color: Gray(255),
 			interpolation: Interpolation::Nearest,
 		};
-		let stencil_a = line.get_stencil();
+		let stencil = line.get_stencil();
+
+		assert_eq!(
+			format!("{:?}", stencil),
+			"Stencil { ⡇\n          ⡇\n          ⠃ }"
+		);
 
 		let line = Line {
 			from: Vec2::new(9, 0),
@@ -99,23 +104,11 @@ mod tests {
 			color: Gray(255),
 			interpolation: Interpolation::Nearest,
 		};
-		let stencil_b = line.get_stencil();
-
-		let stencil = stencil_a + stencil_b;
+		let stencil = line.get_stencil();
 
 		assert_eq!(
 			format!("{:?}", stencil),
-			"Stencil { ⡇⠀⠀⡠⠊\n          ⡇⡠⠊⠀⠀\n          ⠋⠀⠀⠀⠀ }"
+			"Stencil { ⠀⠀⠀⡠⠊\n          ⠀⡠⠊⠀⠀\n          ⠊⠀⠀⠀⠀ }"
 		);
-
-		// let mut buffer: Vec<u8> = vec![0u8; 10 * 10 * 3];
-		// for (y, x, c) in stencil.iter() {
-		// 	let i = ((x * 10 + y) * 3) as usize;
-		// 	buffer[i + 0] = (((x as f32) + 1.) / 10. * 254.) as u8;
-		// 	buffer[i + 1] = c.0;
-		// 	buffer[i + 2] = (((y as f32) + 1.) / 10. * 254.) as u8;
-		// }
-		// let img = ImageBuffer::<Rgb<u8>, _>::from_vec(10, 10, buffer).unwrap();
-		// img.save("brush.line.it_paints_1.png").unwrap();
 	}
 }
