@@ -1,0 +1,17 @@
+[package]
+name = "collections"
+version = "0.1.0"
+authors = ["Michael Grenier <michael@grenier.dev>"]
+edition = "2018"
+
+[dependencies]
+bitvec = "0.17.4"
+
+[dev-dependencies.cargo-husky]
+version = "1"
+default-features = false
+features = ["user-hooks"]
+
+[lib]
+name = "collections"
+crate-type = ["rlib"]
