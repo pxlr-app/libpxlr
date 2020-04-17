@@ -1,7 +1,6 @@
 use math::{Extent2, Lerp, Mat2, Vec2};
 use std::iter::FromIterator;
 use std::rc::Rc;
-
 use uuid::Uuid;
 
 use crate::node::*;
@@ -217,6 +216,7 @@ where
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use collections::bitvec;
 	use math::{Extent2, Vec2};
 
 	impl Blend for u8 {
@@ -313,7 +313,7 @@ mod tests {
 			BlendMode::Normal,
 			Stencil {
 				size: Extent2::new(2, 2),
-				mask: vec![9u8], // layout ⠑
+				mask: bitvec![1, 0, 0, 1],
 				data: vec![255u8, 255u8],
 			},
 		);

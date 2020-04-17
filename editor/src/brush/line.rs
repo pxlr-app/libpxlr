@@ -1,3 +1,4 @@
+use collections::bitvec;
 use document::sprite::{Blend, Interpolation, Stencil};
 use math::{Extent2, Lerp, Vec2};
 
@@ -23,8 +24,7 @@ where
 			self.from.x.max(self.to.x) + 1,
 			self.from.y.max(self.to.y) + 1,
 		);
-		let closest_bytes = 1 + (((size.w * size.h) - 1) / 8);
-		let mut mask: Vec<u8> = vec![0u8; closest_bytes as usize];
+		let mut mask = bitvec![0; (size.w * size.h) as usize];
 		let steps = ((self.to.x as i32) - (self.from.x as i32))
 			.abs()
 			.max(((self.to.y as i32) - (self.from.y as i32)).abs());
@@ -38,10 +38,8 @@ where
 			};
 			let v = Lerp::lerp_unclamped(self.from.map(|x| x as i32), self.to.map(|x| x as i32), t);
 			let i = ((v.y * (size.w as i32)) + v.x) as usize;
-			let p = (i / 8) | 0;
-			let m = 1 << (i - p * 8);
 			data.push(self.color);
-			mask[p] ^= m;
+			mask.set(i, true);
 		}
 		Stencil {
 			size: size.map(|x| x as u32),
