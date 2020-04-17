@@ -8,18 +8,19 @@ pub fn braille_fmt(bitvec: &BitVec) -> String {
 }
 
 pub fn braille_fmt2(bitvec: &BitVec, width: usize, height: usize, new_line: &str) -> String {
+	// TODO: replace translate with bit shift ops
 	let translate: Vec<Vec<u32>> = vec![vec![1, 2, 4, 64], vec![8, 16, 32, 128]];
 	let w = ((width as f32) / 2.).ceil() as usize;
 	let h = ((height as f32) / 4.).ceil() as usize;
 	let mut grid = vec![vec![0u32; h]; w];
 	for i in 0..bitvec.len() {
-		let x = i % width;
-		let y = i / width;
-		let ix = ((x as f32) / 2.).floor() as usize;
-		let iy = ((y as f32) / 4.).floor() as usize;
-		let tx = x % 2;
-		let ty = y % 4;
 		if bitvec[i] {
+			let x = i % width;
+			let y = i / width;
+			let ix = ((x as f32) / 2.).floor() as usize;
+			let iy = ((y as f32) / 4.).floor() as usize;
+			let tx = x % 2;
+			let ty = y % 4;
 			grid[ix][iy] += translate[tx][ty];
 		}
 	}
