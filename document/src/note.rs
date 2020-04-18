@@ -8,15 +8,15 @@ use crate::patch::*;
 
 pub struct Note {
 	pub id: Uuid,
-	pub name: Rc<String>,
+	pub note: Rc<String>,
 	pub position: Rc<Vec2<f32>>,
 }
 
 impl Note {
-	pub fn new(id: Option<Uuid>, name: &str, position: Vec2<f32>) -> Note {
+	pub fn new(id: Option<Uuid>, note: &str, position: Vec2<f32>) -> Note {
 		Note {
 			id: id.or(Some(Uuid::new_v4())).unwrap(),
-			name: Rc::new(name.to_owned()),
+			note: Rc::new(note.to_owned()),
 			position: Rc::new(position),
 		}
 	}
@@ -43,7 +43,7 @@ impl<'a> Renamable<'a> for Note {
 			},
 			RenamePatch {
 				target: self.id,
-				name: (*self.name).to_owned(),
+				name: (*self.note).to_owned(),
 			},
 		)
 	}
@@ -55,7 +55,7 @@ impl Patchable for Note {
 			if let Some(rename) = patch.as_any().downcast_ref::<RenamePatch>() {
 				return Some(Box::new(Note {
 					id: self.id,
-					name: Rc::new(rename.name.clone()),
+					note: Rc::new(rename.name.clone()),
 					position: self.position.clone(),
 				}));
 			}

@@ -63,12 +63,12 @@ mod tests {
 				.downcast_ref::<Note>()
 				.unwrap();
 			assert_eq!(*new_group.name, "Root");
-			assert_eq!(*note.name, "Foo");
-			assert_eq!(*new_note.name, "Bar");
+			assert_eq!(*note.note, "Foo");
+			assert_eq!(*new_note.note, "Bar");
 			assert_eq!(Rc::strong_count(&group.name), 2);
 			assert_eq!(Rc::strong_count(&group.position), 2);
 			assert_eq!(Rc::strong_count(&group.children), 1);
-			assert_eq!(Rc::strong_count(&note.name), 1);
+			assert_eq!(Rc::strong_count(&note.note), 1);
 			assert_eq!(Rc::strong_count(&note.position), 2);
 		}
 		{
@@ -83,7 +83,7 @@ mod tests {
 			assert_eq!(Rc::strong_count(&group.name), 1);
 			assert_eq!(Rc::strong_count(&group.position), 1);
 			assert_eq!(Rc::strong_count(&group.children), 1);
-			assert_eq!(Rc::strong_count(&note.name), 1);
+			assert_eq!(Rc::strong_count(&note.note), 1);
 			assert_eq!(Rc::strong_count(&note.position), 1);
 		}
 	}
