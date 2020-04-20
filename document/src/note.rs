@@ -35,30 +35,31 @@ impl Document for Note {
 }
 
 impl<'a> Renamable<'a> for Note {
-	fn rename(&self, new_name: &'a str) -> (RenamePatch, RenamePatch) {
+	fn rename(&self, new_name: &'a str) -> (Patch, Patch) {
 		(
-			RenamePatch {
+			Patch::Rename(RenamePatch {
 				target: self.id,
 				name: new_name.to_owned(),
-			},
-			RenamePatch {
+			}),
+			Patch::Rename(RenamePatch {
 				target: self.id,
 				name: (*self.note).to_owned(),
-			},
+			}),
 		)
 	}
 }
 
 impl Patchable for Note {
-	fn patch(&self, patch: &dyn PatchImpl) -> Option<Box<Self>> {
+	fn patch(&self, patch: &Patch) -> Option<Box<Self>> {
 		if patch.target() == self.id {
-			if let Some(rename) = patch.as_any().downcast_ref::<RenamePatch>() {
-				return Some(Box::new(Note {
+			return match patch {
+				Patch::Rename(rename) => Some(Box::new(Note {
 					id: self.id,
 					note: Rc::new(rename.name.clone()),
 					position: self.position.clone(),
-				}));
-			}
+				})),
+				_ => None
+			};
 		}
 		return None;
 	}

@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![allow(unreachable_patterns)]
 
 mod document;
 mod group;
@@ -14,6 +15,7 @@ pub use self::note::*;
 
 #[cfg(test)]
 mod tests {
+	use super::document::DocumentNode;
 	use super::group::Group;
 	use super::note::Note;
 	use super::patch::*;
@@ -36,10 +38,10 @@ mod tests {
 		}
 		{
 			let group = Group::new(None, "Root", Vec2::new(0., 0.), vec![]);
-			let rename = RenamePatch {
+			let rename = Patch::Rename(RenamePatch {
 				target: Uuid::new_v4(),
 				name: "Boot".to_owned(),
-			};
+			});
 			let new_group = group.patch(&rename);
 			assert_eq!(new_group.is_none(), true);
 			assert_eq!(Rc::strong_count(&group.name), 1);
@@ -51,17 +53,19 @@ mod tests {
 	#[test]
 	fn it_patches_nested() {
 		{
-			let note = Rc::new(Note::new(None, "Foo", Vec2::new(0., 0.)));
-			let group = Group::new(None, "Root", Vec2::new(0., 0.), vec![note.clone()]);
+			let group = Group::new(None, "Root", Vec2::new(0., 0.), vec![Rc::new(DocumentNode::Note(Note::new(None, "Foo", Vec2::new(0., 0.))))]);
+			let note = if let DocumentNode::Note(note) = &**group.children.get(0).unwrap() {
+				note
+			} else {
+				panic!("Not a note?");
+			};
 			let (rename, _) = note.rename("Bar");
 			let new_group = group.patch(&rename).unwrap();
-			let new_note = new_group
-				.children
-				.get(0)
-				.unwrap()
-				.as_any()
-				.downcast_ref::<Note>()
-				.unwrap();
+			let new_note = if let DocumentNode::Note(note) = &**new_group.children.get(0).unwrap() {
+				note
+			} else {
+				panic!("Not a note?")
+			};
 			assert_eq!(*new_group.name, "Root");
 			assert_eq!(*note.note, "Foo");
 			assert_eq!(*new_note.note, "Bar");
@@ -72,13 +76,17 @@ mod tests {
 			assert_eq!(Rc::strong_count(&note.position), 2);
 		}
 		{
-			let note = Rc::new(Note::new(None, "Foo", Vec2::new(0., 0.)));
-			let group = Group::new(None, "Root", Vec2::new(0., 0.), vec![note.clone()]);
-			let rename = RenamePatch {
+			let group = Group::new(None, "Root", Vec2::new(0., 0.), vec![Rc::new(DocumentNode::Note(Note::new(None, "Foo", Vec2::new(0., 0.))))]);
+			let rename = Patch::Rename(RenamePatch {
 				target: Uuid::new_v4(),
 				name: "Bar".to_owned(),
-			};
+			});
 			let new_group = group.patch(&rename);
+			let note = if let DocumentNode::Note(note) = &**group.children.get(0).unwrap() {
+				note
+			} else {
+				panic!("Not a note?");
+			};
 			assert_eq!(new_group.is_none(), true);
 			assert_eq!(Rc::strong_count(&group.name), 1);
 			assert_eq!(Rc::strong_count(&group.position), 1);

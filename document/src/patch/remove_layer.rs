@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-pub struct RemoveChildPatch {
+pub struct RemoveLayerPatch {
 	pub target: Uuid,
 	pub child_id: Uuid,
 }

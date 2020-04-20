@@ -1,6 +1,7 @@
 use uuid::Uuid;
 
-pub struct RemoveChildPatch {
+pub struct MoveLayerPatch {
 	pub target: Uuid,
 	pub child_id: Uuid,
+	pub position: usize,
 }

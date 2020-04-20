@@ -1,11 +1,27 @@
 mod add_child;
+mod add_layer;
+mod apply_stencil;
+mod crop_layer;
 mod move_child;
+mod move_layer;
 mod patch;
 mod remove_child;
+mod remove_layer;
+mod resize_layer;
+mod restore_layer_canvas;
+mod restore_layer_group;
 mod rename;
 
 pub use self::add_child::*;
+pub use self::add_layer::*;
+pub use self::apply_stencil::*;
+pub use self::crop_layer::*;
 pub use self::move_child::*;
+pub use self::move_layer::*;
 pub use self::patch::*;
 pub use self::remove_child::*;
+pub use self::remove_layer::*;
+pub use self::resize_layer::*;
+pub use self::restore_layer_canvas::*;
+pub use self::restore_layer_group::*;
 pub use self::rename::*;

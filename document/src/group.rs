@@ -1,36 +1,15 @@
-use std::any::Any;
-use std::rc::Rc;
-
 use math::Vec2;
+use std::rc::Rc;
 use uuid::Uuid;
 
 use crate::document::*;
 use crate::node::*;
 use crate::patch::*;
 
-pub trait GroupChild: Node {
-	fn patch_rc(&self, patch: &dyn PatchImpl) -> Option<Rc<dyn GroupChild + 'static>>;
-	fn as_any(&self) -> &dyn Any;
-}
-impl<T> GroupChild for T
-where
-	T: Patchable + Document + Any,
-{
-	fn patch_rc(&self, patch: &dyn PatchImpl) -> Option<Rc<dyn GroupChild + 'static>> {
-		match self.patch(patch) {
-			Some(new_self) => Some(Rc::new(*new_self)),
-			None => None,
-		}
-	}
-	fn as_any(&self) -> &dyn Any {
-		self
-	}
-}
-
 pub struct Group {
 	pub id: Uuid,
 	pub name: Rc<String>,
-	pub children: Rc<Vec<Rc<dyn GroupChild>>>,
+	pub children: Rc<Vec<Rc<DocumentNode>>>,
 	pub position: Rc<Vec2<f32>>,
 }
 
@@ -60,7 +39,7 @@ impl Group {
 		id: Option<Uuid>,
 		name: &str,
 		position: Vec2<f32>,
-		children: Vec<Rc<dyn GroupChild>>,
+		children: Vec<Rc<DocumentNode>>,
 	) -> Group {
 		Group {
 			id: id.or(Some(Uuid::new_v4())).unwrap(),
@@ -72,7 +51,7 @@ impl Group {
 
 	pub fn add_child(
 		&self,
-		add_child: Rc<dyn GroupChild>,
+		add_child: Rc<DocumentNode>,
 	) -> Result<(AddChildPatch, RemoveChildPatch), GroupError> {
 		let index = self
 			.children
@@ -163,97 +142,101 @@ impl Document for Group {
 }
 
 impl<'a> Renamable<'a> for Group {
-	fn rename(&self, new_name: &'a str) -> (RenamePatch, RenamePatch) {
+	fn rename(&self, new_name: &'a str) -> (Patch, Patch) {
 		(
-			RenamePatch {
+			Patch::Rename(RenamePatch {
 				target: self.id,
 				name: new_name.to_owned(),
-			},
-			RenamePatch {
+			}),
+			Patch::Rename(RenamePatch {
 				target: self.id,
 				name: (*self.name).to_owned(),
-			},
+			}),
 		)
 	}
 }
 
 impl Patchable for Group {
-	fn patch(&self, patch: &dyn PatchImpl) -> Option<Box<Self>> {
+	fn patch(&self, patch: &Patch) -> Option<Box<Self>> {
 		if patch.target() == self.id {
-			if let Some(patch) = patch.as_any().downcast_ref::<RenamePatch>() {
-				return Some(Box::new(Group {
+			return match patch {
+				Patch::Rename(patch) => Some(Box::new(Group {
 					id: self.id,
 					name: Rc::new(patch.name.clone()),
 					position: self.position.clone(),
 					children: self.children.clone(),
-				}));
-			} else if let Some(patch) = patch.as_any().downcast_ref::<AddChildPatch>() {
-				let mut children = self
-					.children
-					.iter()
-					.map(|child| child.clone())
-					.collect::<Vec<_>>();
-				if patch.position > children.len() {
-					children.push(patch.child.clone());
-				} else {
-					children.insert(patch.position, patch.child.clone());
-				}
-				return Some(Box::new(Group {
-					id: self.id,
-					name: self.name.clone(),
-					position: self.position.clone(),
-					children: Rc::new(children),
-				}));
-			} else if let Some(patch) = patch.as_any().downcast_ref::<RemoveChildPatch>() {
-				let children = self
-					.children
-					.iter()
-					.filter_map(|child| {
-						if child.id() == patch.child_id {
-							None
-						} else {
-							Some(child.clone())
-						}
-					})
-					.collect::<Vec<_>>();
-				return Some(Box::new(Group {
-					id: self.id,
-					name: self.name.clone(),
-					position: self.position.clone(),
-					children: Rc::new(children),
-				}));
-			} else if let Some(patch) = patch.as_any().downcast_ref::<MoveChildPatch>() {
-				let mut children = self
-					.children
-					.iter()
-					.map(|child| child.clone())
-					.collect::<Vec<_>>();
-				let index = children
-					.iter()
-					.position(|child| child.id() == patch.child_id)
-					.unwrap();
-				let child = children.remove(index);
-				if patch.position > children.len() {
-					children.push(child);
-				} else {
-					children.insert(patch.position, child);
-				}
-				return Some(Box::new(Group {
-					id: self.id,
-					name: self.name.clone(),
-					position: self.position.clone(),
-					children: Rc::new(children),
-				}));
-			}
+				})),
+				Patch::AddChild(patch) => {
+					let mut children = self
+						.children
+						.iter()
+						.map(|child| child.clone())
+						.collect::<Vec<_>>();
+					if patch.position > children.len() {
+						children.push(patch.child.clone());
+					} else {
+						children.insert(patch.position, patch.child.clone());
+					}
+					Some(Box::new(Group {
+						id: self.id,
+						name: self.name.clone(),
+						position: self.position.clone(),
+						children: Rc::new(children),
+					}))
+				},
+				Patch::RemoveChild(patch) => {
+					let children = self
+						.children
+						.iter()
+						.filter_map(|child| {
+							if child.id() == patch.child_id {
+								None
+							} else {
+								Some(child.clone())
+							}
+						})
+						.collect::<Vec<_>>();
+					Some(Box::new(Group {
+						id: self.id,
+						name: self.name.clone(),
+						position: self.position.clone(),
+						children: Rc::new(children),
+					}))
+				},
+				Patch::MoveChild(patch) => {
+					let mut children = self
+						.children
+						.iter()
+						.map(|child| child.clone())
+						.collect::<Vec<_>>();
+					let index = children
+						.iter()
+						.position(|child| child.id() == patch.child_id)
+						.unwrap();
+					let child = children.remove(index);
+					if patch.position > children.len() {
+						children.push(child);
+					} else {
+						children.insert(patch.position, child);
+					}
+					Some(Box::new(Group {
+						id: self.id,
+						name: self.name.clone(),
+						position: self.position.clone(),
+						children: Rc::new(children),
+					}))
+				},
+				_ => None
+			};
 		} else {
 			let mut mutated = false;
 			let children = self
 				.children
 				.iter()
-				.map(|child| match child.patch_rc(patch) {
+				.map(|child| match child.patch(patch) {
 					Some(new_child) => {
 						mutated = true;
-						new_child
+						Rc::new(new_child)
 					}
 					None => child.clone(),
 				})

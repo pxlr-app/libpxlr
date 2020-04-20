@@ -1,54 +1,51 @@
 use math::{Extent2, Vec2};
-use std::any::Any;
-
 use uuid::Uuid;
 
+use crate::patch::{Patchable, Patch};
 use crate::node::Node;
-use crate::patch::*;
-use crate::sprite::Interpolation;
+use crate::sprite::{Canvas, Interpolation, LayerGroup, Sprite};
 
 pub trait Layer: Node {
-	fn crop(&self, offset: Vec2<u32>, size: Extent2<u32>) -> (CropPatch, Box<dyn PatchImpl>);
-	fn resize(
-		&self,
-		size: Extent2<u32>,
-		interpolation: Interpolation,
-	) -> (ResizePatch, Box<dyn PatchImpl>);
+	fn crop(&self, offset: Vec2<u32>, size: Extent2<u32>) -> (Patch, Patch);
+	fn resize(&self, size: Extent2<u32>, interpolation: Interpolation) -> (Patch, Patch);
 }
 
-pub trait LayerImpl: Layer {
-	fn as_any(&self) -> &dyn Any;
+pub enum LayerNode {
+	Canvas(Canvas),
+	Group(LayerGroup),
+	Sprite(Sprite),
 }
 
-impl<T> LayerImpl for T
-where
-	T: Layer + Any,
-{
-	fn as_any(&self) -> &dyn Any {
-		self
+impl LayerNode {
+	pub fn id(&self) -> Uuid {
+		match self {
+			LayerNode::Canvas(node) => node.id,
+			LayerNode::Group(node) => node.id,
+			LayerNode::Sprite(node) => node.id,
+		}
 	}
-}
 
-pub struct CropPatch {
-	pub target: Uuid,
-	pub offset: Vec2<u32>,
-	pub size: Extent2<u32>,
-}
-
-impl Patch for CropPatch {
-	fn target(&self) -> Uuid {
-		self.target
+	pub fn patch(&self, patch: &Patch) -> Option<LayerNode> {
+		match self {
+			LayerNode::Canvas(node) => node.patch(&patch).map(|node| LayerNode::Canvas(*node)),
+			LayerNode::Group(node) => node.patch(&patch).map(|node| LayerNode::Group(*node)),
+			LayerNode::Sprite(node) => node.patch(&patch).map(|node| LayerNode::Sprite(*node)),
+		}
 	}
-}
 
-pub struct ResizePatch {
-	pub target: Uuid,
-	pub size: Extent2<u32>,
-	pub interpolation: Interpolation,
-}
+	pub fn crop(&self, offset: Vec2<u32>, size: Extent2<u32>) -> (Patch, Patch) {
+		match self {
+			LayerNode::Canvas(node) => node.crop(offset, size),
+			LayerNode::Group(node) => node.crop(offset, size),
+			LayerNode::Sprite(node) => node.crop(offset, size),
+		}
+	}
 
-impl Patch for ResizePatch {
-	fn target(&self) -> Uuid {
-		self.target
+	pub fn resize(&self, size: Extent2<u32>, interpolation: Interpolation) -> (Patch, Patch) {
+		match self {
+			LayerNode::Canvas(node) => node.resize(size, interpolation),
+			LayerNode::Group(node) => node.resize(size, interpolation),
+			LayerNode::Sprite(node) => node.resize(size, interpolation),
+		}
 	}
 }
