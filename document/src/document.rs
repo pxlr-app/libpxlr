@@ -1,10 +1,10 @@
 use math::Vec2;
 use uuid::Uuid;
 
-use crate::patch::{Patchable, Patch};
 use crate::group::Group;
 use crate::node::Node;
 use crate::note::Note;
+use crate::patch::{Patch, Patchable};
 use crate::sprite::Sprite;
 
 pub trait Document: Node {
@@ -30,7 +30,9 @@ impl DocumentNode {
 		match self {
 			DocumentNode::Note(node) => node.patch(&patch).map(|node| DocumentNode::Note(*node)),
 			DocumentNode::Group(node) => node.patch(&patch).map(|node| DocumentNode::Group(*node)),
-			DocumentNode::Sprite(node) => node.patch(&patch).map(|node| DocumentNode::Sprite(*node)),
+			DocumentNode::Sprite(node) => {
+				node.patch(&patch).map(|node| DocumentNode::Sprite(*node))
+			}
 		}
 	}
 }

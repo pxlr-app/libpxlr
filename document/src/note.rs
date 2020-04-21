@@ -58,7 +58,7 @@ impl Patchable for Note {
 					note: Rc::new(rename.name.clone()),
 					position: self.position.clone(),
 				})),
-				_ => None
+				_ => None,
 			};
 		}
 		return None;

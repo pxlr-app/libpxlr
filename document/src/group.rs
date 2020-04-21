@@ -49,10 +49,7 @@ impl Group {
 		}
 	}
 
-	pub fn add_child(
-		&self,
-		add_child: Rc<DocumentNode>,
-	) -> Result<(AddChildPatch, RemoveChildPatch), GroupError> {
+	pub fn add_child(&self, add_child: Rc<DocumentNode>) -> Result<(Patch, Patch), GroupError> {
 		let index = self
 			.children
 			.iter()
@@ -61,23 +58,20 @@ impl Group {
 			Err(GroupError::ChildFound)
 		} else {
 			Ok((
-				AddChildPatch {
+				Patch::AddChild(AddChildPatch {
 					target: self.id,
 					child: add_child.clone(),
 					position: self.children.len(),
-				},
-				RemoveChildPatch {
+				}),
+				Patch::RemoveChild(RemoveChildPatch {
 					target: self.id,
 					child_id: add_child.id(),
-				},
+				}),
 			))
 		}
 	}
 
-	pub fn remove_child(
-		&self,
-		child_id: Uuid,
-	) -> Result<(RemoveChildPatch, AddChildPatch), GroupError> {
+	pub fn remove_child(&self, child_id: Uuid) -> Result<(Patch, Patch), GroupError> {
 		let index = self
 			.children
 			.iter()
@@ -87,15 +81,15 @@ impl Group {
 		} else {
 			let index = index.unwrap();
 			Ok((
-				RemoveChildPatch {
+				Patch::RemoveChild(RemoveChildPatch {
 					target: self.id,
 					child_id: child_id,
-				},
-				AddChildPatch {
+				}),
+				Patch::AddChild(AddChildPatch {
 					target: self.id,
 					child: self.children.get(index).unwrap().clone(),
 					position: index,
-				},
+				}),
 			))
 		}
 	}
@@ -104,7 +98,7 @@ impl Group {
 		&self,
 		child_id: Uuid,
 		position: usize,
-	) -> Result<(MoveChildPatch, MoveChildPatch), GroupError> {
+	) -> Result<(Patch, Patch), GroupError> {
 		let index = self
 			.children
 			.iter()
@@ -114,16 +108,16 @@ impl Group {
 		} else {
 			let index = index.unwrap();
 			Ok((
-				MoveChildPatch {
+				Patch::MoveChild(MoveChildPatch {
 					target: self.id,
 					child_id: child_id,
 					position: position,
-				},
-				MoveChildPatch {
+				}),
+				Patch::MoveChild(MoveChildPatch {
 					target: self.id,
 					child_id: child_id,
 					position: index,
-				},
+				}),
 			))
 		}
 	}
@@ -183,7 +177,7 @@ impl Patchable for Group {
 						position: self.position.clone(),
 						children: Rc::new(children),
 					}))
-				},
+				}
 				Patch::RemoveChild(patch) => {
 					let children = self
 						.children
@@ -202,7 +196,7 @@ impl Patchable for Group {
 						position: self.position.clone(),
 						children: Rc::new(children),
 					}))
-				},
+				}
 				Patch::MoveChild(patch) => {
 					let mut children = self
 						.children
@@ -225,8 +219,8 @@ impl Patchable for Group {
 						position: self.position.clone(),
 						children: Rc::new(children),
 					}))
-				},
-				_ => None
+				}
+				_ => None,
 			};
 		} else {
 			let mut mutated = false;

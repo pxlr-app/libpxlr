@@ -5,11 +5,13 @@ use uuid::Uuid;
 use crate::document::Document;
 use crate::node::*;
 use crate::patch::*;
+use crate::sprite::color::ColorMode;
 use crate::sprite::*;
 
 pub struct LayerGroup {
 	pub id: Uuid,
 	pub name: Rc<String>,
+	pub color_mode: ColorMode,
 	pub children: Rc<Vec<Rc<LayerNode>>>,
 	pub position: Rc<Vec2<f32>>,
 	pub size: Rc<Extent2<u32>>,
@@ -40,6 +42,7 @@ impl LayerGroup {
 	pub fn new(
 		id: Option<Uuid>,
 		name: &str,
+		color_mode: ColorMode,
 		children: Vec<Rc<LayerNode>>,
 		position: Vec2<f32>,
 		size: Extent2<u32>,
@@ -47,41 +50,36 @@ impl LayerGroup {
 		LayerGroup {
 			id: id.or(Some(Uuid::new_v4())).unwrap(),
 			name: Rc::new(name.to_owned()),
+			color_mode: color_mode,
 			children: Rc::new(children),
 			position: Rc::new(position),
 			size: Rc::new(size),
 		}
 	}
 
-	pub fn add_child(
-		&self,
-		add_child: Rc<LayerNode>,
-	) -> Result<(AddLayerPatch, RemoveLayerPatch), LayerGroupError> {
+	pub fn add_layer(&self, add_layer: Rc<LayerNode>) -> Result<(Patch, Patch), LayerGroupError> {
 		let index = self
 			.children
 			.iter()
-			.position(|child| Rc::ptr_eq(&child, &add_child));
+			.position(|child| Rc::ptr_eq(&child, &add_layer));
 		if index.is_some() {
 			Err(LayerGroupError::LayerFound)
 		} else {
 			Ok((
-				AddLayerPatch {
+				Patch::AddLayer(AddLayerPatch {
 					target: self.id,
-					child: add_child.clone(),
+					child: add_layer.clone(),
 					position: self.children.len(),
-				},
-				RemoveLayerPatch {
+				}),
+				Patch::RemoveLayer(RemoveLayerPatch {
 					target: self.id,
-					child_id: add_child.id(),
-				},
+					child_id: add_layer.id(),
+				}),
 			))
 		}
 	}
 
-	pub fn remove_child(
-		&self,
-		child_id: Uuid,
-	) -> Result<(RemoveLayerPatch, AddLayerPatch), LayerGroupError> {
+	pub fn remove_layer(&self, child_id: Uuid) -> Result<(Patch, Patch), LayerGroupError> {
 		let index = self
 			.children
 			.iter()
@@ -91,24 +89,24 @@ impl LayerGroup {
 		} else {
 			let index = index.unwrap();
 			Ok((
-				RemoveLayerPatch {
+				Patch::RemoveLayer(RemoveLayerPatch {
 					target: self.id,
 					child_id: child_id,
-				},
-				AddLayerPatch {
+				}),
+				Patch::AddLayer(AddLayerPatch {
 					target: self.id,
 					child: self.children.get(index).unwrap().clone(),
 					position: index,
-				},
+				}),
 			))
 		}
 	}
 
-	pub fn move_child(
+	pub fn move_layer(
 		&self,
 		child_id: Uuid,
 		position: usize,
-	) -> Result<(MoveLayerPatch, MoveLayerPatch), LayerGroupError> {
+	) -> Result<(Patch, Patch), LayerGroupError> {
 		let index = self
 			.children
 			.iter()
@@ -118,16 +116,16 @@ impl LayerGroup {
 		} else {
 			let index = index.unwrap();
 			Ok((
-				MoveLayerPatch {
+				Patch::MoveLayer(MoveLayerPatch {
 					target: self.id,
 					child_id: child_id,
 					position: position,
-				},
-				MoveLayerPatch {
+				}),
+				Patch::MoveLayer(MoveLayerPatch {
 					target: self.id,
 					child_id: child_id,
 					position: index,
-				},
+				}),
 			))
 		}
 	}
@@ -161,11 +159,7 @@ impl Layer for LayerGroup {
 		)
 	}
 
-	fn resize(
-		&self,
-		size: Extent2<u32>,
-		interpolation: Interpolation,
-	) -> (Patch, Patch) {
+	fn resize(&self, size: Extent2<u32>, interpolation: Interpolation) -> (Patch, Patch) {
 		(
 			Patch::ResizeLayer(ResizeLayerPatch {
 				target: self.id,
@@ -215,11 +209,13 @@ impl Patchable for LayerGroup {
 				Patch::Rename(patch) => Some(Box::new(LayerGroup {
 					id: self.id,
 					name: Rc::new(patch.name.clone()),
+					color_mode: self.color_mode,
 					position: self.position.clone(),
 					size: self.size.clone(),
 					children: self.children.clone(),
 				})),
 				Patch::AddLayer(patch) => {
+					assert_eq!(patch.child.color_mode(), self.color_mode);
 					let mut children = self
 						.children
 						.iter()
@@ -233,11 +229,12 @@ impl Patchable for LayerGroup {
 					Some(Box::new(LayerGroup {
 						id: self.id,
 						name: self.name.clone(),
+						color_mode: self.color_mode,
 						position: self.position.clone(),
 						size: self.size.clone(),
 						children: Rc::new(children),
 					}))
-				},
+				}
 				Patch::RemoveLayer(patch) => {
 					let children = self
 						.children
@@ -253,11 +250,12 @@ impl Patchable for LayerGroup {
 					Some(Box::new(LayerGroup {
 						id: self.id,
 						name: self.name.clone(),
+						color_mode: self.color_mode,
 						position: self.position.clone(),
 						size: self.size.clone(),
 						children: Rc::new(children),
 					}))
-				},
+				}
 				Patch::MoveLayer(patch) => {
 					let mut children = self
 						.children
@@ -277,11 +275,12 @@ impl Patchable for LayerGroup {
 					Some(Box::new(LayerGroup {
 						id: self.id,
 						name: self.name.clone(),
+						color_mode: self.color_mode,
 						position: self.position.clone(),
 						size: self.size.clone(),
 						children: Rc::new(children),
 					}))
-				},
+				}
 				Patch::CropLayer(patch) => {
 					let children = self
 						.children
@@ -299,11 +298,12 @@ impl Patchable for LayerGroup {
 					Some(Box::new(LayerGroup {
 						id: self.id,
 						name: Rc::clone(&self.name),
+						color_mode: self.color_mode,
 						position: Rc::clone(&self.position),
 						size: Rc::new(patch.size),
 						children: Rc::new(children),
 					}))
-				},
+				}
 				Patch::ResizeLayer(patch) => {
 					let children = self
 						.children
@@ -321,12 +321,13 @@ impl Patchable for LayerGroup {
 					Some(Box::new(LayerGroup {
 						id: self.id,
 						name: Rc::clone(&self.name),
+						color_mode: self.color_mode,
 						position: Rc::clone(&self.position),
 						size: Rc::new(patch.size),
 						children: Rc::new(children),
 					}))
-				},
-				_ => None
+				}
+				_ => None,
 			};
 		} else {
 			let mut mutated = false;
@@ -345,6 +346,7 @@ impl Patchable for LayerGroup {
 				return Some(Box::new(LayerGroup {
 					id: self.id,
 					name: Rc::clone(&self.name),
+					color_mode: self.color_mode,
 					position: Rc::clone(&self.position),
 					size: Rc::clone(&self.size),
 					children: Rc::new(children),
@@ -352,184 +354,5 @@ impl Patchable for LayerGroup {
 			}
 		}
 		return None;
-	}
-}
-
-#[cfg(test)]
-mod tests {
-	use super::*;
-	use math::{Extent2, Vec2};
-	use std::rc::Rc;
-
-	#[test]
-	fn it_adds_child() {
-		let g1 = LayerGroup::new(
-			None,
-			"group",
-			vec![],
-			Vec2::new(0., 0.),
-			Extent2::new(4u32, 4u32),
-		);
-		let c1 = Rc::new(Canvas::new(
-			None,
-			"canvas",
-			Extent2::new(2u32, 2u32),
-			vec![Pixel::I(255), Pixel::I(128), Pixel::I(64), Pixel::I(32)],
-		));
-
-		let (patch, _) = g1.add_child(c1.clone()).unwrap();
-		let g2 = g1.patch(&patch).unwrap();
-
-		assert_eq!(g2.children.len(), 1);
-		assert_eq!(Rc::strong_count(&c1), 3);
-	}
-
-	#[test]
-	fn it_removes_child() {
-		let c1 = Rc::new(Canvas::new(
-			None,
-			"canvas",
-			Extent2::new(2u32, 2u32),
-			vec![255u8, 128u8, 64u8, 32u8],
-		));
-		let g1 = LayerGroup::new(
-			None,
-			"group",
-			vec![c1.clone()],
-			Vec2::new(0., 0.),
-			Extent2::new(4u32, 4u32),
-		);
-
-		let (patch, _) = g1.remove_child(c1.id).unwrap();
-		let g2 = g1.patch(&patch).unwrap();
-
-		assert_eq!(g2.children.len(), 0);
-		assert_eq!(Rc::strong_count(&c1), 2);
-	}
-
-	#[test]
-	fn it_moves_child() {
-		let c1 = Rc::new(Canvas::new(
-			None,
-			"canvas_a",
-			Extent2::new(2u32, 2u32),
-			vec![255u8, 128u8, 64u8, 32u8],
-		));
-		let c2 = Rc::new(Canvas::new(
-			None,
-			"canvas_b",
-			Extent2::new(2u32, 2u32),
-			vec![255u8, 128u8, 64u8, 32u8],
-		));
-		let g1 = LayerGroup::new(
-			None,
-			"group",
-			vec![c1.clone(), c2.clone()],
-			Vec2::new(0., 0.),
-			Extent2::new(4u32, 4u32),
-		);
-
-		let (patch, _) = g1.move_child(c2.id, 0).unwrap();
-		let g2 = g1.patch(&patch).unwrap();
-
-		assert_eq!(g2.children.len(), 2);
-		assert_eq!(g2.children.get(0).unwrap().id(), c2.id);
-		assert_eq!(g2.children.get(1).unwrap().id(), c1.id);
-	}
-
-	#[test]
-	fn it_patchs_child() {
-		let c1 = Rc::new(Canvas::new(
-			None,
-			"canvas_a",
-			Extent2::new(2u32, 2u32),
-			vec![255u8, 128u8, 64u8, 32u8],
-		));
-		let c2 = Rc::new(Canvas::new(
-			None,
-			"canvas_b",
-			Extent2::new(2u32, 2u32),
-			vec![32u8, 64u8, 128u8, 255u8],
-		));
-		let g1 = LayerGroup::new(
-			None,
-			"group",
-			vec![c1.clone(), c2.clone()],
-			Vec2::new(0., 0.),
-			Extent2::new(4u32, 4u32),
-		);
-
-		let (patch, _) = c1.rename("canvas_aa");
-		let g2 = g1.patch(&patch).unwrap();
-
-		assert_eq!(Rc::strong_count(&c1), 2);
-		assert_eq!(Rc::strong_count(&c1.name), 1);
-		assert_eq!(Rc::strong_count(&c2), 3);
-		assert_eq!(Rc::strong_count(&c2.name), 1);
-		assert_eq!(
-			*g2.children
-				.get(0)
-				.unwrap()
-				.as_any()
-				.downcast_ref::<Canvas<u8>>()
-				.unwrap()
-				.name,
-			"canvas_aa"
-		);
-		assert_eq!(
-			*g2.children
-				.get(1)
-				.unwrap()
-				.as_any()
-				.downcast_ref::<Canvas<u8>>()
-				.unwrap()
-				.name,
-			"canvas_b"
-		);
-
-		let (patch, _) = g1.resize(Extent2::new(4, 1), Interpolation::Nearest);
-		let g2 = g1.patch(&patch).unwrap();
-
-		assert_eq!(*g2.size, Extent2::new(4, 1));
-		assert_eq!(
-			*g2.children
-				.get(0)
-				.unwrap()
-				.as_any()
-				.downcast_ref::<Canvas<u8>>()
-				.unwrap()
-				.size,
-			Extent2::new(4, 1)
-		);
-		assert_eq!(
-			*g2.children
-				.get(1)
-				.unwrap()
-				.as_any()
-				.downcast_ref::<Canvas<u8>>()
-				.unwrap()
-				.size,
-			Extent2::new(4, 1)
-		);
-		assert_eq!(
-			*g2.children
-				.get(0)
-				.unwrap()
-				.as_any()
-				.downcast_ref::<Canvas<u8>>()
-				.unwrap()
-				.data,
-			vec![255, 255, 64, 64]
-		);
-		assert_eq!(
-			*g2.children
-				.get(1)
-				.unwrap()
-				.as_any()
-				.downcast_ref::<Canvas<u8>>()
-				.unwrap()
-				.data,
-			vec![32, 32, 128, 128]
-		);
 	}
 }
