@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::sprite::color::*;
 
-macro_rules! impl_restore_canvas_patch {
+macro_rules! define_restore_canvas_patch {
 	($name:ident $color:ident) => {
 		pub struct $name {
 			pub target: Uuid,
@@ -14,8 +14,8 @@ macro_rules! impl_restore_canvas_patch {
 	};
 }
 
-impl_restore_canvas_patch!(RestoreLayerCanvasIPatch I);
-impl_restore_canvas_patch!(RestoreLayerCanvasUVPatch UV);
-impl_restore_canvas_patch!(RestoreLayerCanvasRGBPatch RGB);
-impl_restore_canvas_patch!(RestoreLayerCanvasRGBAPatch RGBA);
-impl_restore_canvas_patch!(RestoreLayerCanvasRGBAXYZPatch RGBAXYZ);
+define_restore_canvas_patch!(RestoreLayerCanvasIPatch I);
+define_restore_canvas_patch!(RestoreLayerCanvasUVPatch UV);
+define_restore_canvas_patch!(RestoreLayerCanvasRGBPatch RGB);
+define_restore_canvas_patch!(RestoreLayerCanvasRGBAPatch RGBA);
+define_restore_canvas_patch!(RestoreLayerCanvasRGBAXYZPatch RGBAXYZ);

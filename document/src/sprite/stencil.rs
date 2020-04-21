@@ -36,7 +36,7 @@ impl<'a, T> Iterator for StencilDataIterator<'a, T> {
 	}
 }
 
-macro_rules! impl_stencil {
+macro_rules! define_stencil {
 	($name:ident $color:ident) => {
 		pub struct $name
 		{
@@ -144,8 +144,8 @@ macro_rules! impl_stencil {
 	};
 }
 
-impl_stencil!(StencilI I);
-impl_stencil!(StencilUV UV);
-impl_stencil!(StencilRGB RGB);
-impl_stencil!(StencilRGBA RGBA);
-impl_stencil!(StencilRGBAXYZ RGBAXYZ);
+define_stencil!(StencilI I);
+define_stencil!(StencilUV UV);
+define_stencil!(StencilRGB RGB);
+define_stencil!(StencilRGBA RGBA);
+define_stencil!(StencilRGBAXYZ RGBAXYZ);

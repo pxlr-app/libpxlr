@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::sprite::{BlendMode, StencilI, StencilRGB, StencilRGBA, StencilRGBAXYZ, StencilUV};
 
-macro_rules! impl_stencil_patch {
+macro_rules! define_stencil_patch {
 	($name:ident $stencil:ident) => {
 		pub struct $name {
 			pub target: Uuid,
@@ -14,8 +14,8 @@ macro_rules! impl_stencil_patch {
 	};
 }
 
-impl_stencil_patch!(ApplyStencilIPatch StencilI);
-impl_stencil_patch!(ApplyStencilUVPatch StencilUV);
-impl_stencil_patch!(ApplyStencilRGBPatch StencilRGB);
-impl_stencil_patch!(ApplyStencilRGBAPatch StencilRGBA);
-impl_stencil_patch!(ApplyStencilRGBAXYZPatch StencilRGBAXYZ);
+define_stencil_patch!(ApplyStencilIPatch StencilI);
+define_stencil_patch!(ApplyStencilUVPatch StencilUV);
+define_stencil_patch!(ApplyStencilRGBPatch StencilRGB);
+define_stencil_patch!(ApplyStencilRGBAPatch StencilRGBA);
+define_stencil_patch!(ApplyStencilRGBAXYZPatch StencilRGBAXYZ);
