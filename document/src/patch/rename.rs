@@ -1,6 +1,8 @@
 use crate::patch::Patch;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RenamePatch {
 	pub target: Uuid,
 	pub name: String,

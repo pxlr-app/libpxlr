@@ -1,10 +1,12 @@
 use crate::sprite::{StencilI, StencilIXYZ, StencilRGB, StencilRGBA, StencilRGBAXYZ, StencilUV};
 use math::blend::BlendMode;
 use math::Vec2;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 macro_rules! define_stencil_patch {
 	($name:ident $stencil:ident) => {
+		#[derive(Debug, Serialize, Deserialize)]
 		pub struct $name {
 			pub target: Uuid,
 			pub stencil: $stencil,

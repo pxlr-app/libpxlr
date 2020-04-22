@@ -7,6 +7,7 @@ edition = "2018"
 [dependencies]
 num-traits = "0.2.11"
 vek = { version = "0.9.12", features = ["serde"] }
+serde = "1.0.106"
 
 [dev-dependencies.cargo-husky]
 version = "1"

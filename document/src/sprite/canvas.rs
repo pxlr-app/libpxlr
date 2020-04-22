@@ -5,6 +5,7 @@ use math::blend::*;
 use math::color::*;
 use math::interpolation::*;
 use math::{Extent2, Mat2, Vec2};
+use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
 use std::ops::Index;
 use std::rc::Rc;
@@ -17,6 +18,7 @@ pub trait Canvas {
 
 macro_rules! define_canvas {
 	($name:ident $color:ident $stencil:ident $stencilpatch:ident $patchstencilpatch:ident $restorepatch:ident $patchrestorepatch:ident) => {
+		#[derive(Debug, Serialize, Deserialize)]
 		pub struct $name {
 			pub id: Uuid,
 			pub name: Rc<String>,

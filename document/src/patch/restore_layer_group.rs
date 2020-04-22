@@ -1,7 +1,9 @@
 use crate::patch::Patch;
 use math::{Extent2, Vec2};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RestoreLayerGroupPatch {
 	pub target: Uuid,
 	pub name: String,

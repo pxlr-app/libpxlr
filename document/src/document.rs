@@ -4,12 +4,14 @@ use crate::note::Note;
 use crate::patch::{Patch, Patchable};
 use crate::sprite::Sprite;
 use math::Vec2;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub trait Document: Node {
 	fn position(&self) -> Vec2<f32>;
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub enum DocumentNode {
 	Note(Note),
 	Group(Group),

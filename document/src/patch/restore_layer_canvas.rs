@@ -1,9 +1,11 @@
 use math::color::*;
 use math::Extent2;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 macro_rules! define_restore_canvas_patch {
 	($name:ident $color:ident) => {
+		#[derive(Debug, Serialize, Deserialize)]
 		pub struct $name {
 			pub target: Uuid,
 			pub name: String,

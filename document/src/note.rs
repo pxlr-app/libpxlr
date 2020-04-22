@@ -2,9 +2,11 @@ use crate::document::Document;
 use crate::node::Node;
 use crate::patch::*;
 use math::Vec2;
+use serde::{Deserialize, Serialize};
 use std::rc::Rc;
 use uuid::Uuid;
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Note {
 	pub id: Uuid,
 	pub note: Rc<String>,

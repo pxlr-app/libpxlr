@@ -1,7 +1,9 @@
 use math::interpolation::Interpolation;
 use math::Extent2;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ResizeLayerPatch {
 	pub target: Uuid,
 	pub size: Extent2<u32>,

@@ -1,6 +1,8 @@
 use math::{Extent2, Vec2};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CropLayerPatch {
 	pub target: Uuid,
 	pub offset: Vec2<u32>,

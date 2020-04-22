@@ -5,9 +5,11 @@ use crate::sprite::*;
 use math::color::ColorMode;
 use math::interpolation::*;
 use math::{Extent2, Vec2};
+use serde::{Deserialize, Serialize};
 use std::rc::Rc;
 use uuid::Uuid;
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LayerGroup {
 	pub id: Uuid,
 	pub name: Rc<String>,

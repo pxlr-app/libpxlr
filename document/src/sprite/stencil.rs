@@ -1,6 +1,7 @@
 use collections::{bitvec, braille_fmt2, BitVec};
 use math::color::*;
 use math::Extent2;
+use serde::{Deserialize, Serialize};
 use std::default::Default;
 
 pub struct StencilDataIterator<'a, T> {
@@ -43,6 +44,7 @@ pub trait Stencil {
 
 macro_rules! define_stencil {
 	($name:ident $color:ident) => {
+		#[derive(Serialize, Deserialize)]
 		pub struct $name
 		{
 			pub size: Extent2<u32>,

@@ -1,6 +1,7 @@
 use crate::blend::*;
 use crate::Lerp;
 use num_traits::identities::Zero;
+use serde::{Deserialize, Serialize};
 use std::default::Default;
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -11,13 +12,13 @@ macro_rules! define_colors {
 		$color:ident ($($name:ident:$type:ty),+);
 	)+} => {
 
-		#[derive(Debug, Clone, Copy, PartialEq)]
+		#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 		pub enum ColorMode {
 			$($color),+
 		}
 
 		$(
-			#[derive(Debug, Clone, Copy, PartialEq)]
+			#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 			pub struct $color {
 				$(pub $name: $type),+
 			}

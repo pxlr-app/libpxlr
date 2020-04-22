@@ -4,6 +4,7 @@ use crate::sprite::*;
 use math::color::ColorMode;
 use math::interpolation::*;
 use math::{Extent2, Vec2};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub trait Layer: Node {
@@ -16,6 +17,7 @@ pub trait Layer: Node {
 	) -> Result<(Patch, Patch), ResizeLayerError>;
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub enum LayerNode {
 	CanvasI(CanvasI),
 	CanvasUV(CanvasUV),

@@ -1,6 +1,7 @@
 use crate::{Extent2, Lerp, Mat2, Vec2};
+use serde::{Deserialize, Serialize};
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum Interpolation {
 	Nearest,
 	Bilinear,
