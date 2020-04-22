@@ -1,8 +1,7 @@
+use crate::sprite::color::*;
 use collections::{bitvec, braille_fmt2, BitVec};
 use math::Extent2;
 use std::default::Default;
-
-use crate::sprite::color::*;
 
 pub struct StencilDataIterator<'a, T> {
 	bit_offset: usize,
@@ -34,6 +33,12 @@ impl<'a, T> Iterator for StencilDataIterator<'a, T> {
 		}
 		return None;
 	}
+}
+
+pub trait Stencil {
+	type Color: Color;
+
+	fn new(size: Extent2<u32>, mask: BitVec, data: Vec<Self::Color>) -> Self;
 }
 
 macro_rules! define_stencil {
@@ -70,6 +75,18 @@ macro_rules! define_stencil {
 					height: self.size.h,
 					mask: &self.mask,
 					data: &self.data,
+				}
+			}
+		}
+
+		impl Stencil for $name {
+			type Color = $color;
+
+			fn new(size: Extent2<u32>, mask: BitVec, data: Vec<Self::Color>) -> Self {
+				$name {
+					size,
+					mask,
+					data,
 				}
 			}
 		}
