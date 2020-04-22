@@ -85,38 +85,54 @@ macro_rules! define_canvas {
 		}
 
 		impl Layer for $name {
-			fn crop(&self, offset: Vec2<u32>, size: Extent2<u32>) -> (Patch, Patch) {
-				assert_eq!(size.w + offset.x <= self.size.w, true);
-				assert_eq!(size.h + offset.y <= self.size.h, true);
-				(
-					Patch::CropLayer(CropLayerPatch {
-						target: self.id,
-						offset: offset,
-						size: size,
-					}),
-					Patch::$patchrestorepatch($restorepatch {
-						target: self.id,
-						name: (*self.name).to_owned(),
-						size: (*self.size).clone(),
-						data: (*self.data).to_owned(),
-					}),
-				)
+			fn crop(
+				&self,
+				offset: Vec2<u32>,
+				size: Extent2<u32>,
+			) -> Result<(Patch, Patch), CropLayerError> {
+				if size.w == 0 || size.h == 0 {
+					Err(CropLayerError::InvalidSize)
+				} else if size.w + offset.x > self.size.w || size.h + offset.y > self.size.h {
+					Err(CropLayerError::OutsideRegion)
+				} else {
+					Ok((
+						Patch::CropLayer(CropLayerPatch {
+							target: self.id,
+							offset: offset,
+							size: size,
+						}),
+						Patch::$patchrestorepatch($restorepatch {
+							target: self.id,
+							name: (*self.name).to_owned(),
+							size: (*self.size).clone(),
+							data: (*self.data).to_owned(),
+						}),
+					))
+				}
 			}
 
-			fn resize(&self, size: Extent2<u32>, interpolation: Interpolation) -> (Patch, Patch) {
-				(
-					Patch::ResizeLayer(ResizeLayerPatch {
-						target: self.id,
-						size: size,
-						interpolation: interpolation,
-					}),
-					Patch::$patchrestorepatch($restorepatch {
-						target: self.id,
-						name: (*self.name).to_owned(),
-						size: (*self.size).clone(),
-						data: (*self.data).to_owned(),
-					}),
-				)
+			fn resize(
+				&self,
+				size: Extent2<u32>,
+				interpolation: Interpolation,
+			) -> Result<(Patch, Patch), ResizeLayerError> {
+				if size.w == 0 || size.h == 0 {
+					Err(ResizeLayerError::InvalidSize)
+				} else {
+					Ok((
+						Patch::ResizeLayer(ResizeLayerPatch {
+							target: self.id,
+							size: size,
+							interpolation: interpolation,
+						}),
+						Patch::$patchrestorepatch($restorepatch {
+							target: self.id,
+							name: (*self.name).to_owned(),
+							size: (*self.size).clone(),
+							data: (*self.data).to_owned(),
+						}),
+					))
+				}
 			}
 		}
 
@@ -217,6 +233,7 @@ macro_rules! define_canvas {
 }
 
 define_canvas!(CanvasI I StencilI ApplyStencilIPatch ApplyStencilI RestoreLayerCanvasIPatch RestoreLayerCanvasI);
+define_canvas!(CanvasIXYZ IXYZ StencilIXYZ ApplyStencilIXYZPatch ApplyStencilIXYZ RestoreLayerCanvasIXYZPatch RestoreLayerCanvasIXYZ);
 define_canvas!(CanvasUV UV StencilUV ApplyStencilUVPatch ApplyStencilUV RestoreLayerCanvasUVPatch RestoreLayerCanvasUV);
 define_canvas!(CanvasRGB RGB StencilRGB ApplyStencilRGBPatch ApplyStencilRGB RestoreLayerCanvasRGBPatch RestoreLayerCanvasRGB);
 define_canvas!(CanvasRGBA RGBA StencilRGBA ApplyStencilRGBAPatch ApplyStencilRGBA RestoreLayerCanvasRGBAPatch RestoreLayerCanvasRGBA);

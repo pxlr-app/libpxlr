@@ -138,46 +138,64 @@ impl Node for LayerGroup {
 }
 
 impl Layer for LayerGroup {
-	fn crop(&self, offset: Vec2<u32>, size: Extent2<u32>) -> (Patch, Patch) {
-		(
-			Patch::CropLayer(CropLayerPatch {
-				target: self.id,
-				offset: offset,
-				size: size,
-			}),
-			Patch::RestoreLayerGroup(RestoreLayerGroupPatch {
-				target: self.id,
-				name: (*self.name).to_owned(),
-				position: (*self.position).clone(),
-				size: (*self.size).clone(),
-				children: self
-					.children
-					.iter()
-					.map(|child| child.crop(offset, size).1)
-					.collect::<Vec<_>>(),
-			}),
-		)
+	fn crop(
+		&self,
+		offset: Vec2<u32>,
+		size: Extent2<u32>,
+	) -> Result<(Patch, Patch), CropLayerError> {
+		if size.w == 0 || size.h == 0 {
+			Err(CropLayerError::InvalidSize)
+		} else if size.w + offset.x > self.size.w || size.h + offset.y > self.size.h {
+			Err(CropLayerError::OutsideRegion)
+		} else {
+			Ok((
+				Patch::CropLayer(CropLayerPatch {
+					target: self.id,
+					offset: offset,
+					size: size,
+				}),
+				Patch::RestoreLayerGroup(RestoreLayerGroupPatch {
+					target: self.id,
+					name: (*self.name).to_owned(),
+					position: (*self.position).clone(),
+					size: (*self.size).clone(),
+					children: self
+						.children
+						.iter()
+						.map(|child| child.crop(offset, size).unwrap().1)
+						.collect::<Vec<_>>(),
+				}),
+			))
+		}
 	}
 
-	fn resize(&self, size: Extent2<u32>, interpolation: Interpolation) -> (Patch, Patch) {
-		(
-			Patch::ResizeLayer(ResizeLayerPatch {
-				target: self.id,
-				size: size,
-				interpolation: interpolation,
-			}),
-			Patch::RestoreLayerGroup(RestoreLayerGroupPatch {
-				target: self.id,
-				name: (*self.name).to_owned(),
-				position: (*self.position).clone(),
-				size: (*self.size).clone(),
-				children: self
-					.children
-					.iter()
-					.map(|child| child.resize(size, interpolation).1)
-					.collect::<Vec<_>>(),
-			}),
-		)
+	fn resize(
+		&self,
+		size: Extent2<u32>,
+		interpolation: Interpolation,
+	) -> Result<(Patch, Patch), ResizeLayerError> {
+		if size.w == 0 || size.h == 0 {
+			Err(ResizeLayerError::InvalidSize)
+		} else {
+			Ok((
+				Patch::ResizeLayer(ResizeLayerPatch {
+					target: self.id,
+					size: size,
+					interpolation: interpolation,
+				}),
+				Patch::RestoreLayerGroup(RestoreLayerGroupPatch {
+					target: self.id,
+					name: (*self.name).to_owned(),
+					position: (*self.position).clone(),
+					size: (*self.size).clone(),
+					children: self
+						.children
+						.iter()
+						.map(|child| child.resize(size, interpolation).unwrap().1)
+						.collect::<Vec<_>>(),
+				}),
+			))
+		}
 	}
 }
 

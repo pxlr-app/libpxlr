@@ -162,6 +162,7 @@ macro_rules! define_stencil {
 }
 
 define_stencil!(StencilI I);
+define_stencil!(StencilIXYZ IXYZ);
 define_stencil!(StencilUV UV);
 define_stencil!(StencilRGB RGB);
 define_stencil!(StencilRGBA RGBA);

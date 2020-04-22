@@ -1,5 +1,5 @@
 use crate::node::Node;
-use crate::patch::{Patch, Patchable};
+use crate::patch::{CropLayerError, Patch, Patchable, ResizeLayerError};
 use crate::sprite::*;
 use math::color::ColorMode;
 use math::interpolation::*;
@@ -7,8 +7,13 @@ use math::{Extent2, Vec2};
 use uuid::Uuid;
 
 pub trait Layer: Node {
-	fn crop(&self, offset: Vec2<u32>, size: Extent2<u32>) -> (Patch, Patch);
-	fn resize(&self, size: Extent2<u32>, interpolation: Interpolation) -> (Patch, Patch);
+	fn crop(&self, offset: Vec2<u32>, size: Extent2<u32>)
+		-> Result<(Patch, Patch), CropLayerError>;
+	fn resize(
+		&self,
+		size: Extent2<u32>,
+		interpolation: Interpolation,
+	) -> Result<(Patch, Patch), ResizeLayerError>;
 }
 
 pub enum LayerNode {
@@ -64,7 +69,11 @@ impl LayerNode {
 		}
 	}
 
-	pub fn crop(&self, offset: Vec2<u32>, size: Extent2<u32>) -> (Patch, Patch) {
+	pub fn crop(
+		&self,
+		offset: Vec2<u32>,
+		size: Extent2<u32>,
+	) -> Result<(Patch, Patch), CropLayerError> {
 		match self {
 			LayerNode::CanvasI(node) => node.crop(offset, size),
 			LayerNode::CanvasUV(node) => node.crop(offset, size),
@@ -76,7 +85,11 @@ impl LayerNode {
 		}
 	}
 
-	pub fn resize(&self, size: Extent2<u32>, interpolation: Interpolation) -> (Patch, Patch) {
+	pub fn resize(
+		&self,
+		size: Extent2<u32>,
+		interpolation: Interpolation,
+	) -> Result<(Patch, Patch), ResizeLayerError> {
 		match self {
 			LayerNode::CanvasI(node) => node.resize(size, interpolation),
 			LayerNode::CanvasUV(node) => node.resize(size, interpolation),

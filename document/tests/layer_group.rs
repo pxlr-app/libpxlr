@@ -149,7 +149,9 @@ fn it_patchs_child() {
 	assert_eq!(*c1.name, "canvas_aa");
 	assert_eq!(*c2.name, "canvas_b");
 
-	let (patch, _) = g1.resize(Extent2::new(4, 1), Interpolation::Nearest);
+	let (patch, _) = g1
+		.resize(Extent2::new(4, 1), Interpolation::Nearest)
+		.unwrap();
 	let g2 = g1.patch(&patch).unwrap();
 
 	assert_eq!(*g2.size, Extent2::new(4, 1));

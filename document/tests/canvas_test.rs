@@ -30,7 +30,7 @@ fn it_crops() {
 		vec![I::new(255), I::new(128), I::new(64), I::new(32)],
 	);
 
-	let (patch, _) = c1.crop(Vec2::new(1, 0), Extent2::new(1, 2));
+	let (patch, _) = c1.crop(Vec2::new(1, 0), Extent2::new(1, 2)).unwrap();
 	let c2 = c1.patch(&patch).unwrap();
 
 	assert_eq!(*c2.data, vec![I::new(128), I::new(32)]);
@@ -45,7 +45,9 @@ fn it_resizes() {
 		vec![I::new(255), I::new(128), I::new(64), I::new(32)],
 	);
 
-	let (patch, _) = c1.resize(Extent2::new(4, 4), Interpolation::Nearest);
+	let (patch, _) = c1
+		.resize(Extent2::new(4, 4), Interpolation::Nearest)
+		.unwrap();
 	let c2 = c1.patch(&patch).unwrap();
 
 	assert_eq!(
@@ -70,7 +72,9 @@ fn it_resizes() {
 		]
 	);
 
-	let (patch, _) = c1.resize(Extent2::new(4, 4), Interpolation::Bilinear);
+	let (patch, _) = c1
+		.resize(Extent2::new(4, 4), Interpolation::Bilinear)
+		.unwrap();
 	let c2 = c1.patch(&patch).unwrap();
 	assert_eq!(
 		*c2.data,
@@ -94,7 +98,9 @@ fn it_resizes() {
 		]
 	);
 
-	let (patch, _) = c1.resize(Extent2::new(2, 1), Interpolation::Nearest);
+	let (patch, _) = c1
+		.resize(Extent2::new(2, 1), Interpolation::Nearest)
+		.unwrap();
 	let c2 = c1.patch(&patch).unwrap();
 
 	assert_eq!(*c2.data, vec![I::new(255), I::new(64)]);
