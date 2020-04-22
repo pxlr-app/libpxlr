@@ -1,6 +1,5 @@
-use uuid::Uuid;
-
 use crate::patch::Patch;
+use uuid::Uuid;
 
 pub struct RenamePatch {
 	pub target: Uuid,

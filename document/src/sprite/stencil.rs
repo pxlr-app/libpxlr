@@ -1,5 +1,5 @@
-use crate::sprite::color::*;
 use collections::{bitvec, braille_fmt2, BitVec};
+use math::color::*;
 use math::Extent2;
 use std::default::Default;
 

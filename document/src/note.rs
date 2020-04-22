@@ -1,10 +1,9 @@
-use math::Vec2;
-use std::rc::Rc;
-use uuid::Uuid;
-
 use crate::document::Document;
 use crate::node::Node;
 use crate::patch::*;
+use math::Vec2;
+use std::rc::Rc;
+use uuid::Uuid;
 
 pub struct Note {
 	pub id: Uuid,

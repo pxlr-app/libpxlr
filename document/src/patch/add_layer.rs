@@ -1,7 +1,6 @@
+use crate::sprite::LayerNode;
 use std::rc::Rc;
 use uuid::Uuid;
-
-use crate::sprite::LayerNode;
 
 pub struct AddLayerPatch {
 	pub target: Uuid,

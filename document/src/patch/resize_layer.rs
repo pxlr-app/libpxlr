@@ -1,7 +1,6 @@
+use math::interpolation::Interpolation;
 use math::Extent2;
 use uuid::Uuid;
-
-use crate::sprite::Interpolation;
 
 pub struct ResizeLayerPatch {
 	pub target: Uuid,

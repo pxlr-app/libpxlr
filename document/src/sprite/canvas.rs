@@ -1,13 +1,14 @@
+use crate::node::Node;
+use crate::patch::*;
+use crate::sprite::*;
+use math::blend::*;
+use math::color::*;
+use math::interpolation::*;
 use math::{Extent2, Mat2, Vec2};
 use std::iter::FromIterator;
 use std::ops::Index;
 use std::rc::Rc;
 use uuid::Uuid;
-
-use crate::node::Node;
-use crate::patch::*;
-use crate::sprite::color::*;
-use crate::sprite::*;
 
 macro_rules! define_canvas {
 	($name:ident $color:ident $stencil:ident $stencilpatch:ident $patchstencilpatch:ident $restorepatch:ident $patchrestorepatch:ident) => {

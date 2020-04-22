@@ -1,7 +1,9 @@
 use collections::bitvec;
 use document::patch::Patchable;
-use document::sprite::color::I;
-use document::sprite::{BlendMode, CanvasI, Interpolation, Layer, StencilI};
+use document::sprite::{CanvasI, Layer, StencilI};
+use math::blend::*;
+use math::color::I;
+use math::interpolation::*;
 use math::{Extent2, Vec2};
 
 #[test]

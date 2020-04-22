@@ -1,11 +1,10 @@
-use math::Vec2;
-use uuid::Uuid;
-
 use crate::group::Group;
 use crate::node::Node;
 use crate::note::Note;
 use crate::patch::{Patch, Patchable};
 use crate::sprite::Sprite;
+use math::Vec2;
+use uuid::Uuid;
 
 pub trait Document: Node {
 	fn position(&self) -> Vec2<f32>;

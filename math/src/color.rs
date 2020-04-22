@@ -1,9 +1,8 @@
-use math::Lerp;
+use crate::blend::*;
+use crate::Lerp;
 use num_traits::identities::Zero;
 use std::default::Default;
 use std::ops::{Add, Div, Mul, Sub};
-
-use crate::sprite::{Blend, BlendMode};
 
 pub trait Color: Copy {}
 
@@ -113,6 +112,7 @@ macro_rules! define_colors {
 
 define_colors! {
 	I (i:u8);
+	IXYZ (i:u8, x:f32, y:f32, z:f32);
 	UV (u:f32, v:f32);
 	RGB (r:u8, g:u8, b:u8);
 	RGBA (r:u8, g:u8, b:u8, a:u8);

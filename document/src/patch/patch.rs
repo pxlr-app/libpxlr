@@ -1,6 +1,5 @@
-use uuid::Uuid;
-
 use crate::patch::*;
+use uuid::Uuid;
 
 pub enum Patch {
 	Noop,

@@ -1,10 +1,9 @@
-use math::Vec2;
-use std::rc::Rc;
-use uuid::Uuid;
-
 use crate::document::*;
 use crate::node::*;
 use crate::patch::*;
+use math::Vec2;
+use std::rc::Rc;
+use uuid::Uuid;
 
 pub struct Group {
 	pub id: Uuid,

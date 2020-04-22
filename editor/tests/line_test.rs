@@ -1,6 +1,7 @@
-use document::sprite::color::I;
-use document::sprite::{Interpolation, StencilI};
+use document::sprite::StencilI;
 use editor::tool::Line;
+use math::color::I;
+use math::interpolation::Interpolation;
 use math::Vec2;
 
 #[test]

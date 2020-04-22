@@ -5,6 +5,7 @@ authors = ["Michael Grenier <michael@grenier.dev>"]
 edition = "2018"
 
 [dependencies]
+num-traits = "0.2.11"
 vek = { version = "0.9.12", features = ["serde"] }
 
 [dev-dependencies.cargo-husky]

@@ -1,10 +1,10 @@
-use math::{Extent2, Vec2};
-use uuid::Uuid;
-
 use crate::node::Node;
 use crate::patch::{Patch, Patchable};
-use crate::sprite::color::ColorMode;
 use crate::sprite::*;
+use math::color::ColorMode;
+use math::interpolation::*;
+use math::{Extent2, Vec2};
+use uuid::Uuid;
 
 pub trait Layer: Node {
 	fn crop(&self, offset: Vec2<u32>, size: Extent2<u32>) -> (Patch, Patch);

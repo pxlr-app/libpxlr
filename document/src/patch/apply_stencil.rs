@@ -1,7 +1,7 @@
+use crate::sprite::{StencilI, StencilRGB, StencilRGBA, StencilRGBAXYZ, StencilUV};
+use math::blend::BlendMode;
 use math::Vec2;
 use uuid::Uuid;
-
-use crate::sprite::{BlendMode, StencilI, StencilRGB, StencilRGBA, StencilRGBAXYZ, StencilUV};
 
 macro_rules! define_stencil_patch {
 	($name:ident $stencil:ident) => {

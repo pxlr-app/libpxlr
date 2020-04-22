@@ -1,12 +1,12 @@
-use math::{Extent2, Vec2};
-use std::rc::Rc;
-use uuid::Uuid;
-
 use crate::document::Document;
 use crate::node::*;
 use crate::patch::*;
-use crate::sprite::color::ColorMode;
 use crate::sprite::*;
+use math::color::ColorMode;
+use math::interpolation::*;
+use math::{Extent2, Vec2};
+use std::rc::Rc;
+use uuid::Uuid;
 
 pub struct LayerGroup {
 	pub id: Uuid,

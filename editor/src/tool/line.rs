@@ -1,5 +1,6 @@
 use collections::bitvec;
-use document::sprite::{Interpolation, Stencil};
+use document::sprite::Stencil;
+use math::interpolation::Interpolation;
 use math::{Extent2, Lerp, Vec2};
 
 pub struct Line<S>

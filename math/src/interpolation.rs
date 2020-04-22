@@ -1,4 +1,4 @@
-use math::{Extent2, Lerp, Mat2, Vec2};
+use crate::{Extent2, Lerp, Mat2, Vec2};
 
 #[derive(Copy, Clone)]
 pub enum Interpolation {

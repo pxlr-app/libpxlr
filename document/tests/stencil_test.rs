@@ -1,6 +1,6 @@
 use collections::bitvec;
-use document::sprite::color::I;
 use document::sprite::StencilI;
+use math::color::I;
 use math::Extent2;
 
 #[test]

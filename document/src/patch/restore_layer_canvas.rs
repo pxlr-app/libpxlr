@@ -1,7 +1,6 @@
+use math::color::*;
 use math::Extent2;
 use uuid::Uuid;
-
-use crate::sprite::color::*;
 
 macro_rules! define_restore_canvas_patch {
 	($name:ident $color:ident) => {

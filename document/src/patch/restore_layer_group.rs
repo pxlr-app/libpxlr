@@ -1,7 +1,6 @@
+use crate::patch::Patch;
 use math::{Extent2, Vec2};
 use uuid::Uuid;
-
-use crate::patch::Patch;
 
 pub struct RestoreLayerGroupPatch {
 	pub target: Uuid,

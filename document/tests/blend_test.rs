@@ -1,4 +1,4 @@
-use document::sprite::{Blend, BlendMode};
+use math::blend::{Blend, BlendMode};
 
 #[derive(Debug, PartialEq)]
 struct Color(u32);
