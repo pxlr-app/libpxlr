@@ -5,6 +5,8 @@ use std::ops::{Add, Div, Mul, Sub};
 
 use crate::sprite::{Blend, BlendMode};
 
+pub trait Color: Copy {}
+
 macro_rules! define_colors {
 	{$(
 		$color:ident ($($name:ident:$type:ty),+);
@@ -26,6 +28,8 @@ macro_rules! define_colors {
 					$color { $($name: $name,)+ }
 				}
 			}
+
+			impl Color for $color {}
 
 			impl Default for $color {
 				fn default() -> Self {
