@@ -7,6 +7,6 @@
 		"target": true
 	},
 	"editor.formatOnSave": true,
-	"editor.defaultFormatter": "esbenp.prettier-vscode",
+	"editor.defaultFormatter": "rust-lang.rust",
 	"files.eol": "\n",
 }
