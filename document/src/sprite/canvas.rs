@@ -10,6 +10,11 @@ use std::ops::Index;
 use std::rc::Rc;
 use uuid::Uuid;
 
+pub trait Canvas {
+	type Color: Color;
+	type Stencil: Stencil;
+}
+
 macro_rules! define_canvas {
 	($name:ident $color:ident $stencil:ident $stencilpatch:ident $patchstencilpatch:ident $restorepatch:ident $patchrestorepatch:ident) => {
 		pub struct $name {
@@ -57,6 +62,11 @@ macro_rules! define_canvas {
 					}),
 				)
 			}
+		}
+
+		impl Canvas for $name {
+			type Color = $color;
+			type Stencil = $stencil;
 		}
 
 		impl Index<(u32, u32)> for $name {
