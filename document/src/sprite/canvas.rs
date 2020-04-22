@@ -121,17 +121,21 @@ macro_rules! define_canvas {
 		}
 
 		impl<'a> Renamable<'a> for $name {
-			fn rename(&self, new_name: &'a str) -> (Patch, Patch) {
-				(
-					Patch::Rename(RenamePatch {
-						target: self.id,
-						name: new_name.to_owned(),
-					}),
-					Patch::Rename(RenamePatch {
-						target: self.id,
-						name: (*self.name).to_owned(),
-					}),
-				)
+			fn rename(&self, new_name: &'a str) -> Result<(Patch, Patch), RenameError> {
+				if *self.name == new_name {
+					Err(RenameError::SameName)
+				} else {
+					Ok((
+						Patch::Rename(RenamePatch {
+							target: self.id,
+							name: new_name.to_owned(),
+						}),
+						Patch::Rename(RenamePatch {
+							target: self.id,
+							name: (*self.name).to_owned(),
+						}),
+					))
+				}
 			}
 		}
 

@@ -11,7 +11,7 @@ fn it_moves_forward_and_backward() {
 	let doc = Rc::new(Note::new(None, "A", Vec2::new(0., 0.)));
 	let mut his = History::new();
 
-	let (redo, undo) = doc.rename("B");
+	let (redo, undo) = doc.rename("B").unwrap();
 	his.add(Event {
 		hash: Uuid::new_v4(),
 		display: "Rename to B".into(),
@@ -24,7 +24,7 @@ fn it_moves_forward_and_backward() {
 	let doc_a = doc.patch(&*event.redo).unwrap();
 	assert_eq!(*doc_a.note, "B");
 
-	let (redo, undo) = doc_a.rename("C");
+	let (redo, undo) = doc_a.rename("C").unwrap();
 	his.add(Event {
 		hash: Uuid::new_v4(),
 		display: "Rename to C".into(),
@@ -59,7 +59,7 @@ fn it_reorder_events() {
 	let doc = Rc::new(Note::new(None, "A", Vec2::new(0., 0.)));
 	let mut his = History::new();
 
-	let (redo, undo) = doc.rename("B");
+	let (redo, undo) = doc.rename("B").unwrap();
 	his.add(Event {
 		hash: Uuid::new_v4(),
 		display: "Rename to B".into(),
@@ -72,7 +72,7 @@ fn it_reorder_events() {
 	let doc_a = doc.patch(&*event.redo).unwrap();
 	assert_eq!(*doc_a.note, "B");
 
-	let (redo, undo) = doc_a.rename("C");
+	let (redo, undo) = doc_a.rename("C").unwrap();
 	his.add(Event {
 		hash: Uuid::new_v4(),
 		display: "Rename to C".into(),

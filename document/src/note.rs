@@ -34,17 +34,21 @@ impl Document for Note {
 }
 
 impl<'a> Renamable<'a> for Note {
-	fn rename(&self, new_name: &'a str) -> (Patch, Patch) {
-		(
-			Patch::Rename(RenamePatch {
-				target: self.id,
-				name: new_name.to_owned(),
-			}),
-			Patch::Rename(RenamePatch {
-				target: self.id,
-				name: (*self.note).to_owned(),
-			}),
-		)
+	fn rename(&self, new_name: &'a str) -> Result<(Patch, Patch), RenameError> {
+		if *self.note == new_name {
+			Err(RenameError::SameName)
+		} else {
+			Ok((
+				Patch::Rename(RenamePatch {
+					target: self.id,
+					name: new_name.to_owned(),
+				}),
+				Patch::Rename(RenamePatch {
+					target: self.id,
+					name: (*self.note).to_owned(),
+				}),
+			))
+		}
 	}
 }
 

@@ -7,5 +7,24 @@ pub struct RenamePatch {
 }
 
 pub trait Renamable<'a> {
-	fn rename(&self, new_name: &'a str) -> (Patch, Patch);
+	fn rename(&self, new_name: &'a str) -> Result<(Patch, Patch), RenameError>;
+}
+
+#[derive(Debug)]
+pub enum RenameError {
+	SameName,
+}
+
+impl std::fmt::Display for RenameError {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		match *self {
+			RenameError::SameName => write!(f, "Could not rename as name did not change."),
+		}
+	}
+}
+
+impl std::error::Error for RenameError {
+	fn cause(&self) -> Option<&dyn std::error::Error> {
+		None
+	}
 }

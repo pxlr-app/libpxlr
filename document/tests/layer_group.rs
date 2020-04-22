@@ -125,7 +125,7 @@ fn it_patchs_child() {
 	);
 
 	let (patch, _) = if let LayerNode::CanvasI(node) = &**g1.children.get(0).unwrap() {
-		node.rename("canvas_aa")
+		node.rename("canvas_aa").unwrap()
 	} else {
 		panic!("Note a CanvasI");
 	};

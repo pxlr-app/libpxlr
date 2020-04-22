@@ -10,7 +10,7 @@ use uuid::Uuid;
 fn it_patches() {
 	{
 		let group = Group::new(None, "Root", Vec2::new(0., 0.), vec![]);
-		let (rename, _) = group.rename("Boot");
+		let (rename, _) = group.rename("Boot").unwrap();
 		let new_group = group.patch(&rename).unwrap();
 		assert_eq!(*new_group.name, "Boot");
 		assert_eq!(Rc::strong_count(&group.name), 1);
@@ -50,7 +50,7 @@ fn it_patches_nested() {
 		} else {
 			panic!("Not a note?");
 		};
-		let (rename, _) = note.rename("Bar");
+		let (rename, _) = note.rename("Bar").unwrap();
 		let new_group = group.patch(&rename).unwrap();
 		let new_note = if let DocumentNode::Note(note) = &**new_group.children.get(0).unwrap() {
 			note
