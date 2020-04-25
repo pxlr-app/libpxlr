@@ -1,5 +1,5 @@
+use crate::patch::Patch;
 use chrono::{DateTime, Utc};
-use document::patch::Patch;
 use sha2::{Digest, Sha512};
 use std::collections::VecDeque;
 use uuid::Uuid;

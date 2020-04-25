@@ -1,7 +1,7 @@
 use chrono::{TimeZone, Utc};
 use document::patch::{Patchable, Renamable};
 use document::Note;
-use editor::history::{Event, History};
+use document::{Event, History};
 use math::Vec2;
 use std::rc::Rc;
 use uuid::Uuid;
