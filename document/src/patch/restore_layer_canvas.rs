@@ -1,4 +1,4 @@
-use math::color::*;
+use crate::color::*;
 use math::Extent2;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

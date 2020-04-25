@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 #![allow(unreachable_patterns)]
 
+pub mod color;
 mod document;
 mod group;
 mod history;

@@ -1,5 +1,5 @@
+use crate::color::*;
 use collections::{bitvec, braille_fmt2, BitVec};
-use math::color::*;
 use math::Extent2;
 use serde::{Deserialize, Serialize};
 use std::default::Default;

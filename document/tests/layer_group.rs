@@ -1,6 +1,6 @@
+use document::color::{ColorMode, I};
 use document::patch::{Patchable, Renamable};
 use document::sprite::*;
-use math::color::{ColorMode, I};
 use math::interpolation::Interpolation;
 use math::{Extent2, Vec2};
 use std::rc::Rc;

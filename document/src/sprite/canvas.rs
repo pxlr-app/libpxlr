@@ -1,8 +1,8 @@
+use crate::color::*;
 use crate::node::Node;
 use crate::patch::*;
 use crate::sprite::*;
 use math::blend::*;
-use math::color::*;
 use math::interpolation::*;
 use math::{Extent2, Mat2, Vec2};
 use serde::{Deserialize, Serialize};

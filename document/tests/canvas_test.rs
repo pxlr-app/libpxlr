@@ -1,8 +1,8 @@
 use collections::bitvec;
+use document::color::I;
 use document::patch::Patchable;
 use document::sprite::{CanvasI, Layer, StencilI};
 use math::blend::*;
-use math::color::I;
 use math::interpolation::*;
 use math::{Extent2, Vec2};
 

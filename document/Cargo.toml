@@ -8,6 +8,7 @@ edition = "2018"
 chrono = { version = "0.4", features = ["serde"] }
 collections = { path = "../collections" }
 math = { path = "../math" }
+num-traits = "0.2.11"
 serde = { version = "1.0.106", features = ["rc"] }
 sha2 = "0.8.1"
 uuid = { version = "0.8", features = ["serde", "stdweb", "v4"] }

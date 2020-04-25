@@ -1,7 +1,7 @@
+use crate::color::ColorMode;
 use crate::node::Node;
 use crate::patch::{CropLayerError, Patch, Patchable, ResizeLayerError};
 use crate::sprite::*;
-use math::color::ColorMode;
 use math::interpolation::*;
 use math::{Extent2, Vec2};
 use serde::{Deserialize, Serialize};

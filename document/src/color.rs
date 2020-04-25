@@ -1,5 +1,5 @@
-use crate::blend::*;
-use crate::Lerp;
+use math::blend::*;
+use math::Lerp;
 use num_traits::identities::Zero;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
