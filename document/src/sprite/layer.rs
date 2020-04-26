@@ -1,5 +1,4 @@
 use crate::color::ColorMode;
-use crate::node::Node;
 use crate::patch::{CropLayerError, Patch, Patchable, ResizeLayerError};
 use crate::sprite::*;
 use math::interpolation::*;
@@ -7,7 +6,7 @@ use math::{Extent2, Vec2};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-pub trait Layer: Node {
+pub trait Layer {
 	fn crop(&self, offset: Vec2<u32>, size: Extent2<u32>)
 		-> Result<(Patch, Patch), CropLayerError>;
 	fn resize(

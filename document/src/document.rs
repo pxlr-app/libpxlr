@@ -1,5 +1,4 @@
 use crate::group::Group;
-use crate::node::Node;
 use crate::note::Note;
 use crate::patch::{Patch, Patchable};
 use crate::sprite::Sprite;
@@ -7,7 +6,7 @@ use math::Vec2;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-pub trait Document: Node {
+pub trait Document {
 	fn position(&self) -> Vec2<f32>;
 }
 

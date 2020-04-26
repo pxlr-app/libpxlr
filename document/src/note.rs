@@ -23,12 +23,6 @@ impl Note {
 	}
 }
 
-impl Node for Note {
-	fn id(&self) -> Uuid {
-		self.id
-	}
-}
-
 impl Document for Note {
 	fn position(&self) -> Vec2<f32> {
 		*(self.position).clone()

@@ -124,12 +124,6 @@ impl Group {
 	}
 }
 
-impl Node for Group {
-	fn id(&self) -> Uuid {
-		self.id
-	}
-}
-
 impl Document for Group {
 	fn position(&self) -> Vec2<f32> {
 		*(self.position).clone()

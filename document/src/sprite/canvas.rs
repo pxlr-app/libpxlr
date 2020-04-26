@@ -80,12 +80,6 @@ macro_rules! define_canvas {
 			}
 		}
 
-		impl Node for $name {
-			fn id(&self) -> Uuid {
-				self.id
-			}
-		}
-
 		impl Layer for $name {
 			fn crop(
 				&self,

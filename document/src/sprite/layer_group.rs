@@ -133,12 +133,6 @@ impl LayerGroup {
 	}
 }
 
-impl Node for LayerGroup {
-	fn id(&self) -> Uuid {
-		self.id
-	}
-}
-
 impl Layer for LayerGroup {
 	fn crop(
 		&self,
