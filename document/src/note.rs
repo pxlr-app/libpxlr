@@ -1,5 +1,4 @@
 use crate::document::Document;
-use crate::node::Node;
 use crate::patch::*;
 use math::Vec2;
 use serde::{Deserialize, Serialize};

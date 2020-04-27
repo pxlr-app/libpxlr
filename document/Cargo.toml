@@ -8,12 +8,14 @@ edition = "2018"
 chrono = { version = "0.4", features = ["serde"] }
 collections = { path = "../collections" }
 math = { path = "../math" }
+nom = "5"
 num-traits = "0.2.11"
 serde = { version = "1.0.106", features = ["rc"] }
 sha2 = "0.8.1"
 uuid = { version = "0.8", features = ["serde", "stdweb", "v4"] }
 
 [dev-dependencies]
+async-std = "1.5.0"
 image = "0.23.3"
 serde_json = "1.0"
 

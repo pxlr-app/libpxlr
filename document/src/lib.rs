@@ -3,6 +3,7 @@
 
 pub mod color;
 mod document;
+pub mod file;
 mod group;
 mod history;
 mod node;

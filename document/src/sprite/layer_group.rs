@@ -1,6 +1,5 @@
 use crate::color::ColorMode;
 use crate::document::Document;
-use crate::node::*;
 use crate::patch::*;
 use crate::sprite::*;
 use math::interpolation::*;

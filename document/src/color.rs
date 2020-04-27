@@ -1,15 +1,20 @@
+use crate::file::reader;
+use crate::file::writer::Writer;
 use math::blend::*;
 use math::Lerp;
+use nom::number::complete::{le_f32, le_u8};
+use nom::IResult;
 use num_traits::identities::Zero;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
+use std::io::Write;
 use std::ops::{Add, Div, Mul, Sub};
 
 pub trait Color: Copy {}
 
 macro_rules! define_colors {
 	{$(
-		$color:ident ($($name:ident:$type:ty),+);
+		$color:ident ($($name:ident:$type:ty:$reader:ident),+);
 	)+} => {
 
 		#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -107,15 +112,33 @@ macro_rules! define_colors {
 					from + (to - from) * factor
 				}
 			}
+
+			impl reader::v0::Reader for $color {
+				fn read(bytes: &[u8]) -> IResult<&[u8], $color> {
+					$(
+						let (bytes, $name) = $reader(bytes)?;
+					)+
+					Ok((bytes, $color { $($name),+ }))
+				}
+			}
+			impl Writer for $color {
+				fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
+					let mut b: usize = 0;
+					$(
+						b += writer.write(&self.$name.to_le_bytes())?;
+					)+
+					Ok(b)
+				}
+			}
 		)+
 	}
 }
 
 define_colors! {
-	I (i:u8);
-	IXYZ (i:u8, x:f32, y:f32, z:f32);
-	UV (u:f32, v:f32);
-	RGB (r:u8, g:u8, b:u8);
-	RGBA (r:u8, g:u8, b:u8, a:u8);
-	RGBAXYZ (r:u8, g:u8, b:u8, a:u8, x:f32, y:f32, z:f32);
+	I (i:u8:le_u8);
+	IXYZ (i:u8:le_u8, x:f32:le_f32, y:f32:le_f32, z:f32:le_f32);
+	UV (u:f32:le_f32, v:f32:le_f32);
+	RGB (r:u8:le_u8, g:u8:le_u8, b:u8:le_u8);
+	RGBA (r:u8:le_u8, g:u8:le_u8, b:u8:le_u8, a:u8:le_u8);
+	RGBAXYZ (r:u8:le_u8, g:u8:le_u8, b:u8:le_u8, a:u8:le_u8, x:f32:le_f32, y:f32:le_f32, z:f32:le_f32);
 }
