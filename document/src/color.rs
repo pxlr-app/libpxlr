@@ -1,5 +1,5 @@
 use crate::file::reader;
-use crate::file::writer::Writer;
+use crate::file::writer::WriteTo;
 use math::blend::*;
 use math::Lerp;
 use nom::number::complete::{le_f32, le_u8};
@@ -121,7 +121,7 @@ macro_rules! define_colors {
 					Ok((bytes, $color { $($name),+ }))
 				}
 			}
-			impl Writer for $color {
+			impl WriteTo for $color {
 				fn write_to<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
 					let mut b: usize = 0;
 					$(

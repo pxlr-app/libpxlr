@@ -1,4 +1,5 @@
 use crate::color::ColorMode;
+use crate::file::writer::Writer;
 use crate::patch::{CropLayerError, Patch, Patchable, ResizeLayerError};
 use crate::sprite::*;
 use math::interpolation::*;
@@ -99,6 +100,24 @@ impl LayerNode {
 			LayerNode::CanvasRGBAXYZ(node) => node.resize(size, interpolation),
 			LayerNode::Group(node) => node.resize(size, interpolation),
 			LayerNode::Sprite(node) => node.resize(size, interpolation),
+		}
+	}
+}
+
+impl Writer for LayerNode {
+	fn write<W: std::io::Write + std::io::Seek>(
+		&self,
+		file: &mut crate::file::File,
+		writer: &mut W,
+	) -> std::io::Result<usize> {
+		match self {
+			LayerNode::CanvasI(node) => node.write(file, writer),
+			LayerNode::CanvasUV(node) => node.write(file, writer),
+			LayerNode::CanvasRGB(node) => node.write(file, writer),
+			LayerNode::CanvasRGBA(node) => node.write(file, writer),
+			LayerNode::CanvasRGBAXYZ(node) => node.write(file, writer),
+			LayerNode::Group(node) => node.write(file, writer),
+			LayerNode::Sprite(node) => node.write(file, writer),
 		}
 	}
 }
