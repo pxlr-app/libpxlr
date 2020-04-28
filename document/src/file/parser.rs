@@ -12,7 +12,7 @@ use uuid::Uuid;
 const MAGIC_NUMBER: &'static str = "PXLR";
 
 impl reader::v0::Reader for String {
-	fn read(bytes: &[u8]) -> IResult<&[u8], String> {
+	fn from_bytes(bytes: &[u8]) -> IResult<&[u8], String> {
 		let (bytes, len) = le_u32(bytes)?;
 		let (bytes, buffer) = take(len as usize)(bytes)?;
 		Ok((bytes, std::str::from_utf8(buffer).unwrap().to_owned()))
@@ -20,7 +20,7 @@ impl reader::v0::Reader for String {
 }
 
 impl Writer for String {
-	fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
+	fn write_to<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
 		let mut b: usize = 0;
 		b += writer.write(&(self.len() as u32).to_le_bytes())?;
 		b += writer.write(self.as_bytes())?;
@@ -29,21 +29,21 @@ impl Writer for String {
 }
 
 impl reader::v0::Reader for Uuid {
-	fn read(bytes: &[u8]) -> IResult<&[u8], Uuid> {
+	fn from_bytes(bytes: &[u8]) -> IResult<&[u8], Uuid> {
 		let (bytes, buffer) = take(16usize)(bytes)?;
 		Ok((bytes, Uuid::from_slice(buffer).unwrap()))
 	}
 }
 
 impl Writer for Uuid {
-	fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
+	fn write_to<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
 		writer.write(self.as_bytes())?;
 		Ok(16)
 	}
 }
 
 impl reader::v0::Reader for Vec2<f32> {
-	fn read(bytes: &[u8]) -> IResult<&[u8], Vec2<f32>> {
+	fn from_bytes(bytes: &[u8]) -> IResult<&[u8], Vec2<f32>> {
 		let (bytes, x) = le_f32(bytes)?;
 		let (bytes, y) = le_f32(bytes)?;
 		Ok((bytes, Vec2::new(x, y)))
@@ -51,7 +51,7 @@ impl reader::v0::Reader for Vec2<f32> {
 }
 
 impl Writer for Vec2<f32> {
-	fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
+	fn write_to<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
 		writer.write(&self.x.to_le_bytes())?;
 		writer.write(&self.y.to_le_bytes())?;
 		Ok(8)
@@ -59,7 +59,7 @@ impl Writer for Vec2<f32> {
 }
 
 impl reader::v0::Reader for Extent2<u32> {
-	fn read(bytes: &[u8]) -> IResult<&[u8], Extent2<u32>> {
+	fn from_bytes(bytes: &[u8]) -> IResult<&[u8], Extent2<u32>> {
 		let (bytes, w) = le_u32(bytes)?;
 		let (bytes, h) = le_u32(bytes)?;
 		Ok((bytes, Extent2::new(w, h)))
@@ -67,7 +67,7 @@ impl reader::v0::Reader for Extent2<u32> {
 }
 
 impl Writer for Extent2<u32> {
-	fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
+	fn write_to<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
 		writer.write(&self.w.to_le_bytes())?;
 		writer.write(&self.h.to_le_bytes())?;
 		Ok(8)
@@ -80,7 +80,7 @@ pub struct Header {
 }
 
 impl reader::v0::Reader for Header {
-	fn read(bytes: &[u8]) -> IResult<&[u8], Header> {
+	fn from_bytes(bytes: &[u8]) -> IResult<&[u8], Header> {
 		let (bytes, _) = tag(MAGIC_NUMBER)(bytes)?;
 		let (bytes, version) = le_u8(bytes)?;
 		Ok((bytes, Header { version }))
@@ -88,7 +88,7 @@ impl reader::v0::Reader for Header {
 }
 
 impl Writer for Header {
-	fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
+	fn write_to<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
 		writer.write(MAGIC_NUMBER.as_bytes())?;
 		writer.write(&self.version.to_le_bytes())?;
 		Ok(5)
@@ -102,17 +102,17 @@ pub struct PartitionTable {
 }
 
 impl reader::v0::Reader for PartitionTable {
-	fn read(bytes: &[u8]) -> IResult<&[u8], PartitionTable> {
+	fn from_bytes(bytes: &[u8]) -> IResult<&[u8], PartitionTable> {
 		let (bytes, size) = le_u32(bytes)?;
-		let (bytes, hash) = Uuid::read(bytes)?;
+		let (bytes, hash) = <Uuid as reader::v0::Reader>::from_bytes(bytes)?;
 		Ok((bytes, PartitionTable { size, hash }))
 	}
 }
 
 impl Writer for PartitionTable {
-	fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
+	fn write_to<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
 		writer.write(&self.size.to_le_bytes())?;
-		self.hash.write(writer)?;
+		self.hash.write_to(writer)?;
 		Ok(5)
 	}
 }
@@ -131,16 +131,16 @@ pub struct PartitionTableRow {
 }
 
 impl reader::v0::Reader for PartitionTableRow {
-	fn read(bytes: &[u8]) -> IResult<&[u8], PartitionTableRow> {
-		let (bytes, id) = Uuid::read(bytes)?;
-		let (bytes, chunk_type) = ChunkType::read(bytes)?;
+	fn from_bytes(bytes: &[u8]) -> IResult<&[u8], PartitionTableRow> {
+		let (bytes, id) = <Uuid as reader::v0::Reader>::from_bytes(bytes)?;
+		let (bytes, chunk_type) = ChunkType::from_bytes(bytes)?;
 		let (bytes, chunk_offset) = le_u64(bytes)?;
 		let (bytes, chunk_size) = le_u32(bytes)?;
-		let (bytes, position) = Vec2::<f32>::read(bytes)?;
-		let (bytes, size) = Extent2::<u32>::read(bytes)?;
+		let (bytes, position) = Vec2::<f32>::from_bytes(bytes)?;
+		let (bytes, size) = Extent2::<u32>::from_bytes(bytes)?;
 		let (bytes, child_count) = le_u32(bytes)?;
 		let (bytes, preview_size) = le_u32(bytes)?;
-		let (bytes, name) = String::read(bytes)?;
+		let (bytes, name) = String::from_bytes(bytes)?;
 		let (bytes, children) =
 			many_m_n(child_count as usize, child_count as usize, le_u32)(bytes)?;
 		let (bytes, preview) =
@@ -163,17 +163,17 @@ impl reader::v0::Reader for PartitionTableRow {
 }
 
 impl Writer for PartitionTableRow {
-	fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
+	fn write_to<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
 		let mut b: usize = 54;
-		self.id.write(writer)?;
-		self.chunk_type.write(writer)?;
+		self.id.write_to(writer)?;
+		self.chunk_type.write_to(writer)?;
 		writer.write(&self.chunk_offset.to_le_bytes())?;
 		writer.write(&self.chunk_size.to_le_bytes())?;
-		self.position.write(writer)?;
-		self.size.write(writer)?;
+		self.position.write_to(writer)?;
+		self.size.write_to(writer)?;
 		writer.write(&(self.children.len() as u32).to_le_bytes())?;
 		writer.write(&(self.preview.len() as u32).to_le_bytes())?;
-		b += self.name.write(writer)?;
+		b += self.name.write_to(writer)?;
 		for child in self.children.iter() {
 			b += writer.write(&child.to_le_bytes())?;
 		}
@@ -196,7 +196,7 @@ pub enum ChunkType {
 }
 
 impl reader::v0::Reader for ChunkType {
-	fn read(bytes: &[u8]) -> IResult<&[u8], ChunkType> {
+	fn from_bytes(bytes: &[u8]) -> IResult<&[u8], ChunkType> {
 		let (bytes, index) = le_u16(bytes)?;
 		let value = match index {
 			0 => ChunkType::Group,
@@ -215,7 +215,7 @@ impl reader::v0::Reader for ChunkType {
 }
 
 impl Writer for ChunkType {
-	fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
+	fn write_to<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
 		let index: u16 = match self {
 			ChunkType::Group => 0,
 			ChunkType::Note => 1,
@@ -239,15 +239,15 @@ pub struct Note {
 }
 
 impl reader::v0::Reader for Note {
-	fn read(bytes: &[u8]) -> IResult<&[u8], Note> {
-		let (bytes, position) = Vec2::<f32>::read(bytes)?;
+	fn from_bytes(bytes: &[u8]) -> IResult<&[u8], Note> {
+		let (bytes, position) = Vec2::<f32>::from_bytes(bytes)?;
 		Ok((bytes, Note { position }))
 	}
 }
 
 impl Writer for Note {
-	fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
-		self.position.write(writer)?;
+	fn write_to<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
+		self.position.write_to(writer)?;
 		Ok(8)
 	}
 }
@@ -258,15 +258,15 @@ pub struct Group {
 }
 
 impl reader::v0::Reader for Group {
-	fn read(bytes: &[u8]) -> IResult<&[u8], Group> {
-		let (bytes, position) = Vec2::<f32>::read(bytes)?;
+	fn from_bytes(bytes: &[u8]) -> IResult<&[u8], Group> {
+		let (bytes, position) = Vec2::<f32>::from_bytes(bytes)?;
 		Ok((bytes, Group { position }))
 	}
 }
 
 impl Writer for Group {
-	fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
-		self.position.write(writer)?;
+	fn write_to<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
+		self.position.write_to(writer)?;
 		Ok(8)
 	}
 }
@@ -280,22 +280,22 @@ macro_rules! define_canvas {
 		}
 
 		impl reader::v0::Reader for $name {
-			fn read(bytes: &[u8]) -> IResult<&[u8], $name> {
-				let (bytes, size) = Extent2::<u32>::read(bytes)?;
+			fn from_bytes(bytes: &[u8]) -> IResult<&[u8], $name> {
+				let (bytes, size) = Extent2::<u32>::from_bytes(bytes)?;
 				let (bytes, data) = many_m_n(
 					(size.w as usize) * (size.h as usize),
 					(size.w as usize) * (size.h as usize),
-					<$color as reader::v0::Reader>::read,
+					<$color as reader::v0::Reader>::from_bytes,
 				)(bytes)?;
 				Ok((bytes, $name { size, data }))
 			}
 		}
 		impl Writer for $name {
-			fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
+			fn write_to<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
 				let mut b: usize = 8;
-				self.size.write(writer)?;
+				self.size.write_to(writer)?;
 				for color in self.data.iter() {
-					b += color.write(writer)?;
+					b += color.write_to(writer)?;
 				}
 				Ok(b)
 			}
@@ -322,11 +322,11 @@ mod tests {
 	fn it_parse_header() {
 		let header = Header { version: 1 };
 		let mut writer = BufWriter::new(Cursor::new(Vec::new()));
-		let len = header.write(&mut writer).unwrap();
+		let len = header.write_to(&mut writer).unwrap();
 		assert_eq!(len, 5);
 
 		let buffer = writer.buffer();
-		let (buffer, header2) = <Header as reader::v0::Reader>::read(buffer).unwrap();
+		let (buffer, header2) = <Header as reader::v0::Reader>::from_bytes(buffer).unwrap();
 		assert_eq!(header.version, header2.version);
 		assert_eq!(buffer, []);
 	}
@@ -345,11 +345,11 @@ mod tests {
 			preview: vec![],
 		};
 		let mut writer = BufWriter::new(Cursor::new(Vec::new()));
-		let len = row.write(&mut writer).unwrap();
+		let len = row.write_to(&mut writer).unwrap();
 		assert_eq!(len, 61);
 
 		let buffer = writer.buffer();
-		let (buffer, row2) = <PartitionTableRow as reader::v0::Reader>::read(buffer).unwrap();
+		let (buffer, row2) = <PartitionTableRow as reader::v0::Reader>::from_bytes(buffer).unwrap();
 		assert_eq!(row.id, row2.id);
 		assert_eq!(row.chunk_type, row2.chunk_type);
 		assert_eq!(row.chunk_offset, row2.chunk_offset);
@@ -389,11 +389,12 @@ mod tests {
 			},
 		];
 		let mut writer = BufWriter::new(Cursor::new(Vec::new()));
-		let len = rows.write(&mut writer).unwrap();
+		let len = rows.write_to(&mut writer).unwrap();
 		assert_eq!(len, 122);
 
 		let buffer = writer.buffer();
-		let (buffer, rows2) = <Vec<PartitionTableRow> as reader::v0::Reader>::read(buffer).unwrap();
+		let (buffer, rows2) =
+			<Vec<PartitionTableRow> as reader::v0::Reader>::from_bytes(buffer).unwrap();
 		assert_eq!(rows, rows2);
 		assert_eq!(buffer, []);
 	}

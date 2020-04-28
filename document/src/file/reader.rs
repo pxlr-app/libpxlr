@@ -3,7 +3,7 @@ pub mod v0 {
 	use nom::IResult;
 
 	pub trait Reader {
-		fn read(bytes: &[u8]) -> IResult<&[u8], Self>
+		fn from_bytes(bytes: &[u8]) -> IResult<&[u8], Self>
 		where
 			Self: Sized;
 	}
@@ -12,8 +12,8 @@ pub mod v0 {
 	where
 		T: Reader,
 	{
-		fn read(bytes: &[u8]) -> IResult<&[u8], Self> {
-			many0(<T as Reader>::read)(bytes)
+		fn from_bytes(bytes: &[u8]) -> IResult<&[u8], Self> {
+			many0(<T as Reader>::from_bytes)(bytes)
 		}
 	}
 }

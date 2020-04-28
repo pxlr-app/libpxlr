@@ -114,7 +114,7 @@ macro_rules! define_colors {
 			}
 
 			impl reader::v0::Reader for $color {
-				fn read(bytes: &[u8]) -> IResult<&[u8], $color> {
+				fn from_bytes(bytes: &[u8]) -> IResult<&[u8], $color> {
 					$(
 						let (bytes, $name) = $reader(bytes)?;
 					)+
@@ -122,7 +122,7 @@ macro_rules! define_colors {
 				}
 			}
 			impl Writer for $color {
-				fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
+				fn write_to<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
 					let mut b: usize = 0;
 					$(
 						b += writer.write(&self.$name.to_le_bytes())?;
