@@ -393,8 +393,7 @@ mod tests {
 		assert_eq!(len, 122);
 
 		let buffer = writer.buffer();
-		let (buffer, rows2) =
-			<Vec<PartitionTableRow> as reader::v0::ReaderVec>::read_n(buffer, rows.len()).unwrap();
+		let (buffer, rows2) = <Vec<PartitionTableRow> as reader::v0::Reader>::read(buffer).unwrap();
 		assert_eq!(rows, rows2);
 		assert_eq!(buffer, []);
 	}
