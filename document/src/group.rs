@@ -1,6 +1,9 @@
 use crate::document::*;
+use crate::parser;
 use crate::patch::*;
+use crate::Node;
 use math::Vec2;
+use nom::IResult;
 use serde::{Deserialize, Serialize};
 use std::rc::Rc;
 use uuid::Uuid;
@@ -243,5 +246,50 @@ impl Patchable for Group {
 			}
 		}
 		return None;
+	}
+}
+
+impl parser::v0::PartitionTableParse for Group {
+	type Output = Group;
+
+	/// rows should be a Database-like object that can fetch more node
+	/// parse should also be async since fetching might take some time
+
+	fn parse<'a, 'b>(
+		file: &mut parser::v0::Database<'a>,
+		row: &parser::v0::PartitionTableRow,
+		bytes: &'b [u8],
+	) -> IResult<&'b [u8], Self::Output> {
+		let children = row
+			.children
+			.iter()
+			.map(|i| {
+				let bytes = file
+					.read_row_data(*i as usize)
+					.expect("Could not retrieve chunk.");
+				let (_, node) = <parser::v0::ChunkType as parser::v0::PartitionTableParse>::parse(
+					file,
+					row,
+					&bytes[..],
+				)
+				.expect("Could not parse node.");
+				let node = match node {
+					Node::Group(node) => DocumentNode::Group(node),
+					Node::Note(node) => DocumentNode::Note(node),
+					Node::Sprite(node) => DocumentNode::Sprite(node),
+					_ => panic!("Node is not a DocumentNode"),
+				};
+				Rc::new(node)
+			})
+			.collect::<Vec<_>>();
+		Ok((
+			bytes,
+			Group {
+				id: row.id,
+				name: Rc::new(String::from(&row.name)),
+				position: Rc::new(row.position),
+				children: Rc::new(children),
+			},
+		))
 	}
 }

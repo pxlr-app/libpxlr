@@ -1,4 +1,3 @@
-use crate::file::writer::Writer;
 use crate::sprite::{
 	CanvasI, CanvasIXYZ, CanvasRGB, CanvasRGBA, CanvasRGBAXYZ, CanvasUV, LayerGroup,
 };
@@ -37,23 +36,23 @@ impl Node {
 	}
 }
 
-impl Writer for Node {
-	fn write<W: std::io::Write + std::io::Seek>(
-		&self,
-		file: &mut crate::file::File,
-		writer: &mut W,
-	) -> std::io::Result<usize> {
-		match self {
-			Node::Unknown => Ok(0),
-			Node::Note(node) => node.write(file, writer),
-			Node::Group(node) => node.write(file, writer),
-			Node::Sprite(node) => node.write(file, writer),
-			Node::CanvasI(node) => node.write(file, writer),
-			Node::CanvasIXYZ(node) => node.write(file, writer),
-			Node::CanvasUV(node) => node.write(file, writer),
-			Node::CanvasRGB(node) => node.write(file, writer),
-			Node::CanvasRGBA(node) => node.write(file, writer),
-			Node::CanvasRGBAXYZ(node) => node.write(file, writer),
-		}
-	}
-}
+// impl Writer for Node {
+// 	fn write<W: std::io::Write + std::io::Seek>(
+// 		&self,
+// 		file: &mut crate::file::File,
+// 		writer: &mut W,
+// 	) -> std::io::Result<usize> {
+// 		match self {
+// 			Node::Unknown => Ok(0),
+// 			Node::Note(node) => node.write(file, writer),
+// 			Node::Group(node) => node.write(file, writer),
+// 			Node::Sprite(node) => node.write(file, writer),
+// 			Node::CanvasI(node) => node.write(file, writer),
+// 			Node::CanvasIXYZ(node) => node.write(file, writer),
+// 			Node::CanvasUV(node) => node.write(file, writer),
+// 			Node::CanvasRGB(node) => node.write(file, writer),
+// 			Node::CanvasRGBA(node) => node.write(file, writer),
+// 			Node::CanvasRGBAXYZ(node) => node.write(file, writer),
+// 		}
+// 	}
+// }

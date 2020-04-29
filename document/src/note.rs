@@ -1,6 +1,8 @@
 use crate::document::Document;
+use crate::parser;
 use crate::patch::*;
 use math::Vec2;
+use nom::IResult;
 use serde::{Deserialize, Serialize};
 use std::rc::Rc;
 use uuid::Uuid;
@@ -60,5 +62,24 @@ impl Patchable for Note {
 			};
 		}
 		return None;
+	}
+}
+
+impl parser::v0::PartitionTableParse for Note {
+	type Output = Note;
+
+	fn parse<'a, 'b>(
+		_file: &mut parser::v0::Database<'a>,
+		row: &parser::v0::PartitionTableRow,
+		bytes: &'b [u8],
+	) -> IResult<&'b [u8], Self::Output> {
+		Ok((
+			bytes,
+			Note {
+				id: row.id,
+				note: Rc::new(String::from(&row.name)),
+				position: Rc::new(row.position),
+			},
+		))
 	}
 }

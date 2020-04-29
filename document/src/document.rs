@@ -1,4 +1,3 @@
-use crate::file::writer::Writer;
 use crate::group::Group;
 use crate::note::Note;
 use crate::patch::{Patch, Patchable};
@@ -38,16 +37,16 @@ impl DocumentNode {
 	}
 }
 
-impl Writer for DocumentNode {
-	fn write<W: std::io::Write + std::io::Seek>(
-		&self,
-		file: &mut crate::file::File,
-		writer: &mut W,
-	) -> std::io::Result<usize> {
-		match self {
-			DocumentNode::Note(node) => node.write(file, writer),
-			DocumentNode::Group(node) => node.write(file, writer),
-			DocumentNode::Sprite(node) => node.write(file, writer),
-		}
-	}
-}
+// impl Writer for DocumentNode {
+// 	fn write<W: std::io::Write + std::io::Seek>(
+// 		&self,
+// 		file: &mut crate::file::File,
+// 		writer: &mut W,
+// 	) -> std::io::Result<usize> {
+// 		match self {
+// 			DocumentNode::Note(node) => node.write(file, writer),
+// 			DocumentNode::Group(node) => node.write(file, writer),
+// 			DocumentNode::Sprite(node) => node.write(file, writer),
+// 		}
+// 	}
+// }

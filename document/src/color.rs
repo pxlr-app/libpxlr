@@ -1,5 +1,4 @@
-use crate::file::reader;
-use crate::file::writer::WriteTo;
+use crate::parser;
 use math::blend::*;
 use math::Lerp;
 use nom::number::complete::{le_f32, le_u8};
@@ -7,7 +6,6 @@ use nom::IResult;
 use num_traits::identities::Zero;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
-use std::io::Write;
 use std::ops::{Add, Div, Mul, Sub};
 
 pub trait Color: Copy {}
@@ -113,23 +111,23 @@ macro_rules! define_colors {
 				}
 			}
 
-			impl reader::v0::Reader for $color {
-				fn from_bytes(bytes: &[u8]) -> IResult<&[u8], $color> {
+			impl parser::Parser for $color {
+				fn parse(bytes: &[u8]) -> IResult<&[u8], $color> {
 					$(
 						let (bytes, $name) = $reader(bytes)?;
 					)+
 					Ok((bytes, $color { $($name),+ }))
 				}
 			}
-			impl WriteTo for $color {
-				fn write_to<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
-					let mut b: usize = 0;
-					$(
-						b += writer.write(&self.$name.to_le_bytes())?;
-					)+
-					Ok(b)
-				}
-			}
+			// impl Writer for $color {
+			// 	fn write_to<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
+			// 		let mut b: usize = 0;
+			// 		$(
+			// 			b += writer.write(&self.$name.to_le_bytes())?;
+			// 		)+
+			// 		Ok(b)
+			// 	}
+			// }
 		)+
 	}
 }
