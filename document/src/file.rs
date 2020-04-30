@@ -1,8 +1,10 @@
 use crate::parser;
 use crate::parser::Parser;
+use crate::Node;
 use async_std::io;
 use async_std::io::prelude::*;
 use nom::multi::many0;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FileStorageError {
@@ -41,20 +43,25 @@ impl From<nom::Err<(&[u8], nom::error::ErrorKind)>> for FileStorageError {
 	}
 }
 
-pub struct File<'s, S>
-where
-	S: io::Read + io::Write + io::Seek + std::marker::Unpin,
-{
-	pub storage: &'s S,
+pub struct File {
 	pub header: parser::Header,
 	pub index: parser::v0::PartitionIndex,
 }
 
-impl<'s, S> File<'s, S>
-where
-	S: io::Read + io::Write + io::Seek + std::marker::Unpin,
-{
-	pub async fn from(storage: &'s mut S) -> Result<File<'s, S>, FileStorageError> {
+impl File {
+	pub fn empty(hash: Uuid) -> Self {
+		File {
+			header: parser::Header { version: 0 },
+			index: parser::v0::PartitionIndex::new(
+				parser::v0::PartitionTable { hash, size: 0 },
+				vec![],
+			),
+		}
+	}
+
+	pub async fn from<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
+		storage: &mut S,
+	) -> Result<File, FileStorageError> {
 		let mut buffer = [0u8; 5];
 		storage.seek(io::SeekFrom::Start(0)).await?;
 		storage.read(&mut buffer).await?;
@@ -86,49 +93,58 @@ where
 		};
 
 		Ok(File {
-			storage,
 			header,
 			index: parser::v0::PartitionIndex::new(table, rows),
 		})
 	}
 
-	// pub async fn get_chunk_from_row(
-	// 	&mut self,
-	// 	row: &parser::v0::PartitionTableRow,
-	// ) -> Result<Node, FileStorageError> {
-	// 	let mut bytes: Vec<u8> = Vec::with_capacity(row.chunk_size as usize);
-	// 	self.storage
-	// 		.seek(io::SeekFrom::Start(row.chunk_offset))
-	// 		.await?;
-	// 	self.storage.read(&mut bytes).await?;
-	// 	let (_, node) = <Node as parser::v0::PartitionTableParse>::parse(
-	// 		&self.index,
-	// 		row,
-	// 		storage,
-	// 		&bytes[..],
-	// 	)
-	// 	.await?;
-	// 	node
-	// }
-}
+	pub async fn write<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
+		&mut self,
+		storage: &mut S,
+		node: &Node,
+	) -> io::Result<usize> {
+		storage.seek(io::SeekFrom::Start(0)).await?;
+		self.header.write(storage).await?;
+		let mut size =
+			parser::v0::PartitionTableParse::<S>::write(node, &mut self.index, storage).await?;
+		let mut table_size: usize = 0;
+		for row in self.index.rows.iter() {
+			table_size += row.write(storage).await?;
+		}
+		self.index.table.size = table_size as u32;
+		size += self.index.table.write(storage).await?;
+		Ok(size + table_size)
+	}
 
-// impl<'a> File<'a> {
-// 	pub fn append<W: io::Write + io::Seek>(
-// 		&mut self,
-// 		node: &Node,
-// 		writer: &mut W,
-// 	) -> io::Result<usize> {
-// 		writer.seek(io::SeekFrom::End(0))?;
-// 		let mut size = node.write(&mut self.database, writer)?;
-// 		let mut table_size: usize = 0;
-// 		for row in self.database.rows.iter() {
-// 			table_size += row.write(writer)?;
-// 		}
-// 		self.database.table.size = table_size as u32;
-// 		size += self.database.table.write(writer)?;
-// 		Ok(size + table_size)
-// 	}
-// }
+	pub async fn get_node<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
+		&mut self,
+		storage: &mut S,
+		idx: usize,
+	) -> io::Result<Node> {
+		if idx >= self.index.rows.len() {
+			Err(io::ErrorKind::NotFound.into())
+		} else {
+			let row = self.index.rows.get(idx).unwrap();
+			let chunk_offset = row.chunk_offset;
+			let chunk_size = row.chunk_size;
+			let mut bytes: Vec<u8> = Vec::with_capacity(chunk_size as usize);
+			storage.seek(io::SeekFrom::Start(chunk_offset)).await?;
+			storage.read(&mut bytes).await?;
+			if let Ok((_, node)) = <Node as parser::v0::PartitionTableParse<S>>::parse(
+				&self.index,
+				row,
+				storage,
+				&bytes[..],
+			)
+			.await
+			{
+				Ok(node)
+			} else {
+				Err(io::ErrorKind::InvalidData.into())
+			}
+		}
+	}
+}
 
 #[cfg(test)]
 mod tests {
@@ -136,9 +152,8 @@ mod tests {
 	use crate::parser;
 	use crate::{DocumentNode, Group, Node, Note};
 	use async_std::io;
-	use async_std::io::prelude::*;
 	use async_std::task;
-	use math::Vec2;
+	use math::{Extent2, Vec2};
 	use std::rc::Rc;
 	use uuid::Uuid;
 
@@ -148,7 +163,7 @@ mod tests {
 			0x50, 0x58, 0x4C, 0x52, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4B, 0x26, 0xC4, 0x71, 0x30,
 			0x98, 0x4C, 0xCE, 0x9C, 0xDB, 0x9E, 0x77, 0xDB, 0xD3, 0x02, 0xEF,
 		]);
-		let file = task::block_on(File::from(&mut buffer)).expect("Failed to parse buffer");
+		let file = task::block_on(File::from(&mut buffer)).expect("Failed to parse buffer.");
 		assert_eq!(file.header.version, 0);
 		assert_eq!(
 			file.index.table,
@@ -157,53 +172,50 @@ mod tests {
 				size: 0
 			}
 		);
+		assert_eq!(file.index.rows.len(), 0);
 	}
 
-	// #[test]
-	// fn it_writes() {
-	// 	let mut buffer = Cursor::new(vec![
-	// 		0x50, 0x58, 0x4C, 0x52, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4B, 0x26, 0xC4, 0x71, 0x30,
-	// 		0x98, 0x4C, 0xCE, 0x9C, 0xDB, 0x9E, 0x77, 0xDB, 0xD3, 0x02, 0xEF,
-	// 	]);
-
-	// 	println!("len:{} : {:X?}", buffer.get_ref().len(), buffer.get_ref());
-
-	// 	let mut file = File::from(&mut buffer).expect("Failed to parse buffer");
-	// 	assert_eq!(file.header.version, 0);
-	// 	assert_eq!(
-	// 		file.database.table,
-	// 		v0::PartitionTable {
-	// 			hash: Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap(),
-	// 			size: 0
-	// 		}
-	// 	);
-
-	// 	let doc = Group::new(
-	// 		Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()),
-	// 		"Root",
-	// 		Vec2::new(0., 0.),
-	// 		vec![Rc::new(DocumentNode::Note(Note::new(
-	// 			Some(Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap()),
-	// 			"Foo",
-	// 			Vec2::new(0., 0.),
-	// 		)))],
-	// 	);
-
-	// 	let mut buffer = Cursor::new(vec![
-	// 		0x50, 0x58, 0x4C, 0x52, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4B, 0x26, 0xC4, 0x71, 0x30,
-	// 		0x98, 0x4C, 0xCE, 0x9C, 0xDB, 0x9E, 0x77, 0xDB, 0xD3, 0x02, 0xEF,
-	// 	]);
-	// 	file.append(&Node::Group(doc), &mut buffer).unwrap();
-
-	// 	println!("len:{} : {:X?}", buffer.get_ref().len(), buffer.get_ref());
-
-	// 	let file = File::from(&mut buffer).expect("Failed to parse buffer");
-	// 	assert_eq!(
-	// 		file.database.table,
-	// 		v0::PartitionTable {
-	// 			hash: Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap(),
-	// 			size: 127
-	// 		}
-	// 	);
-	// }
+	#[test]
+	fn it_writes_reads_file() {
+		let doc = Node::Group(Group::new(
+			Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()),
+			"Root",
+			Vec2::new(0., 0.),
+			// vec![],
+			vec![Rc::new(DocumentNode::Note(Note::new(
+				Some(Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap()),
+				"Foo",
+				Vec2::new(0., 0.),
+			)))],
+		));
+		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
+		let mut file =
+			File::empty(Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap());
+		let len = task::block_on(file.write(&mut buffer, &doc)).expect("Failed to write buffer.");
+		assert_eq!(len, 132);
+		let mut file = task::block_on(File::from(&mut buffer)).expect("Failed to parse buffer.");
+		assert_eq!(file.header.version, 0);
+		assert_eq!(
+			file.index.table,
+			parser::v0::PartitionTable {
+				hash: Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap(),
+				size: 127
+			}
+		);
+		assert_eq!(file.index.rows.len(), 2);
+		task::block_on(async {
+			if let Ok(Node::Group(group)) = file.get_node(&mut buffer, 1).await {
+				assert_eq!(*group.name, "Root");
+				assert_eq!(*group.position, Vec2::new(0., 0.));
+				assert_eq!(group.children.len(), 1);
+				if let DocumentNode::Note(note) = &**group.children.get(0).unwrap() {
+					assert_eq!(*note.note, "Foo");
+				} else {
+					panic!("Could not get child 0");
+				}
+			} else {
+				panic!("Could not get node 0");
+			}
+		});
+	}
 }
