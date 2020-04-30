@@ -153,7 +153,7 @@ mod tests {
 	use crate::{DocumentNode, Group, Node, Note};
 	use async_std::io;
 	use async_std::task;
-	use math::{Extent2, Vec2};
+	use math::Vec2;
 	use std::rc::Rc;
 	use uuid::Uuid;
 
