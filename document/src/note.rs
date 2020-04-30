@@ -1,10 +1,12 @@
 use crate::document::Document;
 use crate::parser;
 use crate::patch::*;
+use async_std::io;
+use async_std::io::prelude::*;
+use async_trait::async_trait;
 use math::{Extent2, Vec2};
 use nom::IResult;
 use serde::{Deserialize, Serialize};
-use std::io;
 use std::rc::Rc;
 use uuid::Uuid;
 
@@ -66,12 +68,17 @@ impl Patchable for Note {
 	}
 }
 
-impl parser::v0::PartitionTableParse for Note {
+#[async_trait(?Send)]
+impl<S> parser::v0::PartitionTableParse<S> for Note
+where
+	S: io::Read + io::Write + io::Seek + std::marker::Unpin,
+{
 	type Output = Note;
 
-	fn parse<'a, 'b>(
-		_file: &mut parser::v0::Database<'a>,
+	async fn parse<'b>(
+		_index: &parser::v0::PartitionIndex,
 		row: &parser::v0::PartitionTableRow,
+		_storage: &mut S,
 		bytes: &'b [u8],
 	) -> IResult<&'b [u8], Self::Output> {
 		Ok((
@@ -84,21 +91,21 @@ impl parser::v0::PartitionTableParse for Note {
 		))
 	}
 
-	fn write<'a, W: io::Write + io::Seek>(
+	async fn write(
 		&self,
-		file: &mut parser::v0::Database<'a>,
-		writer: &mut W,
+		index: &mut parser::v0::PartitionIndex,
+		storage: &mut S,
 	) -> io::Result<usize> {
-		let offset = writer.seek(io::SeekFrom::Current(0))?;
-		if let Some(i) = file.lut_rows.get(&self.id) {
-			let mut row = file.rows.get_mut(*i).unwrap();
-			row.chunk_offset = offset;
+		let offset = storage.seek(io::SeekFrom::Current(0)).await?;
+		if let Some(i) = index.index_uuid.get(&self.id) {
+			let mut row = index.rows.get_mut(*i).unwrap();
+			row.chunk_offset = offset as u64;
 			row.chunk_size = 0;
 		} else {
 			let row = parser::v0::PartitionTableRow {
 				id: self.id,
 				chunk_type: parser::v0::ChunkType::Note,
-				chunk_offset: offset,
+				chunk_offset: offset as u64,
 				chunk_size: 0,
 				position: *self.position,
 				size: Extent2::new(0, 0),
@@ -106,8 +113,8 @@ impl parser::v0::PartitionTableParse for Note {
 				children: Vec::new(),
 				preview: Vec::new(),
 			};
-			file.lut_rows.insert(row.id, file.rows.len());
-			file.rows.push(row);
+			index.index_uuid.insert(row.id, index.rows.len());
+			index.rows.push(row);
 		}
 		Ok(0)
 	}

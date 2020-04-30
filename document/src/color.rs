@@ -1,4 +1,6 @@
 use crate::parser;
+use async_std::io;
+use async_std::io::prelude::*;
 use math::blend::*;
 use math::Lerp;
 use nom::number::complete::{le_f32, le_u16, le_u8};
@@ -6,7 +8,6 @@ use nom::IResult;
 use num_traits::identities::Zero;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
-use std::io;
 use std::ops::{Add, Div, Mul, Sub};
 
 pub trait Color: Copy {}
@@ -32,12 +33,42 @@ macro_rules! define_colors {
 				};
 				Ok((bytes, value))
 			}
-			fn write<W: io::Write>(&self, writer: &mut W) -> io::Result<usize> {
-				let index: u16 = match self {
-					$(ColorMode::$color => $idx),+
-				};
-				writer.write(&index.to_le_bytes())?;
-				Ok(2)
+			// TODO Due to https://github.com/dtolnay/async-trait/issues/46
+			//      had to expand the macro manually. Keeping original
+			//
+			// async fn write(&self, storage: &mut S) -> io::Result<usize> {
+			// 	let index: u16 = match self {
+			// 		$(ColorMode::$color => $idx),+
+			// 	};
+			// 	storage.write(&index.to_le_bytes()).await?;
+			// 	Ok(2)
+			// }
+			fn write<'life0, 'life1, 'async_trait, S>(
+				&'life0 self,
+				storage: &'life1 mut S,
+			) -> ::core::pin::Pin<
+				Box<dyn ::core::future::Future<Output = io::Result<usize>> + 'async_trait>,
+			>
+			where
+				'life0: 'async_trait,
+				'life1: 'async_trait,
+				Self: 'async_trait,
+				S: io::Read + io::Write + io::Seek + std::marker::Unpin,
+			{
+				async fn run<S>(
+					_self: &ColorMode,
+					storage: &mut S,
+				) -> io::Result<usize>
+				where
+					S: io::Read + io::Write + io::Seek + std::marker::Unpin,
+				{
+					let index: u16 = match _self {
+						$(ColorMode::$color => $idx),+
+					};
+					storage.write(&index.to_le_bytes()).await?;
+					Ok(2)
+				}
+				Box::pin(run(self, storage))
 			}
 		}
 
@@ -140,12 +171,42 @@ macro_rules! define_colors {
 					Ok((bytes, $color { $($name),+ }))
 				}
 
-				fn write<W: io::Write>(&self, writer: &mut W) -> io::Result<usize> {
-					let mut b: usize = 0;
-					$(
-						b += writer.write(&self.$name.to_le_bytes())?;
-					)+
-					Ok(b)
+				// TODO Due to https://github.com/dtolnay/async-trait/issues/46
+				//      had to expand the macro manually. Keeping original
+				//
+				// async fn write(&self, storage: &mut S) -> io::Result<usize> {
+				// 	let mut b: usize = 0;
+				// 	$(
+				// 		b += storage.write(&self.$name.to_le_bytes()).await?;
+				// 	)+
+				// 	Ok(b)
+				// }
+				fn write<'life0, 'life1, 'async_trait, S>(
+					&'life0 self,
+					storage: &'life1 mut S,
+				) -> ::core::pin::Pin<
+					Box<dyn ::core::future::Future<Output = io::Result<usize>> + 'async_trait>,
+				>
+				where
+					'life0: 'async_trait,
+					'life1: 'async_trait,
+					Self: 'async_trait,
+					S: io::Read + io::Write + io::Seek + std::marker::Unpin,
+				{
+					async fn run<S>(
+						_self: &$color,
+						storage: &mut S,
+					) -> io::Result<usize>
+					where
+						S: io::Read + io::Write + io::Seek + std::marker::Unpin,
+					{
+						let mut b: usize = 0;
+						$(
+							b += storage.write(&_self.$name.to_le_bytes()).await?;
+						)+
+						Ok(b)
+					}
+					Box::pin(run(self, storage))
 				}
 			}
 		)+

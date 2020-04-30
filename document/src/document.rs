@@ -3,10 +3,11 @@ use crate::note::Note;
 use crate::parser;
 use crate::patch::{Patch, Patchable};
 use crate::sprite::Sprite;
+use async_std::io;
+use async_trait::async_trait;
 use math::Vec2;
 use nom::IResult;
 use serde::{Deserialize, Serialize};
-use std::io;
 use uuid::Uuid;
 
 pub trait Document {
@@ -40,32 +41,38 @@ impl DocumentNode {
 	}
 }
 
-impl parser::v0::PartitionTableParse for DocumentNode {
+#[async_trait(?Send)]
+impl<S> parser::v0::PartitionTableParse<S> for DocumentNode
+where
+	S: io::Read + io::Write + io::Seek + std::marker::Unpin,
+{
 	type Output = DocumentNode;
 
-	fn parse<'a, 'b>(
-		file: &mut parser::v0::Database<'a>,
+	async fn parse<'b>(
+		index: &parser::v0::PartitionIndex,
 		row: &parser::v0::PartitionTableRow,
+		storage: &mut S,
 		bytes: &'b [u8],
 	) -> IResult<&'b [u8], Self::Output> {
 		match row.chunk_type {
-			parser::v0::ChunkType::Group => Group::parse(file, row, bytes)
+			parser::v0::ChunkType::Group => Group::parse(index, row, storage, bytes)
+				.await
 				.map(|(bytes, node)| (bytes, DocumentNode::Group(node))),
-			parser::v0::ChunkType::Note => {
-				Note::parse(file, row, bytes).map(|(bytes, node)| (bytes, DocumentNode::Note(node)))
-			}
+			parser::v0::ChunkType::Note => Note::parse(index, row, storage, bytes)
+				.await
+				.map(|(bytes, node)| (bytes, DocumentNode::Note(node))),
 			_ => unimplemented!(),
 		}
 	}
 
-	fn write<'a, W: io::Write + io::Seek>(
+	async fn write(
 		&self,
-		file: &mut parser::v0::Database<'a>,
-		writer: &mut W,
+		index: &mut parser::v0::PartitionIndex,
+		storage: &mut S,
 	) -> io::Result<usize> {
 		match self {
-			DocumentNode::Group(node) => node.write(file, writer),
-			DocumentNode::Note(node) => node.write(file, writer),
+			DocumentNode::Group(node) => node.write(index, storage).await,
+			DocumentNode::Note(node) => node.write(index, storage).await,
 			_ => unimplemented!(),
 		}
 	}

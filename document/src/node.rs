@@ -3,9 +3,10 @@ use crate::sprite::{
 	CanvasI, CanvasIXYZ, CanvasRGB, CanvasRGBA, CanvasRGBAXYZ, CanvasUV, LayerGroup, Sprite,
 };
 use crate::{Group, Note};
+use async_std::io;
+use async_trait::async_trait;
 use nom::IResult;
 use serde::{Deserialize, Serialize};
-use std::io;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -41,60 +42,70 @@ impl Node {
 	}
 }
 
-impl parser::v0::PartitionTableParse for Node {
+#[async_trait(?Send)]
+impl<S> parser::v0::PartitionTableParse<S> for Node
+where
+	S: io::Read + io::Write + io::Seek + std::marker::Unpin,
+{
 	type Output = Node;
 
-	fn parse<'a, 'b>(
-		file: &mut parser::v0::Database<'a>,
+	async fn parse<'b>(
+		index: &parser::v0::PartitionIndex,
 		row: &parser::v0::PartitionTableRow,
+		storage: &mut S,
 		bytes: &'b [u8],
 	) -> IResult<&'b [u8], Self::Output> {
 		match row.chunk_type {
-			parser::v0::ChunkType::Group => {
-				Group::parse(file, row, bytes).map(|(bytes, node)| (bytes, Node::Group(node)))
-			}
-			parser::v0::ChunkType::Note => {
-				Note::parse(file, row, bytes).map(|(bytes, node)| (bytes, Node::Note(node)))
-			}
-			parser::v0::ChunkType::LayerGroup => LayerGroup::parse(file, row, bytes)
+			parser::v0::ChunkType::Group => Group::parse(index, row, storage, bytes)
+				.await
+				.map(|(bytes, node)| (bytes, Node::Group(node))),
+			parser::v0::ChunkType::Note => Note::parse(index, row, storage, bytes)
+				.await
+				.map(|(bytes, node)| (bytes, Node::Note(node))),
+			parser::v0::ChunkType::LayerGroup => LayerGroup::parse(index, row, storage, bytes)
+				.await
 				.map(|(bytes, node)| (bytes, Node::LayerGroup(node))),
-			parser::v0::ChunkType::Sprite => {
-				Sprite::parse(file, row, bytes).map(|(bytes, node)| (bytes, Node::Sprite(node)))
-			}
-			parser::v0::ChunkType::CanvasI => {
-				CanvasI::parse(file, row, bytes).map(|(bytes, node)| (bytes, Node::CanvasI(node)))
-			}
-			parser::v0::ChunkType::CanvasIXYZ => CanvasIXYZ::parse(file, row, bytes)
+			parser::v0::ChunkType::Sprite => Sprite::parse(index, row, storage, bytes)
+				.await
+				.map(|(bytes, node)| (bytes, Node::Sprite(node))),
+			parser::v0::ChunkType::CanvasI => CanvasI::parse(index, row, storage, bytes)
+				.await
+				.map(|(bytes, node)| (bytes, Node::CanvasI(node))),
+			parser::v0::ChunkType::CanvasIXYZ => CanvasIXYZ::parse(index, row, storage, bytes)
+				.await
 				.map(|(bytes, node)| (bytes, Node::CanvasIXYZ(node))),
-			parser::v0::ChunkType::CanvasUV => {
-				CanvasUV::parse(file, row, bytes).map(|(bytes, node)| (bytes, Node::CanvasUV(node)))
-			}
-			parser::v0::ChunkType::CanvasRGB => CanvasRGB::parse(file, row, bytes)
+			parser::v0::ChunkType::CanvasUV => CanvasUV::parse(index, row, storage, bytes)
+				.await
+				.map(|(bytes, node)| (bytes, Node::CanvasUV(node))),
+			parser::v0::ChunkType::CanvasRGB => CanvasRGB::parse(index, row, storage, bytes)
+				.await
 				.map(|(bytes, node)| (bytes, Node::CanvasRGB(node))),
-			parser::v0::ChunkType::CanvasRGBA => CanvasRGBA::parse(file, row, bytes)
+			parser::v0::ChunkType::CanvasRGBA => CanvasRGBA::parse(index, row, storage, bytes)
+				.await
 				.map(|(bytes, node)| (bytes, Node::CanvasRGBA(node))),
-			parser::v0::ChunkType::CanvasRGBA => CanvasRGBA::parse(file, row, bytes)
+			parser::v0::ChunkType::CanvasRGBA => CanvasRGBA::parse(index, row, storage, bytes)
+				.await
 				.map(|(bytes, node)| (bytes, Node::CanvasRGBA(node))),
 			_ => unimplemented!(),
 		}
 	}
 
-	fn write<'a, W: io::Write + io::Seek>(
+	async fn write(
 		&self,
-		file: &mut parser::v0::Database<'a>,
-		writer: &mut W,
+		index: &mut parser::v0::PartitionIndex,
+		storage: &mut S,
 	) -> io::Result<usize> {
 		match self {
-			Node::Group(node) => node.write(file, writer),
-			Node::Note(node) => node.write(file, writer),
-			Node::Sprite(node) => node.write(file, writer),
-			Node::LayerGroup(node) => node.write(file, writer),
-			Node::CanvasI(node) => node.write(file, writer),
-			Node::CanvasIXYZ(node) => node.write(file, writer),
-			Node::CanvasUV(node) => node.write(file, writer),
-			Node::CanvasRGB(node) => node.write(file, writer),
-			Node::CanvasRGBA(node) => node.write(file, writer),
-			Node::CanvasRGBAXYZ(node) => node.write(file, writer),
+			Node::Group(node) => node.write(index, storage).await,
+			Node::Note(node) => node.write(index, storage).await,
+			Node::Sprite(node) => node.write(index, storage).await,
+			Node::LayerGroup(node) => node.write(index, storage).await,
+			Node::CanvasI(node) => node.write(index, storage).await,
+			Node::CanvasIXYZ(node) => node.write(index, storage).await,
+			Node::CanvasUV(node) => node.write(index, storage).await,
+			Node::CanvasRGB(node) => node.write(index, storage).await,
+			Node::CanvasRGBA(node) => node.write(index, storage).await,
+			Node::CanvasRGBAXYZ(node) => node.write(index, storage).await,
 			_ => unimplemented!(),
 		}
 	}
