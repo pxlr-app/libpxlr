@@ -1,10 +1,15 @@
 use crate::color::*;
+use crate::parser;
+use crate::parser::Parser;
 use crate::patch::*;
 use crate::sprite::*;
 use math::blend::*;
 use math::interpolation::*;
 use math::{Extent2, Mat2, Vec2};
+use nom::multi::many_m_n;
+use nom::IResult;
 use serde::{Deserialize, Serialize};
+use std::io;
 use std::iter::FromIterator;
 use std::ops::Index;
 use std::rc::Rc;
@@ -222,6 +227,66 @@ macro_rules! define_canvas {
 					};
 				}
 				return None;
+			}
+		}
+
+		impl parser::v0::PartitionTableParse for $name {
+			type Output = $name;
+			fn parse<'a, 'b>(
+				_file: &mut parser::v0::Database<'a>,
+				row: &parser::v0::PartitionTableRow,
+				bytes: &'b [u8],
+			) -> IResult<&'b [u8], Self::Output> {
+				let (bytes, size) = Extent2::<u32>::parse(bytes)?;
+				let (bytes, data) = many_m_n(
+					(size.w as usize) * (size.h as usize),
+					(size.w as usize) * (size.h as usize),
+					<$color as crate::parser::Parser>::parse,
+				)(bytes)?;
+				Ok((
+					bytes,
+					$name {
+						id: row.id,
+						name: Rc::new(String::from(&row.name)),
+						size: Rc::new(size),
+						data: Rc::new(data),
+					},
+				))
+			}
+			fn write<'a, W: io::Write + io::Seek>(
+				&self,
+				file: &mut parser::v0::Database<'a>,
+				writer: &mut W,
+			) -> io::Result<usize> {
+				let offset = writer.seek(io::SeekFrom::Current(0))?;
+				let size = {
+					let mut b: usize = 8;
+					self.size.write(writer)?;
+					for color in self.data.iter() {
+						b += color.write(writer)?;
+					}
+					b
+				};
+				if let Some(i) = file.lut_rows.get(&self.id) {
+					let mut row = file.rows.get_mut(*i).unwrap();
+					row.chunk_offset = offset;
+					row.chunk_size = size as u32;
+				} else {
+					let row = parser::v0::PartitionTableRow {
+						id: self.id,
+						chunk_type: parser::v0::ChunkType::Note,
+						chunk_offset: offset,
+						chunk_size: size as u32,
+						position: Vec2::new(0., 0.),
+						size: *self.size,
+						name: String::from(&*self.name),
+						children: Vec::new(),
+						preview: Vec::new(),
+					};
+					file.lut_rows.insert(row.id, file.rows.len());
+					file.rows.push(row);
+				}
+				Ok(size)
 			}
 		}
 	};

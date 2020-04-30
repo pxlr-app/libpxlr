@@ -1,9 +1,11 @@
+use crate::parser::v0::PartitionTableParse;
+use crate::Node;
 use math::{Extent2, Vec2};
 use nom::bytes::complete::{tag, take};
 use nom::multi::many0;
 use nom::number::complete::{le_f32, le_u32, le_u8};
 use nom::IResult;
-use std::io::{Read, Seek, SeekFrom};
+use std::io;
 use uuid::Uuid;
 
 const MAGIC_NUMBER: &'static str = "PXLR";
@@ -12,6 +14,8 @@ pub trait Parser {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], Self>
 	where
 		Self: Sized;
+
+	fn write<W: io::Write>(&self, writer: &mut W) -> io::Result<usize>;
 }
 
 #[derive(Debug, PartialEq)]
@@ -25,6 +29,12 @@ impl Parser for Header {
 		let (bytes, version) = le_u8(bytes)?;
 		Ok((bytes, Header { version }))
 	}
+
+	fn write<W: io::Write>(&self, writer: &mut W) -> io::Result<usize> {
+		writer.write(MAGIC_NUMBER.as_bytes())?;
+		writer.write(&self.version.to_le_bytes())?;
+		Ok(5)
+	}
 }
 
 pub mod v0 {
@@ -35,16 +45,16 @@ pub mod v0 {
 	use nom::number::complete::{le_u16, le_u32, le_u64, le_u8};
 	use nom::IResult;
 	use std::collections::HashMap;
-	use std::io::{BufReader, Read, Result, Seek, SeekFrom};
+	use std::io;
 	use uuid::Uuid;
 
-	pub trait ReadSeek: Read + Seek {}
+	pub trait ReadSeek: io::Read + io::Seek {}
 
 	pub struct Database<'a> {
 		reader: &'a mut dyn ReadSeek,
 		pub table: PartitionTable,
 		pub rows: Vec<PartitionTableRow>,
-		lut_rows: HashMap<Uuid, usize>,
+		pub lut_rows: HashMap<Uuid, usize>,
 	}
 
 	impl<'a> Database<'a> {
@@ -67,12 +77,21 @@ pub mod v0 {
 			}
 		}
 
-		pub fn read_row_data(&mut self, index: usize) -> Result<Vec<u8>> {
+		pub fn read_chunk(&mut self, index: usize) -> io::Result<Vec<u8>> {
 			let row = self.rows.get(index).expect("Row not found.");
-			self.reader.seek(SeekFrom::Start(row.chunk_offset))?;
+			self.reader.seek(io::SeekFrom::Start(row.chunk_offset))?;
 			let mut bytes: Vec<u8> = Vec::with_capacity(row.chunk_size as usize);
 			self.reader.read(&mut bytes)?;
 			Ok(bytes)
+		}
+
+		pub fn read_root(&mut self) -> io::Result<Node> {
+			let bytes = self.read_chunk(0)?;
+			let root_chunk = self.rows.get(0).expect("No root chunk.");
+			let (_, node) =
+				<Node as self::PartitionTableParse>::parse(self, root_chunk, &bytes[..])
+					.expect("Expected node.");
+			Ok(node)
 		}
 	}
 
@@ -86,6 +105,12 @@ pub mod v0 {
 		) -> IResult<&'b [u8], Self::Output>
 		where
 			Self::Output: Sized;
+
+		fn write<'a, W: io::Write + io::Seek>(
+			&self,
+			file: &mut Database<'a>,
+			writer: &mut W,
+		) -> io::Result<usize>;
 	}
 
 	impl<T> PartitionTableParse for Vec<T>
@@ -113,6 +138,18 @@ pub mod v0 {
 			}
 			Ok((remainder, items))
 		}
+
+		fn write<'a, W: io::Write + io::Seek>(
+			&self,
+			file: &mut Database<'a>,
+			writer: &mut W,
+		) -> io::Result<usize> {
+			let mut b: usize = 0;
+			for item in self.iter() {
+				b += item.write(file, writer)?;
+			}
+			Ok(b)
+		}
 	}
 
 	#[derive(Debug, PartialEq)]
@@ -127,6 +164,12 @@ pub mod v0 {
 			let (bytes, hash) = Uuid::parse(bytes)?;
 			Ok((bytes, PartitionTable { size, hash }))
 		}
+
+		fn write<W: io::Write>(&self, writer: &mut W) -> io::Result<usize> {
+			writer.write(&self.size.to_le_bytes())?;
+			self.hash.write(writer)?;
+			Ok(5)
+		}
 	}
 
 	#[derive(Debug, PartialEq)]
@@ -134,6 +177,7 @@ pub mod v0 {
 		Group,
 		Note,
 		Sprite,
+		LayerGroup,
 		CanvasI,
 		CanvasIXYZ,
 		CanvasUV,
@@ -149,47 +193,34 @@ pub mod v0 {
 				0 => ChunkType::Group,
 				1 => ChunkType::Note,
 				2 => ChunkType::Sprite,
-				3 => ChunkType::CanvasI,
-				4 => ChunkType::CanvasIXYZ,
-				5 => ChunkType::CanvasUV,
-				6 => ChunkType::CanvasRGB,
-				7 => ChunkType::CanvasRGBA,
-				8 => ChunkType::CanvasRGBAXYZ,
+				3 => ChunkType::LayerGroup,
+				4 => ChunkType::CanvasI,
+				5 => ChunkType::CanvasIXYZ,
+				6 => ChunkType::CanvasUV,
+				7 => ChunkType::CanvasRGB,
+				8 => ChunkType::CanvasRGBA,
+				9 => ChunkType::CanvasRGBAXYZ,
 				_ => panic!("Unknown chunk type"),
 			};
 			Ok((bytes, value))
 		}
-	}
 
-	impl PartitionTableParse for ChunkType {
-		type Output = crate::Node;
-
-		fn parse<'a, 'b>(
-			file: &mut Database<'a>,
-			row: &PartitionTableRow,
-			bytes: &'b [u8],
-		) -> IResult<&'b [u8], Self::Output> {
-			match row.chunk_type {
-				ChunkType::Group => crate::Group::parse(file, row, bytes)
-					.map(|(bytes, node)| (bytes, crate::Node::Group(node))),
-				ChunkType::Note => crate::Note::parse(file, row, bytes)
-					.map(|(bytes, node)| (bytes, crate::Node::Note(node))),
-				// ChunkType::Sprite => crate::Group::parse(file, row, bytes)
-				// 	.map(|(bytes, node)| (bytes, crate::Node::Sprite(node))),
-				// ChunkType::CanvasI => crate::Group::parse(file, row, bytes)
-				// 	.map(|(bytes, node)| (bytes, crate::Node::CanvasI(node))),
-				// ChunkType::CanvasIXYZ => crate::Group::parse(file, row, bytes)
-				// 	.map(|(bytes, node)| (bytes, crate::Node::CanvasIXYZ(node))),
-				// ChunkType::CanvasUV => crate::Group::parse(file, row, bytes)
-				// 	.map(|(bytes, node)| (bytes, crate::Node::CanvasUV(node))),
-				// ChunkType::CanvasRGB => crate::Group::parse(file, row, bytes)
-				// 	.map(|(bytes, node)| (bytes, crate::Node::CanvasRGB(node))),
-				// ChunkType::CanvasRGBA => crate::Group::parse(file, row, bytes)
-				// 	.map(|(bytes, node)| (bytes, crate::Node::CanvasRGBA(node))),
-				// ChunkType::CanvasRGBAXYZ => crate::Group::parse(file, row, bytes)
-				// 	.map(|(bytes, node)| (bytes, crate::Node::CanvasRGBAXYZ(node))),
-				_ => unimplemented!(),
-			}
+		fn write<W: io::Write>(&self, writer: &mut W) -> io::Result<usize> {
+			let index: u16 = match self {
+				ChunkType::Group => 0,
+				ChunkType::Note => 1,
+				ChunkType::Sprite => 2,
+				ChunkType::LayerGroup => 3,
+				ChunkType::CanvasI => 4,
+				ChunkType::CanvasIXYZ => 5,
+				ChunkType::CanvasUV => 6,
+				ChunkType::CanvasRGB => 7,
+				ChunkType::CanvasRGBA => 8,
+				ChunkType::CanvasRGBAXYZ => 9,
+				_ => panic!("Unknown chunk type"),
+			};
+			writer.write(&index.to_le_bytes())?;
+			Ok(2)
 		}
 	}
 
@@ -236,6 +267,24 @@ pub mod v0 {
 				},
 			))
 		}
+
+		fn write<W: io::Write>(&self, writer: &mut W) -> io::Result<usize> {
+			let mut b: usize = 54;
+			self.id.write(writer)?;
+			self.chunk_type.write(writer)?;
+			writer.write(&self.chunk_offset.to_le_bytes())?;
+			writer.write(&self.chunk_size.to_le_bytes())?;
+			self.position.write(writer)?;
+			self.size.write(writer)?;
+			writer.write(&(self.children.len() as u32).to_le_bytes())?;
+			writer.write(&(self.preview.len() as u32).to_le_bytes())?;
+			b += self.name.write(writer)?;
+			for child in self.children.iter() {
+				b += writer.write(&child.to_le_bytes())?;
+			}
+			b += writer.write(&self.preview)?;
+			Ok(b)
+		}
 	}
 }
 
@@ -245,12 +294,24 @@ impl Parser for String {
 		let (bytes, buffer) = take(len as usize)(bytes)?;
 		Ok((bytes, std::str::from_utf8(buffer).unwrap().to_owned()))
 	}
+
+	fn write<W: io::Write>(&self, writer: &mut W) -> io::Result<usize> {
+		let mut b: usize = 0;
+		b += writer.write(&(self.len() as u32).to_le_bytes())?;
+		b += writer.write(self.as_bytes())?;
+		Ok(b)
+	}
 }
 
 impl Parser for Uuid {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], Self> {
 		let (bytes, buffer) = take(16usize)(bytes)?;
 		Ok((bytes, Uuid::from_slice(buffer).unwrap()))
+	}
+
+	fn write<W: io::Write>(&self, writer: &mut W) -> io::Result<usize> {
+		writer.write(self.as_bytes())?;
+		Ok(16)
 	}
 }
 
@@ -260,6 +321,12 @@ impl Parser for Vec2<f32> {
 		let (bytes, y) = le_f32(bytes)?;
 		Ok((bytes, Vec2::new(x, y)))
 	}
+
+	fn write<W: io::Write>(&self, writer: &mut W) -> io::Result<usize> {
+		writer.write(&self.x.to_le_bytes())?;
+		writer.write(&self.y.to_le_bytes())?;
+		Ok(8)
+	}
 }
 
 impl Parser for Extent2<u32> {
@@ -267,6 +334,12 @@ impl Parser for Extent2<u32> {
 		let (bytes, w) = le_u32(bytes)?;
 		let (bytes, h) = le_u32(bytes)?;
 		Ok((bytes, Extent2::new(w, h)))
+	}
+
+	fn write<W: io::Write>(&self, writer: &mut W) -> io::Result<usize> {
+		writer.write(&self.w.to_le_bytes())?;
+		writer.write(&self.h.to_le_bytes())?;
+		Ok(8)
 	}
 }
 
@@ -315,13 +388,13 @@ pub struct File<'a> {
 impl<'a> File<'a> {
 	pub fn from<R: self::v0::ReadSeek>(reader: &'a mut R) -> Result<File<'a>, ParseError> {
 		let mut buffer = [0u8; 5];
-		reader.seek(SeekFrom::Start(0))?;
+		reader.seek(io::SeekFrom::Start(0))?;
 		reader.read(&mut buffer)?;
 
 		let (_, header) = Header::parse(&buffer)?;
 
 		let mut buffer = [0u8; 20];
-		reader.seek(SeekFrom::End(-20))?;
+		reader.seek(io::SeekFrom::End(-20))?;
 		reader.read(&mut buffer)?;
 
 		let (_, table) = match header.version {
@@ -333,7 +406,7 @@ impl<'a> File<'a> {
 			vec![]
 		} else {
 			let mut buffer = vec![0u8; table.size as usize];
-			reader.seek(SeekFrom::Current(-20 - (table.size as i64)))?;
+			reader.seek(io::SeekFrom::Current(-20 - (table.size as i64)))?;
 			reader.read(&mut buffer)?;
 
 			let (_, rows) = match header.version {
@@ -347,6 +420,22 @@ impl<'a> File<'a> {
 			header,
 			database: self::v0::Database::new(reader, table, rows),
 		})
+	}
+
+	pub fn append<W: io::Write + io::Seek>(
+		&mut self,
+		node: &Node,
+		writer: &mut W,
+	) -> io::Result<usize> {
+		writer.seek(io::SeekFrom::End(0))?;
+		let mut size = node.write(&mut self.database, writer)?;
+		let mut table_size: usize = 0;
+		for row in self.database.rows.iter() {
+			table_size += row.write(writer)?;
+		}
+		self.database.table.size = table_size as u32;
+		size += self.database.table.write(writer)?;
+		Ok(size + table_size)
 	}
 }
 
@@ -375,6 +464,54 @@ mod tests {
 			v0::PartitionTable {
 				hash: Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap(),
 				size: 0
+			}
+		);
+	}
+
+	#[test]
+	fn it_writes() {
+		let mut buffer = Cursor::new(vec![
+			0x50, 0x58, 0x4C, 0x52, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4B, 0x26, 0xC4, 0x71, 0x30,
+			0x98, 0x4C, 0xCE, 0x9C, 0xDB, 0x9E, 0x77, 0xDB, 0xD3, 0x02, 0xEF,
+		]);
+
+		println!("len:{} : {:X?}", buffer.get_ref().len(), buffer.get_ref());
+
+		let mut file = File::from(&mut buffer).expect("Failed to parse buffer");
+		assert_eq!(file.header.version, 0);
+		assert_eq!(
+			file.database.table,
+			v0::PartitionTable {
+				hash: Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap(),
+				size: 0
+			}
+		);
+
+		let doc = Group::new(
+			Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()),
+			"Root",
+			Vec2::new(0., 0.),
+			vec![Rc::new(DocumentNode::Note(Note::new(
+				Some(Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap()),
+				"Foo",
+				Vec2::new(0., 0.),
+			)))],
+		);
+
+		let mut buffer = Cursor::new(vec![
+			0x50, 0x58, 0x4C, 0x52, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4B, 0x26, 0xC4, 0x71, 0x30,
+			0x98, 0x4C, 0xCE, 0x9C, 0xDB, 0x9E, 0x77, 0xDB, 0xD3, 0x02, 0xEF,
+		]);
+		file.append(&Node::Group(doc), &mut buffer).unwrap();
+
+		println!("len:{} : {:X?}", buffer.get_ref().len(), buffer.get_ref());
+
+		let file = File::from(&mut buffer).expect("Failed to parse buffer");
+		assert_eq!(
+			file.database.table,
+			v0::PartitionTable {
+				hash: Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap(),
+				size: 127
 			}
 		);
 	}

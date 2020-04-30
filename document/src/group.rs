@@ -1,10 +1,12 @@
 use crate::document::*;
 use crate::parser;
+use crate::parser::v0::PartitionTableParse;
 use crate::patch::*;
 use crate::Node;
-use math::Vec2;
+use math::{Extent2, Vec2};
 use nom::IResult;
 use serde::{Deserialize, Serialize};
+use std::io;
 use std::rc::Rc;
 use uuid::Uuid;
 
@@ -252,9 +254,6 @@ impl Patchable for Group {
 impl parser::v0::PartitionTableParse for Group {
 	type Output = Group;
 
-	/// rows should be a Database-like object that can fetch more node
-	/// parse should also be async since fetching might take some time
-
 	fn parse<'a, 'b>(
 		file: &mut parser::v0::Database<'a>,
 		row: &parser::v0::PartitionTableRow,
@@ -265,20 +264,11 @@ impl parser::v0::PartitionTableParse for Group {
 			.iter()
 			.map(|i| {
 				let bytes = file
-					.read_row_data(*i as usize)
+					.read_chunk(*i as usize)
 					.expect("Could not retrieve chunk.");
-				let (_, node) = <parser::v0::ChunkType as parser::v0::PartitionTableParse>::parse(
-					file,
-					row,
-					&bytes[..],
-				)
-				.expect("Could not parse node.");
-				let node = match node {
-					Node::Group(node) => DocumentNode::Group(node),
-					Node::Note(node) => DocumentNode::Note(node),
-					Node::Sprite(node) => DocumentNode::Sprite(node),
-					_ => panic!("Node is not a DocumentNode"),
-				};
+				let (_, node) =
+					<DocumentNode as parser::v0::PartitionTableParse>::parse(file, row, &bytes[..])
+						.expect("Could not parse node.");
 				Rc::new(node)
 			})
 			.collect::<Vec<_>>();
@@ -291,5 +281,41 @@ impl parser::v0::PartitionTableParse for Group {
 				children: Rc::new(children),
 			},
 		))
+	}
+
+	fn write<'a, W: io::Write + io::Seek>(
+		&self,
+		file: &mut parser::v0::Database<'a>,
+		writer: &mut W,
+	) -> io::Result<usize> {
+		let offset = writer.seek(io::SeekFrom::Current(0))?;
+		let mut size: usize = 0;
+		for child in self.children.iter() {
+			size += child.write(file, writer)?;
+		}
+		if let Some(i) = file.lut_rows.get(&self.id) {
+			let mut row = file.rows.get_mut(*i).unwrap();
+			row.chunk_offset = offset;
+			row.chunk_size = 0;
+		} else {
+			let row = parser::v0::PartitionTableRow {
+				id: self.id,
+				chunk_type: parser::v0::ChunkType::Group,
+				chunk_offset: offset,
+				chunk_size: 0,
+				position: *self.position,
+				size: Extent2::new(0, 0),
+				name: String::from(&*self.name),
+				children: self
+					.children
+					.iter()
+					.map(|c| *file.lut_rows.get(&c.id()).unwrap() as u32)
+					.collect::<Vec<_>>(),
+				preview: Vec::new(),
+			};
+			file.lut_rows.insert(row.id, file.rows.len());
+			file.rows.push(row);
+		}
+		Ok(size)
 	}
 }

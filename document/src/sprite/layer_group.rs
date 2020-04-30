@@ -1,10 +1,14 @@
 use crate::color::ColorMode;
 use crate::document::Document;
+use crate::parser;
 use crate::patch::*;
 use crate::sprite::*;
+use crate::Node;
 use math::interpolation::*;
 use math::{Extent2, Vec2};
+use nom::IResult;
 use serde::{Deserialize, Serialize};
+use std::io;
 use std::rc::Rc;
 use uuid::Uuid;
 
@@ -371,5 +375,77 @@ impl Patchable for LayerGroup {
 			}
 		}
 		return None;
+	}
+}
+
+impl parser::v0::PartitionTableParse for LayerGroup {
+	type Output = LayerGroup;
+
+	fn parse<'a, 'b>(
+		file: &mut parser::v0::Database<'a>,
+		row: &parser::v0::PartitionTableRow,
+		bytes: &'b [u8],
+	) -> IResult<&'b [u8], Self::Output> {
+		let (bytes, color_mode) = <ColorMode as parser::Parser>::parse(bytes)?;
+		let children = row
+			.children
+			.iter()
+			.map(|i| {
+				let bytes = file
+					.read_chunk(*i as usize)
+					.expect("Could not retrieve chunk.");
+				let (_, node) =
+					<LayerNode as parser::v0::PartitionTableParse>::parse(file, row, &bytes[..])
+						.expect("Could not parse node.");
+				Rc::new(node)
+			})
+			.collect::<Vec<_>>();
+		Ok((
+			bytes,
+			LayerGroup {
+				id: row.id,
+				name: Rc::new(String::from(&row.name)),
+				color_mode: color_mode,
+				children: Rc::new(children),
+				position: Rc::new(row.position),
+				size: Rc::new(row.size),
+			},
+		))
+	}
+
+	fn write<'a, W: io::Write + io::Seek>(
+		&self,
+		file: &mut parser::v0::Database<'a>,
+		writer: &mut W,
+	) -> io::Result<usize> {
+		let offset = writer.seek(io::SeekFrom::Current(0))?;
+		let mut size: usize = 0;
+		for child in self.children.iter() {
+			size += child.write(file, writer)?;
+		}
+		if let Some(i) = file.lut_rows.get(&self.id) {
+			let mut row = file.rows.get_mut(*i).unwrap();
+			row.chunk_offset = offset;
+			row.chunk_size = 0;
+		} else {
+			let row = parser::v0::PartitionTableRow {
+				id: self.id,
+				chunk_type: parser::v0::ChunkType::Group,
+				chunk_offset: offset,
+				chunk_size: 0,
+				position: *self.position,
+				size: Extent2::new(0, 0),
+				name: String::from(&*self.name),
+				children: self
+					.children
+					.iter()
+					.map(|c| *file.lut_rows.get(&c.id()).unwrap() as u32)
+					.collect::<Vec<_>>(),
+				preview: Vec::new(),
+			};
+			file.lut_rows.insert(row.id, file.rows.len());
+			file.rows.push(row);
+		}
+		Ok(size)
 	}
 }

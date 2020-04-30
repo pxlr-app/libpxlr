@@ -1,23 +1,44 @@
 use crate::parser;
 use math::blend::*;
 use math::Lerp;
-use nom::number::complete::{le_f32, le_u8};
+use nom::number::complete::{le_f32, le_u16, le_u8};
 use nom::IResult;
 use num_traits::identities::Zero;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
+use std::io;
 use std::ops::{Add, Div, Mul, Sub};
 
 pub trait Color: Copy {}
 
 macro_rules! define_colors {
 	{$(
-		$color:ident ($($name:ident:$type:ty:$reader:ident),+);
+		$idx:expr, $color:ident, ($($name:ident:$type:ty:$reader:ident),+);
 	)+} => {
 
 		#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 		pub enum ColorMode {
 			$($color),+
+		}
+
+		impl parser::Parser for ColorMode {
+			fn parse(bytes: &[u8]) -> IResult<&[u8], Self> {
+				let (bytes, index) = le_u16(bytes)?;
+				let value = match index {
+					$(
+						$idx => ColorMode::$color,
+					)+
+					_ => panic!("Unknown chunk type"),
+				};
+				Ok((bytes, value))
+			}
+			fn write<W: io::Write>(&self, writer: &mut W) -> io::Result<usize> {
+				let index: u16 = match self {
+					$(ColorMode::$color => $idx),+
+				};
+				writer.write(&index.to_le_bytes())?;
+				Ok(2)
+			}
 		}
 
 		$(
@@ -118,25 +139,24 @@ macro_rules! define_colors {
 					)+
 					Ok((bytes, $color { $($name),+ }))
 				}
+
+				fn write<W: io::Write>(&self, writer: &mut W) -> io::Result<usize> {
+					let mut b: usize = 0;
+					$(
+						b += writer.write(&self.$name.to_le_bytes())?;
+					)+
+					Ok(b)
+				}
 			}
-			// impl Writer for $color {
-			// 	fn write_to<W: Write>(&self, writer: &mut W) -> std::io::Result<usize> {
-			// 		let mut b: usize = 0;
-			// 		$(
-			// 			b += writer.write(&self.$name.to_le_bytes())?;
-			// 		)+
-			// 		Ok(b)
-			// 	}
-			// }
 		)+
 	}
 }
 
 define_colors! {
-	I (i:u8:le_u8);
-	IXYZ (i:u8:le_u8, x:f32:le_f32, y:f32:le_f32, z:f32:le_f32);
-	UV (u:f32:le_f32, v:f32:le_f32);
-	RGB (r:u8:le_u8, g:u8:le_u8, b:u8:le_u8);
-	RGBA (r:u8:le_u8, g:u8:le_u8, b:u8:le_u8, a:u8:le_u8);
-	RGBAXYZ (r:u8:le_u8, g:u8:le_u8, b:u8:le_u8, a:u8:le_u8, x:f32:le_f32, y:f32:le_f32, z:f32:le_f32);
+	0, I, (i:u8:le_u8);
+	1, IXYZ, (i:u8:le_u8, x:f32:le_f32, y:f32:le_f32, z:f32:le_f32);
+	2, UV, (u:f32:le_f32, v:f32:le_f32);
+	3, RGB, (r:u8:le_u8, g:u8:le_u8, b:u8:le_u8);
+	4, RGBA, (r:u8:le_u8, g:u8:le_u8, b:u8:le_u8, a:u8:le_u8);
+	5, RGBAXYZ, (r:u8:le_u8, g:u8:le_u8, b:u8:le_u8, a:u8:le_u8, x:f32:le_f32, y:f32:le_f32, z:f32:le_f32);
 }
