@@ -258,12 +258,12 @@ where
 {
 	type Output = Group;
 
-	async fn parse<'b>(
-		index: &parser::v0::PartitionIndex,
-		row: &parser::v0::PartitionTableRow,
-		storage: &mut S,
-		bytes: &'b [u8],
-	) -> IResult<&'b [u8], Self::Output> {
+	async fn parse<'a, 'b, 'c, 'd>(
+		index: &'b parser::v0::PartitionIndex,
+		row: &'c parser::v0::PartitionTableRow,
+		storage: &'d mut S,
+		bytes: &'a [u8],
+	) -> IResult<&'a [u8], Self::Output> {
 		let mut children: Vec<Rc<DocumentNode>> = Vec::new();
 		for i in row.children.iter() {
 			let row = index

@@ -75,12 +75,12 @@ where
 {
 	type Output = Note;
 
-	async fn parse<'b>(
-		_index: &parser::v0::PartitionIndex,
-		row: &parser::v0::PartitionTableRow,
-		_storage: &mut S,
-		bytes: &'b [u8],
-	) -> IResult<&'b [u8], Self::Output> {
+	async fn parse<'a, 'b, 'c, 'd>(
+		_index: &'b parser::v0::PartitionIndex,
+		row: &'c parser::v0::PartitionTableRow,
+		_storage: &'d mut S,
+		bytes: &'a [u8],
+	) -> IResult<&'a [u8], Self::Output> {
 		Ok((
 			bytes,
 			Note {

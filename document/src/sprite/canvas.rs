@@ -262,22 +262,22 @@ macro_rules! define_canvas {
 			// 		},
 			// 	))
 			// }
-			fn parse<'life0, 'life1, 'life2, 'life3, 'async_trait>(
-				index: &'life1 parser::v0::PartitionIndex,
-				row: &'life2 parser::v0::PartitionTableRow,
-				_storage: &'life3 mut S,
-				bytes: &'life0 [u8],
+			fn parse<'a, 'b, 'c, 'd, 'async_trait>(
+				index: &'b parser::v0::PartitionIndex,
+				row: &'c parser::v0::PartitionTableRow,
+				_storage: &'d mut S,
+				bytes: &'a [u8],
 			) -> ::core::pin::Pin<
 				Box<
-					dyn ::core::future::Future<Output = IResult<&'life0 [u8], Self::Output>>
+					dyn ::core::future::Future<Output = IResult<&'a [u8], Self::Output>>
 						+ 'async_trait,
 				>,
 			>
 			where
-				'life0: 'async_trait,
-				'life1: 'async_trait,
-				'life2: 'async_trait,
-				'life3: 'async_trait,
+				'a: 'async_trait,
+				'b: 'async_trait,
+				'c: 'async_trait,
+				'd: 'async_trait,
 				Self: 'async_trait,
 			{
 				async fn run<'b, S>(
@@ -346,17 +346,17 @@ macro_rules! define_canvas {
 			// 	}
 			// 	Ok(size)
 			// }
-			fn write<'life0, 'life1, 'life2, 'async_trait>(
-				&'life0 self,
-				index: &'life1 mut parser::v0::PartitionIndex,
-				storage: &'life2 mut S,
+			fn write<'a, 'b, 'c, 'async_trait>(
+				&'a self,
+				index: &'b mut parser::v0::PartitionIndex,
+				storage: &'c mut S,
 			) -> ::core::pin::Pin<
 				Box<dyn ::core::future::Future<Output = io::Result<usize>> + 'async_trait>,
 			>
 			where
-				'life0: 'async_trait,
-				'life1: 'async_trait,
-				'life2: 'async_trait,
+				'a: 'async_trait,
+				'b: 'async_trait,
+				'c: 'async_trait,
 				Self: 'async_trait,
 			{
 				async fn run<S>(
