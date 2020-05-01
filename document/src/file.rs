@@ -116,12 +116,15 @@ impl File {
 	) -> io::Result<usize> {
 		let mut size: usize = 0;
 		let mut row_dependencies = bitvec![0; self.index.rows.len()];
-		for (i, row) in self.index.rows.iter().enumerate() {
-			if row.id == node.id() {
-				row_dependencies.set(i, true);
-			}
-			for child in row.children.iter() {
-				row_dependencies.set(*child as usize, true);
+		let root_idx = self.index.index_uuid.get(&node.id()).unwrap();
+		let mut row_to_visit: Vec<usize> = Vec::with_capacity(self.index.rows.len());
+		row_to_visit.push(*root_idx);
+		while let Some(i) = row_to_visit.pop() {
+			row_dependencies.set(i, true);
+			if let Some(row) = self.index.rows.get(i) {
+				for child in row.children.iter() {
+					row_to_visit.push(*child as usize);
+				}
 			}
 		}
 		self.index.rows = self
