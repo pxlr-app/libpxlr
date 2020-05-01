@@ -82,7 +82,7 @@ impl File {
 		} else {
 			let mut buffer = vec![0u8; table.size as usize];
 			storage
-				.seek(io::SeekFrom::Current(-20 - (table.size as i64)))
+				.seek(io::SeekFrom::End(-20 - (table.size as i64)))
 				.await?;
 			storage.read(&mut buffer).await?;
 
