@@ -443,10 +443,18 @@ where
 		for child in self.children.iter() {
 			size += child.write(index, storage).await?;
 		}
+		let children = self
+			.children
+			.iter()
+			.map(|c| *index.index_uuid.get(&c.id()).unwrap() as u32)
+			.collect::<Vec<_>>();
 		if let Some(i) = index.index_uuid.get(&self.id) {
 			let mut row = index.rows.get_mut(*i).unwrap();
 			row.chunk_offset = offset as u64;
 			row.chunk_size = 0;
+			row.position = *self.position;
+			row.name = String::from(&*self.name);
+			row.children = children;
 		} else {
 			let row = parser::v0::PartitionTableRow {
 				id: self.id,
@@ -456,11 +464,7 @@ where
 				position: *self.position,
 				size: Extent2::new(0, 0),
 				name: String::from(&*self.name),
-				children: self
-					.children
-					.iter()
-					.map(|c| *index.index_uuid.get(&c.id()).unwrap() as u32)
-					.collect::<Vec<_>>(),
+				children: children,
 				preview: Vec::new(),
 			};
 			index.index_uuid.insert(row.id, index.rows.len());

@@ -76,25 +76,6 @@ pub mod v0 {
 				index_uuid,
 			}
 		}
-
-		// pub fn read_chunk(&mut self, index: usize) -> io::Result<Vec<u8>> {
-		// 	let row = self.rows.get(index).expect("Row not found.");
-		// 	let offset = row.chunk_offset;
-		// 	let size = row.chunk_size as usize;
-		// 	self.reader.seek(io::SeekFrom::Start(offset))?;
-		// 	let mut bytes: Vec<u8> = Vec::with_capacity(size);
-		// 	self.reader.read(&mut bytes)?;
-		// 	Ok(bytes)
-		// }
-
-		// pub fn read_root(&mut self) -> io::Result<Node> {
-		// 	let bytes = self.read_chunk(0)?;
-		// 	let root_chunk = self.rows.get(0).expect("No root chunk.");
-		// 	let (_, node) =
-		// 		<Node as self::PartitionTableParse>::parse(self, root_chunk, &bytes[..])
-		// 			.expect("Expected node.");
-		// 	Ok(node)
-		// }
 	}
 
 	#[async_trait(?Send)]
@@ -174,7 +155,7 @@ pub mod v0 {
 		) -> io::Result<usize> {
 			storage.write(&self.size.to_le_bytes()).await?;
 			self.hash.write(storage).await?;
-			Ok(5)
+			Ok(20)
 		}
 	}
 

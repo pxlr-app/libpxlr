@@ -101,6 +101,8 @@ where
 			let mut row = index.rows.get_mut(*i).unwrap();
 			row.chunk_offset = offset as u64;
 			row.chunk_size = 0;
+			row.position = *self.position;
+			row.name = String::from(&*self.note);
 		} else {
 			let row = parser::v0::PartitionTableRow {
 				id: self.id,
