@@ -261,30 +261,33 @@ impl parser::v0::PartitionTableParse for Group {
 	where
 		S: io::Read + io::Seek,
 	{
-		let mut children: Vec<Rc<DocumentNode>> = Vec::new();
-		for i in row.children.iter() {
-			let row = index
-				.rows
-				.get(*i as usize)
-				.expect("Could not retrieve children in index.");
-			let size = row.chunk_size;
-			let offset = row.chunk_offset;
-			let mut bytes: Vec<u8> = Vec::with_capacity(size as usize);
-			storage
-				.seek(io::SeekFrom::Start(offset))
-				.expect("Could not seek to chunk.");
-			storage
-				.read(&mut bytes)
-				.expect("Could not read chunk data.");
-			let (_, node) = <DocumentNode as parser::v0::PartitionTableParse>::parse(
-				index,
-				row,
-				storage,
-				&bytes[..],
-			)
-			.expect("Could not parse node.");
-			children.push(Rc::new(node));
-		}
+		let children = row
+			.children
+			.iter()
+			.map(|i| {
+				let row = index
+					.rows
+					.get(*i as usize)
+					.expect("Could not retrieve children in index.");
+				let size = row.chunk_size;
+				let offset = row.chunk_offset;
+				let mut bytes: Vec<u8> = Vec::with_capacity(size as usize);
+				storage
+					.seek(io::SeekFrom::Start(offset))
+					.expect("Could not seek to chunk.");
+				storage
+					.read(&mut bytes)
+					.expect("Could not read chunk data.");
+				let (_, node) = <DocumentNode as parser::v0::PartitionTableParse>::parse(
+					index,
+					row,
+					storage,
+					&bytes[..],
+				)
+				.expect("Could not parse node.");
+				Rc::new(node)
+			})
+			.collect::<Vec<_>>();
 		Ok((
 			bytes,
 			Group {
