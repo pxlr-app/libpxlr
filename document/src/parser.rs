@@ -215,6 +215,10 @@ pub mod v0 {
 		pub chunk_type: ChunkType,
 		pub chunk_offset: u64,
 		pub chunk_size: u32,
+		pub is_root: bool,
+		pub is_visible: bool,
+		pub is_locked: bool,
+		pub is_folded: bool,
 		pub position: Vec2<f32>,
 		pub size: Extent2<u32>,
 		pub name: String,
@@ -228,6 +232,7 @@ pub mod v0 {
 			let (bytes, chunk_type) = <ChunkType as super::Parser>::parse(bytes)?;
 			let (bytes, chunk_offset) = le_u64(bytes)?;
 			let (bytes, chunk_size) = le_u32(bytes)?;
+			let (bytes, flag) = le_u8(bytes)?;
 			let (bytes, position) = Vec2::<f32>::parse(bytes)?;
 			let (bytes, size) = Extent2::<u32>::parse(bytes)?;
 			let (bytes, child_count) = le_u32(bytes)?;
@@ -244,6 +249,10 @@ pub mod v0 {
 					chunk_type,
 					chunk_offset,
 					chunk_size,
+					is_root: flag | 1 > 0,
+					is_visible: flag | 2 > 0,
+					is_locked: flag | 4 > 0,
+					is_folded: flag | 8 > 0,
 					position,
 					size,
 					name,
@@ -257,11 +266,16 @@ pub mod v0 {
 		where
 			S: io::Write + io::Seek,
 		{
-			let mut b: usize = 54;
+			let mut b: usize = 55;
 			self.id.write(storage)?;
 			self.chunk_type.write(storage)?;
 			storage.write(&self.chunk_offset.to_le_bytes())?;
 			storage.write(&self.chunk_size.to_le_bytes())?;
+			let flag: u8 = (self.is_root as u8) << 0
+				| (self.is_visible as u8) << 1
+				| (self.is_locked as u8) << 2
+				| (self.is_folded as u8) << 3;
+			storage.write(&flag.to_le_bytes())?;
 			self.position.write(storage)?;
 			self.size.write(storage)?;
 			storage.write(&(self.children.len() as u32).to_le_bytes())?;

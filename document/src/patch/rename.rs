@@ -14,13 +14,13 @@ pub trait Renamable<'a> {
 
 #[derive(Debug)]
 pub enum RenameError {
-	SameName,
+	Unchanged,
 }
 
 impl std::fmt::Display for RenameError {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match *self {
-			RenameError::SameName => write!(f, "Could not rename as name did not change."),
+			RenameError::Unchanged => write!(f, "Could not rename as name did not change."),
 		}
 	}
 }

@@ -27,6 +27,9 @@ pub enum Patch {
 	RestoreLayerCanvasRGBAXYZ(RestoreLayerCanvasRGBAXYZPatch),
 	RestoreLayerGroup(RestoreLayerGroupPatch),
 	Rename(RenamePatch),
+	SetVisibility(SetVisibilityPatch),
+	SetLock(SetLockPatch),
+	SetFold(SetFoldPatch),
 }
 
 impl Patch {
@@ -55,6 +58,9 @@ impl Patch {
 			Patch::RestoreLayerCanvasRGBAXYZ(patch) => patch.target,
 			Patch::RestoreLayerGroup(patch) => patch.target,
 			Patch::Rename(patch) => patch.target,
+			Patch::SetVisibility(patch) => patch.target,
+			Patch::SetLock(patch) => patch.target,
+			Patch::SetFold(patch) => patch.target,
 		}
 	}
 }

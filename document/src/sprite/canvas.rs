@@ -25,6 +25,8 @@ macro_rules! define_canvas {
 		#[derive(Debug, Serialize, Deserialize)]
 		pub struct $name {
 			pub id: Uuid,
+			pub is_visible: bool,
+			pub is_locked: bool,
 			pub name: Rc<String>,
 			pub size: Rc<Extent2<u32>>,
 			pub data: Rc<Vec<$color>>,
@@ -39,6 +41,8 @@ macro_rules! define_canvas {
 			) -> $name {
 				$name {
 					id: id.or(Some(Uuid::new_v4())).unwrap(),
+					is_visible: true,
+					is_locked: false,
 					name: Rc::new(name.to_owned()),
 					size: Rc::new(size),
 					data: Rc::new(data),
@@ -139,7 +143,7 @@ macro_rules! define_canvas {
 		impl<'a> Renamable<'a> for $name {
 			fn rename(&self, new_name: &'a str) -> Result<(Patch, Patch), RenameError> {
 				if *self.name == new_name {
-					Err(RenameError::SameName)
+					Err(RenameError::Unchanged)
 				} else {
 					Ok((
 						Patch::Rename(RenamePatch {
@@ -155,13 +159,68 @@ macro_rules! define_canvas {
 			}
 		}
 
+		impl Visible for $name {
+			fn set_visibility(&self, visible: bool) -> Result<(Patch, Patch), SetVisibilityError> {
+				if self.is_visible == visible {
+					Err(SetVisibilityError::Unchanged)
+				} else {
+					Ok((
+						Patch::SetVisibility(SetVisibilityPatch {
+							target: self.id,
+							visibility: visible,
+						}),
+						Patch::SetVisibility(SetVisibilityPatch {
+							target: self.id,
+							visibility: self.is_visible,
+						}),
+					))
+				}
+			}
+		}
+		impl Lockable for $name {
+			fn set_lock(&self, lock: bool) -> Result<(Patch, Patch), SetLockError> {
+				if self.is_locked == lock {
+					Err(SetLockError::Unchanged)
+				} else {
+					Ok((
+						Patch::SetLock(SetLockPatch {
+							target: self.id,
+							lock: lock,
+						}),
+						Patch::SetLock(SetLockPatch {
+							target: self.id,
+							lock: self.is_locked,
+						}),
+					))
+				}
+			}
+		}
+
 		impl Patchable for $name {
 			fn patch(&self, patch: &Patch) -> Option<Box<Self>> {
 				if patch.target() == self.id {
 					return match patch {
 						Patch::Rename(patch) => Some(Box::new($name {
 							id: self.id,
+							is_visible: self.is_visible,
+							is_locked: self.is_locked,
 							name: Rc::new(patch.name.clone()),
+							size: self.size.clone(),
+							data: self.data.clone(),
+						})),
+						Patch::SetVisibility(patch) => Some(Box::new($name {
+							id: self.id,
+							is_visible: patch.visibility,
+							is_locked: self.is_locked,
+							name: self.name.clone(),
+							size: self.size.clone(),
+							data: self.data.clone(),
+						})),
+						Patch::SetLock(patch) => Some(Box::new($name {
+							id: self.id,
+							is_visible: self.is_visible,
+							is_locked: patch.lock,
+							name: self.name.clone(),
 							size: self.size.clone(),
 							data: self.data.clone(),
 						})),
@@ -177,6 +236,8 @@ macro_rules! define_canvas {
 							}
 							Some(Box::new($name {
 								id: self.id,
+								is_visible: self.is_visible,
+								is_locked: self.is_locked,
 								name: self.name.clone(),
 								size: Rc::new(patch.size),
 								data: Rc::new(data),
@@ -184,6 +245,8 @@ macro_rules! define_canvas {
 						}
 						Patch::$patchrestorepatch(patch) => Some(Box::new($name {
 							id: self.id,
+							is_visible: self.is_visible,
+							is_locked: self.is_locked,
 							name: Rc::new(patch.name.to_owned()),
 							size: Rc::new(patch.size),
 							data: Rc::new(patch.data.to_owned()),
@@ -203,6 +266,8 @@ macro_rules! define_canvas {
 							);
 							Some(Box::new($name {
 								id: self.id,
+								is_visible: self.is_visible,
+								is_locked: self.is_locked,
 								name: self.name.clone(),
 								size: Rc::new(patch.size),
 								data: Rc::new(data),
@@ -218,6 +283,8 @@ macro_rules! define_canvas {
 							}
 							Some(Box::new($name {
 								id: self.id,
+								is_visible: self.is_visible,
+								is_locked: self.is_locked,
 								name: self.name.clone(),
 								size: self.size.clone(),
 								data: Rc::new(data),
@@ -252,6 +319,8 @@ macro_rules! define_canvas {
 					bytes,
 					$name {
 						id: row.id,
+						is_visible: row.is_visible,
+						is_locked: row.is_locked,
 						name: Rc::new(String::from(&row.name)),
 						size: Rc::new(size),
 						data: Rc::new(data),
@@ -280,12 +349,18 @@ macro_rules! define_canvas {
 					let mut row = index.rows.get_mut(*i).unwrap();
 					row.chunk_offset = offset as u64;
 					row.chunk_size = size as u32;
+					row.is_visible = self.is_visible;
+					row.is_locked = self.is_locked;
 				} else {
 					let row = parser::v0::PartitionTableRow {
 						id: self.id,
 						chunk_type: parser::v0::ChunkType::Note,
 						chunk_offset: offset as u64,
 						chunk_size: size as u32,
+						is_root: false,
+						is_visible: self.is_visible,
+						is_locked: self.is_locked,
+						is_folded: false,
 						position: Vec2::new(0., 0.),
 						size: *self.size,
 						name: String::from(&*self.name),

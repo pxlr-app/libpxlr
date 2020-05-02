@@ -18,12 +18,12 @@ fn it_serialize() {
 	);
 
 	let json = serde_json::to_string(&group).unwrap();
-	assert_eq!(json, "{\"id\":\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",\"name\":\"Root\",\"children\":[{\"Note\":{\"id\":\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",\"note\":\"Foo\",\"position\":{\"x\":0.0,\"y\":0.0}}}],\"position\":{\"x\":0.0,\"y\":0.0}}");
+	assert_eq!(json, "{\"id\":\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",\"is_visible\":true,\"is_locked\":false,\"is_folded\":false,\"name\":\"Root\",\"children\":[{\"Note\":{\"id\":\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",\"is_visible\":true,\"is_locked\":false,\"note\":\"Foo\",\"position\":{\"x\":0.0,\"y\":0.0}}}],\"position\":{\"x\":0.0,\"y\":0.0}}");
 }
 
 #[test]
 fn it_deserialize() {
-	let group: Group = serde_json::from_str("{\"id\":\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",\"name\":\"Root\",\"children\":[{\"Note\":{\"id\":\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",\"note\":\"Foo\",\"position\":{\"x\":0.0,\"y\":0.0}}}],\"position\":{\"x\":0.0,\"y\":0.0}}").unwrap();
+	let group: Group = serde_json::from_str("{\"id\":\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",\"is_visible\":true,\"is_locked\":false,\"is_folded\":false,\"name\":\"Root\",\"children\":[{\"Note\":{\"id\":\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",\"is_visible\":true,\"is_locked\":false,\"note\":\"Foo\",\"position\":{\"x\":0.0,\"y\":0.0}}}],\"position\":{\"x\":0.0,\"y\":0.0}}").unwrap();
 	assert_eq!(
 		group.id,
 		Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()

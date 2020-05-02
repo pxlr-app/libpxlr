@@ -11,7 +11,9 @@ mod rename;
 mod resize_layer;
 mod restore_layer_canvas;
 mod restore_layer_group;
-
+mod set_fold;
+mod set_lock;
+mod set_visibility;
 pub use self::add_child::*;
 pub use self::add_layer::*;
 pub use self::apply_stencil::*;
@@ -25,3 +27,6 @@ pub use self::rename::*;
 pub use self::resize_layer::*;
 pub use self::restore_layer_canvas::*;
 pub use self::restore_layer_group::*;
+pub use self::set_fold::*;
+pub use self::set_lock::*;
+pub use self::set_visibility::*;

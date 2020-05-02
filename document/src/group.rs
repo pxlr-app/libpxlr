@@ -11,6 +11,9 @@ use uuid::Uuid;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Group {
 	pub id: Uuid,
+	pub is_visible: bool,
+	pub is_locked: bool,
+	pub is_folded: bool,
 	pub name: Rc<String>,
 	pub children: Rc<Vec<Rc<DocumentNode>>>,
 	pub position: Rc<Vec2<f32>>,
@@ -46,6 +49,9 @@ impl Group {
 	) -> Group {
 		Group {
 			id: id.or(Some(Uuid::new_v4())).unwrap(),
+			is_visible: true,
+			is_locked: false,
+			is_folded: false,
 			name: Rc::new(name.to_owned()),
 			position: Rc::new(position),
 			children: Rc::new(children),
@@ -135,7 +141,7 @@ impl Document for Group {
 impl<'a> Renamable<'a> for Group {
 	fn rename(&self, new_name: &'a str) -> Result<(Patch, Patch), RenameError> {
 		if *self.name == new_name {
-			Err(RenameError::SameName)
+			Err(RenameError::Unchanged)
 		} else {
 			Ok((
 				Patch::Rename(RenamePatch {
@@ -151,13 +157,100 @@ impl<'a> Renamable<'a> for Group {
 	}
 }
 
+impl Visible for Group {
+	fn set_visibility(&self, visible: bool) -> Result<(Patch, Patch), SetVisibilityError> {
+		if self.is_visible == visible {
+			Err(SetVisibilityError::Unchanged)
+		} else {
+			Ok((
+				Patch::SetVisibility(SetVisibilityPatch {
+					target: self.id,
+					visibility: visible,
+				}),
+				Patch::SetVisibility(SetVisibilityPatch {
+					target: self.id,
+					visibility: self.is_visible,
+				}),
+			))
+		}
+	}
+}
+
+impl Lockable for Group {
+	fn set_lock(&self, lock: bool) -> Result<(Patch, Patch), SetLockError> {
+		if self.is_locked == lock {
+			Err(SetLockError::Unchanged)
+		} else {
+			Ok((
+				Patch::SetLock(SetLockPatch {
+					target: self.id,
+					lock: lock,
+				}),
+				Patch::SetLock(SetLockPatch {
+					target: self.id,
+					lock: self.is_locked,
+				}),
+			))
+		}
+	}
+}
+
+impl Foldable for Group {
+	fn set_fold(&self, folded: bool) -> Result<(Patch, Patch), SetFoldError> {
+		if self.is_folded == folded {
+			Err(SetFoldError::Unchanged)
+		} else {
+			Ok((
+				Patch::SetFold(SetFoldPatch {
+					target: self.id,
+					folded: folded,
+				}),
+				Patch::SetFold(SetFoldPatch {
+					target: self.id,
+					folded: self.is_folded,
+				}),
+			))
+		}
+	}
+}
+
 impl Patchable for Group {
 	fn patch(&self, patch: &Patch) -> Option<Box<Self>> {
 		if patch.target() == self.id {
 			return match patch {
 				Patch::Rename(patch) => Some(Box::new(Group {
 					id: self.id,
+					is_visible: self.is_visible,
+					is_locked: self.is_locked,
+					is_folded: self.is_folded,
 					name: Rc::new(patch.name.clone()),
+					position: self.position.clone(),
+					children: self.children.clone(),
+				})),
+				Patch::SetVisibility(patch) => Some(Box::new(Group {
+					id: self.id,
+					is_visible: patch.visibility,
+					is_locked: self.is_locked,
+					is_folded: self.is_folded,
+					name: self.name.clone(),
+					position: self.position.clone(),
+					children: self.children.clone(),
+				})),
+				Patch::SetLock(patch) => Some(Box::new(Group {
+					id: self.id,
+					is_visible: self.is_visible,
+					is_locked: patch.lock,
+					is_folded: self.is_folded,
+					name: self.name.clone(),
+					position: self.position.clone(),
+					children: self.children.clone(),
+				})),
+				Patch::SetFold(patch) => Some(Box::new(Group {
+					id: self.id,
+					is_visible: self.is_visible,
+					is_locked: self.is_locked,
+					is_folded: patch.folded,
+					name: self.name.clone(),
 					position: self.position.clone(),
 					children: self.children.clone(),
 				})),
@@ -174,6 +267,9 @@ impl Patchable for Group {
 					}
 					Some(Box::new(Group {
 						id: self.id,
+						is_visible: self.is_visible,
+						is_locked: self.is_locked,
+						is_folded: self.is_folded,
 						name: self.name.clone(),
 						position: self.position.clone(),
 						children: Rc::new(children),
@@ -193,6 +289,9 @@ impl Patchable for Group {
 						.collect::<Vec<_>>();
 					Some(Box::new(Group {
 						id: self.id,
+						is_visible: self.is_visible,
+						is_locked: self.is_locked,
+						is_folded: self.is_folded,
 						name: self.name.clone(),
 						position: self.position.clone(),
 						children: Rc::new(children),
@@ -216,6 +315,9 @@ impl Patchable for Group {
 					}
 					Some(Box::new(Group {
 						id: self.id,
+						is_visible: self.is_visible,
+						is_locked: self.is_locked,
+						is_folded: self.is_folded,
 						name: self.name.clone(),
 						position: self.position.clone(),
 						children: Rc::new(children),
@@ -239,6 +341,9 @@ impl Patchable for Group {
 			if mutated {
 				return Some(Box::new(Group {
 					id: self.id,
+					is_visible: self.is_visible,
+					is_locked: self.is_locked,
+					is_folded: self.is_folded,
 					name: Rc::clone(&self.name),
 					children: Rc::new(children),
 					position: Rc::clone(&self.position),
@@ -292,6 +397,9 @@ impl parser::v0::PartitionTableParse for Group {
 			bytes,
 			Group {
 				id: row.id,
+				is_visible: row.is_visible,
+				is_locked: row.is_locked,
+				is_folded: row.is_folded,
 				name: Rc::new(String::from(&row.name)),
 				position: Rc::new(row.position),
 				children: Rc::new(children),
@@ -317,6 +425,9 @@ impl parser::v0::PartitionTableParse for Group {
 			let mut row = index.rows.get_mut(*i).unwrap();
 			row.chunk_offset = offset as u64;
 			row.chunk_size = 0;
+			row.is_visible = self.is_visible;
+			row.is_locked = self.is_locked;
+			row.is_folded = self.is_folded;
 			row.position = *self.position;
 			row.name = String::from(&*self.name);
 			row.children = children;
@@ -326,6 +437,10 @@ impl parser::v0::PartitionTableParse for Group {
 				chunk_type: parser::v0::ChunkType::Group,
 				chunk_offset: offset as u64,
 				chunk_size: 0,
+				is_root: false,
+				is_visible: self.is_visible,
+				is_locked: self.is_locked,
+				is_folded: self.is_folded,
 				position: *self.position,
 				size: Extent2::new(0, 0),
 				name: String::from(&*self.name),

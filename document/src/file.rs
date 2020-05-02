@@ -59,9 +59,7 @@ impl File {
 		}
 	}
 
-	pub fn from<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
-		storage: &mut S,
-	) -> Result<File, FileStorageError> {
+	pub fn from<S: io::Read + io::Seek>(storage: &mut S) -> Result<File, FileStorageError> {
 		let mut buffer = [0u8; 5];
 		storage.seek(io::SeekFrom::Start(0))?;
 		storage.read(&mut buffer)?;
@@ -96,7 +94,7 @@ impl File {
 		})
 	}
 
-	fn write_node<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
+	fn write_node<S: io::Write + io::Seek>(
 		&mut self,
 		storage: &mut S,
 		node: &Node,
@@ -105,7 +103,7 @@ impl File {
 		Ok(size)
 	}
 
-	fn write_partition<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
+	fn write_partition<S: io::Write + io::Seek>(
 		&mut self,
 		storage: &mut S,
 		node: &Node,
@@ -139,7 +137,7 @@ impl File {
 		Ok(size)
 	}
 
-	pub fn write<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
+	pub fn write<S: io::Write + io::Seek>(
 		&mut self,
 		storage: &mut S,
 		node: &Node,
@@ -147,15 +145,12 @@ impl File {
 		storage.seek(io::SeekFrom::Start(0))?;
 		let mut size: usize = 0;
 		size += self.header.write(storage)?;
-		println!("{}", size);
 		size += self.write_node(storage, node)?;
-		println!("{}", size);
 		size += self.write_partition(storage, node)?;
-		println!("{}", size);
 		Ok(size)
 	}
 
-	pub fn append<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
+	pub fn append<S: io::Write + io::Seek>(
 		&mut self,
 		storage: &mut S,
 		node: &Node,
@@ -167,7 +162,7 @@ impl File {
 		Ok(size)
 	}
 
-	pub fn get_node<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
+	pub fn get_node<S: io::Read + io::Seek>(
 		&mut self,
 		storage: &mut S,
 		id: Uuid,
@@ -243,15 +238,15 @@ mod tests {
 		let len = file
 			.write(&mut buffer, &doc)
 			.expect("Failed to write buffer.");
-		assert_eq!(len, 152);
-		assert_eq!(buffer.get_ref().len(), 152);
+		assert_eq!(len, 154);
+		assert_eq!(buffer.get_ref().len(), 154);
 		let mut file = File::from(&mut buffer).expect("Failed to parse buffer.");
 		assert_eq!(file.header.version, 0);
 		assert_eq!(
 			file.index.table,
 			parser::v0::PartitionTable {
 				hash: Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap(),
-				size: 127
+				size: 129
 			}
 		);
 		assert_eq!(file.index.rows.len(), 2);
@@ -293,8 +288,8 @@ mod tests {
 			let len = file
 				.write(&mut buffer, &doc)
 				.expect("Failed to write buffer.");
-			assert_eq!(len, 152);
-			assert_eq!(buffer.get_ref().len(), 152);
+			assert_eq!(len, 154);
+			assert_eq!(buffer.get_ref().len(), 154);
 		}
 
 		// Stip note from group and append to current file
@@ -309,8 +304,8 @@ mod tests {
 			let len = file
 				.append(&mut buffer, &doc)
 				.expect("Failed to write buffer.");
-			assert_eq!(len, 82);
-			assert_eq!(buffer.get_ref().len(), 234);
+			assert_eq!(len, 83);
+			assert_eq!(buffer.get_ref().len(), 237);
 		}
 
 		// Assert that note is gone
@@ -355,10 +350,10 @@ mod tests {
 		let len = file
 			.write(&mut buffer, &doc)
 			.expect("Failed to write buffer.");
-		assert_eq!(len, 152);
+		assert_eq!(len, 154);
 
 		let metadata = std::fs::metadata("it_dump_to_disk.bin").expect("Could not get metadata.");
-		assert_eq!(metadata.len(), 152);
+		assert_eq!(metadata.len(), 154);
 
 		std::fs::remove_file("it_dump_to_disk.bin").expect("Could not remove file.");
 	}

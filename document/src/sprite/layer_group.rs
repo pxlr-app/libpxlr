@@ -14,6 +14,9 @@ use uuid::Uuid;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LayerGroup {
 	pub id: Uuid,
+	pub is_visible: bool,
+	pub is_locked: bool,
+	pub is_folded: bool,
 	pub name: Rc<String>,
 	pub color_mode: ColorMode,
 	pub children: Rc<Vec<Rc<LayerNode>>>,
@@ -53,6 +56,9 @@ impl LayerGroup {
 	) -> LayerGroup {
 		LayerGroup {
 			id: id.or(Some(Uuid::new_v4())).unwrap(),
+			is_visible: true,
+			is_locked: false,
+			is_folded: false,
 			name: Rc::new(name.to_owned()),
 			color_mode: color_mode,
 			children: Rc::new(children),
@@ -206,7 +212,7 @@ impl Document for LayerGroup {
 impl<'a> Renamable<'a> for LayerGroup {
 	fn rename(&self, new_name: &'a str) -> Result<(Patch, Patch), RenameError> {
 		if *self.name == new_name {
-			Err(RenameError::SameName)
+			Err(RenameError::Unchanged)
 		} else {
 			Ok((
 				Patch::Rename(RenamePatch {
@@ -222,13 +228,106 @@ impl<'a> Renamable<'a> for LayerGroup {
 	}
 }
 
+impl Visible for LayerGroup {
+	fn set_visibility(&self, visible: bool) -> Result<(Patch, Patch), SetVisibilityError> {
+		if self.is_visible == visible {
+			Err(SetVisibilityError::Unchanged)
+		} else {
+			Ok((
+				Patch::SetVisibility(SetVisibilityPatch {
+					target: self.id,
+					visibility: visible,
+				}),
+				Patch::SetVisibility(SetVisibilityPatch {
+					target: self.id,
+					visibility: self.is_visible,
+				}),
+			))
+		}
+	}
+}
+
+impl Lockable for LayerGroup {
+	fn set_lock(&self, lock: bool) -> Result<(Patch, Patch), SetLockError> {
+		if self.is_locked == lock {
+			Err(SetLockError::Unchanged)
+		} else {
+			Ok((
+				Patch::SetLock(SetLockPatch {
+					target: self.id,
+					lock: lock,
+				}),
+				Patch::SetLock(SetLockPatch {
+					target: self.id,
+					lock: self.is_locked,
+				}),
+			))
+		}
+	}
+}
+
+impl Foldable for LayerGroup {
+	fn set_fold(&self, folded: bool) -> Result<(Patch, Patch), SetFoldError> {
+		if self.is_folded == folded {
+			Err(SetFoldError::Unchanged)
+		} else {
+			Ok((
+				Patch::SetFold(SetFoldPatch {
+					target: self.id,
+					folded: folded,
+				}),
+				Patch::SetFold(SetFoldPatch {
+					target: self.id,
+					folded: self.is_folded,
+				}),
+			))
+		}
+	}
+}
+
 impl Patchable for LayerGroup {
 	fn patch(&self, patch: &Patch) -> Option<Box<Self>> {
 		if patch.target() == self.id {
 			return match patch {
 				Patch::Rename(patch) => Some(Box::new(LayerGroup {
 					id: self.id,
+					is_visible: self.is_visible,
+					is_locked: self.is_locked,
+					is_folded: self.is_folded,
 					name: Rc::new(patch.name.clone()),
+					color_mode: self.color_mode,
+					position: self.position.clone(),
+					size: self.size.clone(),
+					children: self.children.clone(),
+				})),
+				Patch::SetVisibility(patch) => Some(Box::new(LayerGroup {
+					id: self.id,
+					is_visible: patch.visibility,
+					is_locked: self.is_locked,
+					is_folded: self.is_folded,
+					name: self.name.clone(),
+					color_mode: self.color_mode,
+					position: self.position.clone(),
+					size: self.size.clone(),
+					children: self.children.clone(),
+				})),
+				Patch::SetLock(patch) => Some(Box::new(LayerGroup {
+					id: self.id,
+					is_visible: self.is_visible,
+					is_locked: patch.lock,
+					is_folded: self.is_folded,
+					name: self.name.clone(),
+					color_mode: self.color_mode,
+					position: self.position.clone(),
+					size: self.size.clone(),
+					children: self.children.clone(),
+				})),
+				Patch::SetFold(patch) => Some(Box::new(LayerGroup {
+					id: self.id,
+					is_visible: self.is_visible,
+					is_locked: self.is_locked,
+					is_folded: patch.folded,
+					name: self.name.clone(),
 					color_mode: self.color_mode,
 					position: self.position.clone(),
 					size: self.size.clone(),
@@ -248,6 +347,9 @@ impl Patchable for LayerGroup {
 					}
 					Some(Box::new(LayerGroup {
 						id: self.id,
+						is_visible: self.is_visible,
+						is_locked: self.is_locked,
+						is_folded: self.is_folded,
 						name: self.name.clone(),
 						color_mode: self.color_mode,
 						position: self.position.clone(),
@@ -269,6 +371,9 @@ impl Patchable for LayerGroup {
 						.collect::<Vec<_>>();
 					Some(Box::new(LayerGroup {
 						id: self.id,
+						is_visible: self.is_visible,
+						is_locked: self.is_locked,
+						is_folded: self.is_folded,
 						name: self.name.clone(),
 						color_mode: self.color_mode,
 						position: self.position.clone(),
@@ -294,6 +399,9 @@ impl Patchable for LayerGroup {
 					}
 					Some(Box::new(LayerGroup {
 						id: self.id,
+						is_visible: self.is_visible,
+						is_locked: self.is_locked,
+						is_folded: self.is_folded,
 						name: self.name.clone(),
 						color_mode: self.color_mode,
 						position: self.position.clone(),
@@ -317,6 +425,9 @@ impl Patchable for LayerGroup {
 						.collect::<Vec<_>>();
 					Some(Box::new(LayerGroup {
 						id: self.id,
+						is_visible: self.is_visible,
+						is_locked: self.is_locked,
+						is_folded: self.is_folded,
 						name: Rc::clone(&self.name),
 						color_mode: self.color_mode,
 						position: Rc::clone(&self.position),
@@ -340,6 +451,9 @@ impl Patchable for LayerGroup {
 						.collect::<Vec<_>>();
 					Some(Box::new(LayerGroup {
 						id: self.id,
+						is_visible: self.is_visible,
+						is_locked: self.is_locked,
+						is_folded: self.is_folded,
 						name: Rc::clone(&self.name),
 						color_mode: self.color_mode,
 						position: Rc::clone(&self.position),
@@ -365,6 +479,9 @@ impl Patchable for LayerGroup {
 			if mutated {
 				return Some(Box::new(LayerGroup {
 					id: self.id,
+					is_visible: self.is_visible,
+					is_locked: self.is_locked,
+					is_folded: self.is_folded,
 					name: Rc::clone(&self.name),
 					color_mode: self.color_mode,
 					position: Rc::clone(&self.position),
@@ -421,6 +538,9 @@ impl parser::v0::PartitionTableParse for LayerGroup {
 			bytes,
 			LayerGroup {
 				id: row.id,
+				is_visible: row.is_visible,
+				is_locked: row.is_locked,
+				is_folded: row.is_folded,
 				name: Rc::new(String::from(&row.name)),
 				color_mode: color_mode,
 				children: Rc::new(children),
@@ -448,6 +568,9 @@ impl parser::v0::PartitionTableParse for LayerGroup {
 			let mut row = index.rows.get_mut(*i).unwrap();
 			row.chunk_offset = offset as u64;
 			row.chunk_size = 0;
+			row.is_visible = self.is_visible;
+			row.is_locked = self.is_locked;
+			row.is_folded = self.is_folded;
 			row.position = *self.position;
 			row.name = String::from(&*self.name);
 			row.children = children;
@@ -457,6 +580,10 @@ impl parser::v0::PartitionTableParse for LayerGroup {
 				chunk_type: parser::v0::ChunkType::Group,
 				chunk_offset: offset as u64,
 				chunk_size: 0,
+				is_root: false,
+				is_visible: self.is_visible,
+				is_locked: self.is_locked,
+				is_folded: self.is_folded,
 				position: *self.position,
 				size: Extent2::new(0, 0),
 				name: String::from(&*self.name),

@@ -11,6 +11,15 @@ use uuid::Uuid;
 
 pub trait Document {
 	fn position(&self) -> Vec2<f32>;
+	fn is_visible(&self) -> bool {
+		true
+	}
+	fn is_locked(&self) -> bool {
+		false
+	}
+	fn is_folded(&self) -> bool {
+		false
+	}
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -26,6 +35,28 @@ impl DocumentNode {
 			DocumentNode::Note(node) => node.id,
 			DocumentNode::Group(node) => node.id,
 			DocumentNode::Sprite(node) => node.id,
+		}
+	}
+
+	fn is_visible(&self) -> bool {
+		match self {
+			DocumentNode::Note(node) => node.is_visible(),
+			DocumentNode::Group(node) => node.is_visible(),
+			DocumentNode::Sprite(node) => node.is_visible(),
+		}
+	}
+	fn is_locked(&self) -> bool {
+		match self {
+			DocumentNode::Note(node) => node.is_locked(),
+			DocumentNode::Group(node) => node.is_locked(),
+			DocumentNode::Sprite(node) => node.is_locked(),
+		}
+	}
+	fn is_folded(&self) -> bool {
+		match self {
+			DocumentNode::Note(node) => node.is_folded(),
+			DocumentNode::Group(node) => node.is_folded(),
+			DocumentNode::Sprite(node) => node.is_folded(),
 		}
 	}
 
