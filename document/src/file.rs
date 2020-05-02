@@ -1,10 +1,9 @@
 use crate::parser;
 use crate::parser::Parser;
 use crate::Node;
-use async_std::io;
-use async_std::io::prelude::*;
 use collections::bitvec;
 use nom::multi::many0;
+use std::io;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -60,17 +59,17 @@ impl File {
 		}
 	}
 
-	pub async fn from<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
+	pub fn from<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
 		storage: &mut S,
 	) -> Result<File, FileStorageError> {
 		let mut buffer = [0u8; 5];
-		storage.seek(io::SeekFrom::Start(0)).await?;
-		storage.read(&mut buffer).await?;
+		storage.seek(io::SeekFrom::Start(0))?;
+		storage.read(&mut buffer)?;
 		let (_, header) = parser::Header::parse(&buffer)?;
 
 		let mut buffer = [0u8; 20];
-		storage.seek(io::SeekFrom::End(-20)).await?;
-		storage.read(&mut buffer).await?;
+		storage.seek(io::SeekFrom::End(-20))?;
+		storage.read(&mut buffer)?;
 
 		let (_, table) = match header.version {
 			0 => <parser::v0::PartitionTable as Parser>::parse(&buffer),
@@ -81,10 +80,8 @@ impl File {
 			vec![]
 		} else {
 			let mut buffer = vec![0u8; table.size as usize];
-			storage
-				.seek(io::SeekFrom::End(-20 - (table.size as i64)))
-				.await?;
-			storage.read(&mut buffer).await?;
+			storage.seek(io::SeekFrom::End(-20 - (table.size as i64)))?;
+			storage.read(&mut buffer)?;
 
 			let (_, rows) = match header.version {
 				0 => many0(<parser::v0::PartitionTableRow as Parser>::parse)(&buffer),
@@ -99,17 +96,16 @@ impl File {
 		})
 	}
 
-	async fn write_node<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
+	fn write_node<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
 		&mut self,
 		storage: &mut S,
 		node: &Node,
 	) -> io::Result<usize> {
-		let size =
-			parser::v0::PartitionTableParse::<S>::write(node, &mut self.index, storage).await?;
+		let size = parser::v0::PartitionTableParse::write(node, &mut self.index, storage)?;
 		Ok(size)
 	}
 
-	async fn write_partition<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
+	fn write_partition<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
 		&mut self,
 		storage: &mut S,
 		node: &Node,
@@ -136,42 +132,42 @@ impl File {
 			.map(|(_, row)| row)
 			.collect::<Vec<_>>();
 		for row in self.index.rows.iter() {
-			size += row.write(storage).await?;
+			size += row.write(storage)?;
 		}
 		self.index.table.size = size as u32;
-		size += self.index.table.write(storage).await?;
+		size += self.index.table.write(storage)?;
 		Ok(size)
 	}
 
-	pub async fn write<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
+	pub fn write<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
 		&mut self,
 		storage: &mut S,
 		node: &Node,
 	) -> io::Result<usize> {
-		storage.seek(io::SeekFrom::Start(0)).await?;
+		storage.seek(io::SeekFrom::Start(0))?;
 		let mut size: usize = 0;
-		size += self.header.write(storage).await?;
+		size += self.header.write(storage)?;
 		println!("{}", size);
-		size += self.write_node(storage, node).await?;
+		size += self.write_node(storage, node)?;
 		println!("{}", size);
-		size += self.write_partition(storage, node).await?;
+		size += self.write_partition(storage, node)?;
 		println!("{}", size);
 		Ok(size)
 	}
 
-	pub async fn append<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
+	pub fn append<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
 		&mut self,
 		storage: &mut S,
 		node: &Node,
 	) -> io::Result<usize> {
-		storage.seek(io::SeekFrom::End(0)).await?;
+		storage.seek(io::SeekFrom::End(0))?;
 		let mut size: usize = 0;
-		size += self.write_node(storage, node).await?;
-		size += self.write_partition(storage, node).await?;
+		size += self.write_node(storage, node)?;
+		size += self.write_partition(storage, node)?;
 		Ok(size)
 	}
 
-	pub async fn get_node<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
+	pub fn get_node<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
 		&mut self,
 		storage: &mut S,
 		id: Uuid,
@@ -184,16 +180,14 @@ impl File {
 			let chunk_offset = row.chunk_offset;
 			let chunk_size = row.chunk_size;
 			let mut bytes: Vec<u8> = Vec::with_capacity(chunk_size as usize);
-			storage.seek(io::SeekFrom::Start(chunk_offset)).await?;
-			storage.read(&mut bytes).await?;
-			if let Ok((_, node)) = <Node as parser::v0::PartitionTableParse<S>>::parse(
+			storage.seek(io::SeekFrom::Start(chunk_offset))?;
+			storage.read(&mut bytes)?;
+			if let Ok((_, node)) = <Node as parser::v0::PartitionTableParse>::parse(
 				&self.index,
 				row,
 				storage,
 				&bytes[..],
-			)
-			.await
-			{
+			) {
 				Ok(node)
 			} else {
 				Err(io::ErrorKind::InvalidData.into())
@@ -207,9 +201,8 @@ mod tests {
 	use super::*;
 	use crate::parser;
 	use crate::{DocumentNode, Group, Node, Note};
-	use async_std::io;
-	use async_std::task;
 	use math::Vec2;
+	use std::io;
 	use std::rc::Rc;
 	use uuid::Uuid;
 
@@ -219,7 +212,7 @@ mod tests {
 			0x50, 0x58, 0x4C, 0x52, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4B, 0x26, 0xC4, 0x71, 0x30,
 			0x98, 0x4C, 0xCE, 0x9C, 0xDB, 0x9E, 0x77, 0xDB, 0xD3, 0x02, 0xEF,
 		]);
-		let file = task::block_on(File::from(&mut buffer)).expect("Failed to parse buffer.");
+		let file = File::from(&mut buffer).expect("Failed to parse buffer.");
 		assert_eq!(file.header.version, 0);
 		assert_eq!(
 			file.index.table,
@@ -247,10 +240,12 @@ mod tests {
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 		let mut file =
 			File::empty(Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap());
-		let len = task::block_on(file.write(&mut buffer, &doc)).expect("Failed to write buffer.");
+		let len = file
+			.write(&mut buffer, &doc)
+			.expect("Failed to write buffer.");
 		assert_eq!(len, 152);
 		assert_eq!(buffer.get_ref().len(), 152);
-		let mut file = task::block_on(File::from(&mut buffer)).expect("Failed to parse buffer.");
+		let mut file = File::from(&mut buffer).expect("Failed to parse buffer.");
 		assert_eq!(file.header.version, 0);
 		assert_eq!(
 			file.index.table,
@@ -260,26 +255,21 @@ mod tests {
 			}
 		);
 		assert_eq!(file.index.rows.len(), 2);
-		task::block_on(async {
-			if let Ok(Node::Group(group)) = file
-				.get_node(
-					&mut buffer,
-					Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap(),
-				)
-				.await
-			{
-				assert_eq!(*group.name, "Root");
-				assert_eq!(*group.position, Vec2::new(0., 0.));
-				assert_eq!(group.children.len(), 1);
-				if let DocumentNode::Note(note) = &**group.children.get(0).unwrap() {
-					assert_eq!(*note.note, "Foo");
-				} else {
-					panic!("Could not get child 0");
-				}
+		if let Ok(Node::Group(group)) = file.get_node(
+			&mut buffer,
+			Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap(),
+		) {
+			assert_eq!(*group.name, "Root");
+			assert_eq!(*group.position, Vec2::new(0., 0.));
+			assert_eq!(group.children.len(), 1);
+			if let DocumentNode::Note(note) = &**group.children.get(0).unwrap() {
+				assert_eq!(*note.note, "Foo");
 			} else {
-				panic!("Could not get node fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b");
+				panic!("Could not get child 0");
 			}
-		});
+		} else {
+			panic!("Could not get node fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b");
+		}
 	}
 
 	#[test]
@@ -300,49 +290,76 @@ mod tests {
 			));
 			let mut file =
 				File::empty(Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap());
-			let len =
-				task::block_on(file.write(&mut buffer, &doc)).expect("Failed to write buffer.");
+			let len = file
+				.write(&mut buffer, &doc)
+				.expect("Failed to write buffer.");
 			assert_eq!(len, 152);
 			assert_eq!(buffer.get_ref().len(), 152);
 		}
 
 		// Stip note from group and append to current file
 		{
-			let mut file =
-				task::block_on(File::from(&mut buffer)).expect("Failed to parse buffer.");
+			let mut file = File::from(&mut buffer).expect("Failed to parse buffer.");
 			let doc = Node::Group(Group::new(
 				Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()),
 				"Root",
 				Vec2::new(0., 0.),
 				vec![],
 			));
-			let len =
-				task::block_on(file.append(&mut buffer, &doc)).expect("Failed to write buffer.");
+			let len = file
+				.append(&mut buffer, &doc)
+				.expect("Failed to write buffer.");
 			assert_eq!(len, 82);
 			assert_eq!(buffer.get_ref().len(), 234);
 		}
 
 		// Assert that note is gone
 		{
-			let mut file =
-				task::block_on(File::from(&mut buffer)).expect("Failed to parse buffer.");
+			let mut file = File::from(&mut buffer).expect("Failed to parse buffer.");
 			assert_eq!(file.header.version, 0);
 			assert_eq!(file.index.rows.len(), 1);
-			task::block_on(async {
-				if let Ok(Node::Group(group)) = file
-					.get_node(
-						&mut buffer,
-						Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap(),
-					)
-					.await
-				{
-					assert_eq!(*group.name, "Root");
-					assert_eq!(*group.position, Vec2::new(0., 0.));
-					assert_eq!(group.children.len(), 0);
-				} else {
-					panic!("Could not get node fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b");
-				}
-			});
+			if let Ok(Node::Group(group)) = file.get_node(
+				&mut buffer,
+				Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap(),
+			) {
+				assert_eq!(*group.name, "Root");
+				assert_eq!(*group.position, Vec2::new(0., 0.));
+				assert_eq!(group.children.len(), 0);
+			} else {
+				panic!("Could not get node fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b");
+			}
 		}
+	}
+
+	#[test]
+	fn it_dumps_to_disk() {
+		let mut buffer = std::fs::OpenOptions::new()
+			.truncate(true)
+			.create(true)
+			.write(true)
+			.open("it_dump_to_disk.bin")
+			.expect("Could not open file.");
+		let doc = Node::Group(Group::new(
+			Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()),
+			"Root",
+			Vec2::new(0., 0.),
+			// vec![],
+			vec![Rc::new(DocumentNode::Note(Note::new(
+				Some(Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap()),
+				"Foo",
+				Vec2::new(0., 0.),
+			)))],
+		));
+		let mut file =
+			File::empty(Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap());
+		let len = file
+			.write(&mut buffer, &doc)
+			.expect("Failed to write buffer.");
+		assert_eq!(len, 152);
+
+		let metadata = std::fs::metadata("it_dump_to_disk.bin").expect("Could not get metadata.");
+		assert_eq!(metadata.len(), 152);
+
+		std::fs::remove_file("it_dump_to_disk.bin").expect("Could not remove file.");
 	}
 }

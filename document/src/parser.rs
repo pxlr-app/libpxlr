@@ -1,24 +1,20 @@
-use async_std::io;
-use async_std::io::prelude::*;
-use async_trait::async_trait;
 use math::{Extent2, Vec2};
 use nom::bytes::complete::{tag, take};
 use nom::number::complete::{le_f32, le_u32, le_u8};
 use nom::IResult;
+use std::io;
 use uuid::Uuid;
 
 const MAGIC_NUMBER: &'static str = "PXLR";
 
-#[async_trait(?Send)]
 pub trait Parser {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], Self>
 	where
 		Self: Sized;
 
-	async fn write<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
-		&self,
-		storage: &mut S,
-	) -> io::Result<usize>;
+	fn write<S>(&self, storage: &mut S) -> io::Result<usize>
+	where
+		S: io::Write + io::Seek;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -26,7 +22,6 @@ pub struct Header {
 	pub version: u8,
 }
 
-#[async_trait(?Send)]
 impl Parser for Header {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], Self> {
 		let (bytes, _) = tag(MAGIC_NUMBER)(bytes)?;
@@ -34,25 +29,23 @@ impl Parser for Header {
 		Ok((bytes, Header { version }))
 	}
 
-	async fn write<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
-		&self,
-		storage: &mut S,
-	) -> io::Result<usize> {
-		storage.write(MAGIC_NUMBER.as_bytes()).await?;
-		storage.write(&self.version.to_le_bytes()).await?;
+	fn write<S>(&self, storage: &mut S) -> io::Result<usize>
+	where
+		S: io::Write + io::Seek,
+	{
+		storage.write(MAGIC_NUMBER.as_bytes())?;
+		storage.write(&self.version.to_le_bytes())?;
 		Ok(5)
 	}
 }
 
 pub mod v0 {
-	use async_std::io;
-	use async_std::io::prelude::*;
-	use async_trait::async_trait;
 	use math::{Extent2, Vec2};
 	use nom::multi::many_m_n;
 	use nom::number::complete::{le_u16, le_u32, le_u64, le_u8};
 	use nom::IResult;
 	use std::collections::HashMap;
+	use std::io;
 	use uuid::Uuid;
 
 	#[derive(Debug, Clone, PartialEq)]
@@ -78,44 +71,44 @@ pub mod v0 {
 		}
 	}
 
-	#[async_trait(?Send)]
-	pub trait PartitionTableParse<S>
-	where
-		S: io::Read + io::Write + io::Seek + std::marker::Unpin,
-	{
+	pub trait PartitionTableParse {
 		type Output;
 
-		async fn parse<'b>(
+		fn parse<'b, S>(
 			index: &PartitionIndex,
 			row: &PartitionTableRow,
 			storage: &mut S,
 			bytes: &'b [u8],
 		) -> IResult<&'b [u8], Self::Output>
 		where
+			S: io::Read + io::Seek,
 			Self::Output: Sized;
 
-		async fn write(&self, index: &mut PartitionIndex, storage: &mut S) -> io::Result<usize>;
+		fn write<S>(&self, index: &mut PartitionIndex, storage: &mut S) -> io::Result<usize>
+		where
+			S: io::Write + io::Seek;
 	}
 
-	#[async_trait(?Send)]
-	impl<T, S> PartitionTableParse<S> for Vec<T>
+	impl<T> PartitionTableParse for Vec<T>
 	where
-		S: io::Read + io::Write + io::Seek + std::marker::Unpin,
-		T: PartitionTableParse<S>,
+		T: PartitionTableParse,
 	{
 		type Output = Vec<T::Output>;
 
-		async fn parse<'b>(
+		fn parse<'b, S>(
 			index: &PartitionIndex,
 			row: &PartitionTableRow,
 			storage: &mut S,
 			bytes: &'b [u8],
-		) -> IResult<&'b [u8], Self::Output> {
+		) -> IResult<&'b [u8], Self::Output>
+		where
+			S: io::Read + io::Seek,
+		{
 			let mut items: Vec<T::Output> = Vec::new();
 			let mut remainder: &'b [u8] = bytes;
 			loop {
 				if let Ok((b, item)) =
-					<T as PartitionTableParse<S>>::parse(index, row, storage, remainder).await
+					<T as PartitionTableParse>::parse(index, row, storage, remainder)
 				{
 					remainder = b;
 					items.push(item);
@@ -126,10 +119,13 @@ pub mod v0 {
 			Ok((remainder, items))
 		}
 
-		async fn write(&self, index: &mut PartitionIndex, storage: &mut S) -> io::Result<usize> {
+		fn write<S>(&self, index: &mut PartitionIndex, storage: &mut S) -> io::Result<usize>
+		where
+			S: io::Write + io::Seek,
+		{
 			let mut b: usize = 0;
 			for item in self.iter() {
-				b += item.write(index, storage).await?;
+				b += item.write(index, storage)?;
 			}
 			Ok(b)
 		}
@@ -141,7 +137,6 @@ pub mod v0 {
 		pub size: u32,
 	}
 
-	#[async_trait(?Send)]
 	impl super::Parser for PartitionTable {
 		fn parse(bytes: &[u8]) -> IResult<&[u8], Self> {
 			let (bytes, size) = le_u32(bytes)?;
@@ -149,12 +144,12 @@ pub mod v0 {
 			Ok((bytes, PartitionTable { size, hash }))
 		}
 
-		async fn write<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
-			&self,
-			storage: &mut S,
-		) -> io::Result<usize> {
-			storage.write(&self.size.to_le_bytes()).await?;
-			self.hash.write(storage).await?;
+		fn write<S>(&self, storage: &mut S) -> io::Result<usize>
+		where
+			S: io::Write + io::Seek,
+		{
+			storage.write(&self.size.to_le_bytes())?;
+			self.hash.write(storage)?;
 			Ok(20)
 		}
 	}
@@ -173,7 +168,6 @@ pub mod v0 {
 		CanvasRGBAXYZ,
 	}
 
-	#[async_trait(?Send)]
 	impl super::Parser for ChunkType {
 		fn parse(bytes: &[u8]) -> IResult<&[u8], Self> {
 			let (bytes, index) = le_u16(bytes)?;
@@ -193,10 +187,10 @@ pub mod v0 {
 			Ok((bytes, value))
 		}
 
-		async fn write<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
-			&self,
-			storage: &mut S,
-		) -> io::Result<usize> {
+		fn write<S>(&self, storage: &mut S) -> io::Result<usize>
+		where
+			S: io::Write + io::Seek,
+		{
 			let index: u16 = match self {
 				ChunkType::Group => 0,
 				ChunkType::Note => 1,
@@ -210,7 +204,7 @@ pub mod v0 {
 				ChunkType::CanvasRGBAXYZ => 9,
 				_ => panic!("Unknown chunk type"),
 			};
-			storage.write(&index.to_le_bytes()).await?;
+			storage.write(&index.to_le_bytes())?;
 			Ok(2)
 		}
 	}
@@ -228,7 +222,6 @@ pub mod v0 {
 		pub preview: Vec<u8>,
 	}
 
-	#[async_trait(?Send)]
 	impl super::Parser for PartitionTableRow {
 		fn parse(bytes: &[u8]) -> IResult<&[u8], Self> {
 			let (bytes, id) = Uuid::parse(bytes)?;
@@ -260,34 +253,29 @@ pub mod v0 {
 			))
 		}
 
-		async fn write<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
-			&self,
-			storage: &mut S,
-		) -> io::Result<usize> {
+		fn write<S>(&self, storage: &mut S) -> io::Result<usize>
+		where
+			S: io::Write + io::Seek,
+		{
 			let mut b: usize = 54;
-			self.id.write(storage).await?;
-			self.chunk_type.write(storage).await?;
-			storage.write(&self.chunk_offset.to_le_bytes()).await?;
-			storage.write(&self.chunk_size.to_le_bytes()).await?;
-			self.position.write(storage).await?;
-			self.size.write(storage).await?;
-			storage
-				.write(&(self.children.len() as u32).to_le_bytes())
-				.await?;
-			storage
-				.write(&(self.preview.len() as u32).to_le_bytes())
-				.await?;
-			b += self.name.write(storage).await?;
+			self.id.write(storage)?;
+			self.chunk_type.write(storage)?;
+			storage.write(&self.chunk_offset.to_le_bytes())?;
+			storage.write(&self.chunk_size.to_le_bytes())?;
+			self.position.write(storage)?;
+			self.size.write(storage)?;
+			storage.write(&(self.children.len() as u32).to_le_bytes())?;
+			storage.write(&(self.preview.len() as u32).to_le_bytes())?;
+			b += self.name.write(storage)?;
 			for child in self.children.iter() {
-				b += storage.write(&child.to_le_bytes()).await?;
+				b += storage.write(&child.to_le_bytes())?;
 			}
-			b += storage.write(&self.preview).await?;
+			b += storage.write(&self.preview)?;
 			Ok(b)
 		}
 	}
 }
 
-#[async_trait(?Send)]
 impl Parser for String {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], Self> {
 		let (bytes, len) = le_u32(bytes)?;
@@ -295,34 +283,32 @@ impl Parser for String {
 		Ok((bytes, std::str::from_utf8(buffer).unwrap().to_owned()))
 	}
 
-	async fn write<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
-		&self,
-		storage: &mut S,
-	) -> io::Result<usize> {
+	fn write<S>(&self, storage: &mut S) -> io::Result<usize>
+	where
+		S: io::Write + io::Seek,
+	{
 		let mut b: usize = 0;
-		b += storage.write(&(self.len() as u32).to_le_bytes()).await?;
-		b += storage.write(self.as_bytes()).await?;
+		b += storage.write(&(self.len() as u32).to_le_bytes())?;
+		b += storage.write(self.as_bytes())?;
 		Ok(b)
 	}
 }
 
-#[async_trait(?Send)]
 impl Parser for Uuid {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], Self> {
 		let (bytes, buffer) = take(16usize)(bytes)?;
 		Ok((bytes, Uuid::from_slice(buffer).unwrap()))
 	}
 
-	async fn write<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
-		&self,
-		storage: &mut S,
-	) -> io::Result<usize> {
-		storage.write(self.as_bytes()).await?;
+	fn write<S>(&self, storage: &mut S) -> io::Result<usize>
+	where
+		S: io::Write + io::Seek,
+	{
+		storage.write(self.as_bytes())?;
 		Ok(16)
 	}
 }
 
-#[async_trait(?Send)]
 impl Parser for Vec2<f32> {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], Self> {
 		let (bytes, x) = le_f32(bytes)?;
@@ -330,17 +316,16 @@ impl Parser for Vec2<f32> {
 		Ok((bytes, Vec2::new(x, y)))
 	}
 
-	async fn write<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
-		&self,
-		storage: &mut S,
-	) -> io::Result<usize> {
-		storage.write(&self.x.to_le_bytes()).await?;
-		storage.write(&self.y.to_le_bytes()).await?;
+	fn write<S>(&self, storage: &mut S) -> io::Result<usize>
+	where
+		S: io::Write + io::Seek,
+	{
+		storage.write(&self.x.to_le_bytes())?;
+		storage.write(&self.y.to_le_bytes())?;
 		Ok(8)
 	}
 }
 
-#[async_trait(?Send)]
 impl Parser for Extent2<u32> {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], Self> {
 		let (bytes, w) = le_u32(bytes)?;
@@ -348,12 +333,12 @@ impl Parser for Extent2<u32> {
 		Ok((bytes, Extent2::new(w, h)))
 	}
 
-	async fn write<S: io::Read + io::Write + io::Seek + std::marker::Unpin>(
-		&self,
-		storage: &mut S,
-	) -> io::Result<usize> {
-		storage.write(&self.w.to_le_bytes()).await?;
-		storage.write(&self.h.to_le_bytes()).await?;
+	fn write<S>(&self, storage: &mut S) -> io::Result<usize>
+	where
+		S: io::Write + io::Seek,
+	{
+		storage.write(&self.w.to_le_bytes())?;
+		storage.write(&self.h.to_le_bytes())?;
 		Ok(8)
 	}
 }

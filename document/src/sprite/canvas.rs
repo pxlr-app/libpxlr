@@ -3,14 +3,13 @@ use crate::parser;
 use crate::parser::Parser;
 use crate::patch::*;
 use crate::sprite::*;
-use async_std::io;
-use async_std::io::prelude::*;
 use math::blend::*;
 use math::interpolation::*;
 use math::{Extent2, Mat2, Vec2};
 use nom::multi::many_m_n;
 use nom::IResult;
 use serde::{Deserialize, Serialize};
+use std::io;
 use std::iter::FromIterator;
 use std::ops::Index;
 use std::rc::Rc;
@@ -231,173 +230,72 @@ macro_rules! define_canvas {
 			}
 		}
 
-		impl<S> parser::v0::PartitionTableParse<S> for $name
-		where
-			S: io::Read + io::Write + io::Seek + std::marker::Unpin,
-		{
+		impl parser::v0::PartitionTableParse for $name {
 			type Output = $name;
 
-			// TODO Due to https://github.com/dtolnay/async-trait/issues/46
-			//      had to expand the macro manually. Keeping original
-			//
-			// async fn parse<'b>(
-			// 	_index: &parser::v0::PartitionIndex,
-			// 	row: &parser::v0::PartitionTableRow,
-			// 	_storage: &mut dyn FileStorage,
-			// 	bytes: &'b [u8],
-			// ) -> IResult<&'b [u8], Self::Output> {
-			// 	let (bytes, size) = Extent2::<u32>::parse(bytes)?;
-			// 	let (bytes, data) = many_m_n(
-			// 		(size.w as usize) * (size.h as usize),
-			// 		(size.w as usize) * (size.h as usize),
-			// 		<$color as crate::parser::Parser>::parse,
-			// 	)(bytes)?;
-			// 	Ok((
-			// 		bytes,
-			// 		$name {
-			// 			id: row.id,
-			// 			name: Rc::new(String::from(&row.name)),
-			// 			size: Rc::new(size),
-			// 			data: Rc::new(data),
-			// 		},
-			// 	))
-			// }
-			fn parse<'a, 'b, 'c, 'd, 'async_trait>(
-				index: &'b parser::v0::PartitionIndex,
-				row: &'c parser::v0::PartitionTableRow,
-				_storage: &'d mut S,
-				bytes: &'a [u8],
-			) -> ::core::pin::Pin<
-				Box<
-					dyn ::core::future::Future<Output = IResult<&'a [u8], Self::Output>>
-						+ 'async_trait,
-				>,
-			>
+			fn parse<'b, S>(
+				_index: &parser::v0::PartitionIndex,
+				row: &parser::v0::PartitionTableRow,
+				_storage: &mut S,
+				bytes: &'b [u8],
+			) -> IResult<&'b [u8], Self::Output>
 			where
-				'a: 'async_trait,
-				'b: 'async_trait,
-				'c: 'async_trait,
-				'd: 'async_trait,
-				Self: 'async_trait,
+				S: io::Read + io::Seek,
 			{
-				async fn run<'b, S>(
-					_index: &parser::v0::PartitionIndex,
-					row: &parser::v0::PartitionTableRow,
-					_storage: &mut S,
-					bytes: &'b [u8],
-				) -> IResult<&'b [u8], $name>
-				where
-					S: io::Read + io::Write + io::Seek + std::marker::Unpin,
-				{
-					let (bytes, size) = Extent2::<u32>::parse(bytes)?;
-					let (bytes, data) = many_m_n(
-						(size.w as usize) * (size.h as usize),
-						(size.w as usize) * (size.h as usize),
-						<$color as crate::parser::Parser>::parse,
-					)(bytes)?;
-					Ok((
-						bytes,
-						$name {
-							id: row.id,
-							name: Rc::new(String::from(&row.name)),
-							size: Rc::new(size),
-							data: Rc::new(data),
-						},
-					))
-				}
-				Box::pin(run(index, row, _storage, bytes))
+				let (bytes, size) = Extent2::<u32>::parse(bytes)?;
+				let (bytes, data) = many_m_n(
+					(size.w as usize) * (size.h as usize),
+					(size.w as usize) * (size.h as usize),
+					<$color as crate::parser::Parser>::parse,
+				)(bytes)?;
+				Ok((
+					bytes,
+					$name {
+						id: row.id,
+						name: Rc::new(String::from(&row.name)),
+						size: Rc::new(size),
+						data: Rc::new(data),
+					},
+				))
 			}
 
-			// TODO Due to https://github.com/dtolnay/async-trait/issues/46
-			//      had to expand the macro manually. Keeping original
-			//
-			// async fn write(
-			// 	&self,
-			// 	index: &mut parser::v0::PartitionIndex,
-			// 	storage: &mut S,
-			// ) -> io::Result<usize> {
-			// 	let offset = storage.seek(io::SeekFrom::Current(0)).await?;
-			// 	let size = {
-			// 		let mut b: usize = 8;
-			// 		self.size.write(storage).await?;
-			// 		for color in self.data.iter() {
-			// 			b += color.write(storage).await?;
-			// 		}
-			// 		b
-			// 	};
-			// 	if let Some(i) = index.index_uuid.get(&self.id) {
-			// 		let mut row = index.rows.get_mut(*i).unwrap();
-			// 		row.chunk_offset = offset as u64;
-			// 		row.chunk_size = size as u32;
-			// 	} else {
-			// 		let row = parser::v0::PartitionTableRow {
-			// 			id: self.id,
-			// 			chunk_type: parser::v0::ChunkType::Note,
-			// 			chunk_offset: offset as u64,
-			// 			chunk_size: size as u32,
-			// 			position: Vec2::new(0., 0.),
-			// 			size: *self.size,
-			// 			name: String::from(&*self.name),
-			// 			children: Vec::new(),
-			// 			preview: Vec::new(),
-			// 		};
-			// 		index.index_uuid.insert(row.id, index.rows.len());
-			// 		index.rows.push(row);
-			// 	}
-			// 	Ok(size)
-			// }
-			fn write<'a, 'b, 'c, 'async_trait>(
-				&'a self,
-				index: &'b mut parser::v0::PartitionIndex,
-				storage: &'c mut S,
-			) -> ::core::pin::Pin<
-				Box<dyn ::core::future::Future<Output = io::Result<usize>> + 'async_trait>,
-			>
+			fn write<S>(
+				&self,
+				index: &mut parser::v0::PartitionIndex,
+				storage: &mut S,
+			) -> io::Result<usize>
 			where
-				'a: 'async_trait,
-				'b: 'async_trait,
-				'c: 'async_trait,
-				Self: 'async_trait,
+				S: io::Write + io::Seek,
 			{
-				async fn run<S>(
-					_self: &$name,
-					index: &mut parser::v0::PartitionIndex,
-					storage: &mut S,
-				) -> io::Result<usize>
-				where
-					S: io::Read + io::Write + io::Seek + std::marker::Unpin,
-				{
-					let offset = storage.seek(io::SeekFrom::Current(0)).await?;
-					let size = {
-						let mut b: usize = 8;
-						_self.size.write(storage).await?;
-						for color in _self.data.iter() {
-							b += color.write(storage).await?;
-						}
-						b
-					};
-					if let Some(i) = index.index_uuid.get(&_self.id) {
-						let mut row = index.rows.get_mut(*i).unwrap();
-						row.chunk_offset = offset as u64;
-						row.chunk_size = size as u32;
-					} else {
-						let row = parser::v0::PartitionTableRow {
-							id: _self.id,
-							chunk_type: parser::v0::ChunkType::Note,
-							chunk_offset: offset as u64,
-							chunk_size: size as u32,
-							position: Vec2::new(0., 0.),
-							size: *_self.size,
-							name: String::from(&*_self.name),
-							children: Vec::new(),
-							preview: Vec::new(),
-						};
-						index.index_uuid.insert(row.id, index.rows.len());
-						index.rows.push(row);
+				let offset = storage.seek(io::SeekFrom::Current(0))?;
+				let size = {
+					let mut b: usize = 8;
+					self.size.write(storage)?;
+					for color in self.data.iter() {
+						b += color.write(storage)?;
 					}
-					Ok(size)
+					b
+				};
+				if let Some(i) = index.index_uuid.get(&self.id) {
+					let mut row = index.rows.get_mut(*i).unwrap();
+					row.chunk_offset = offset as u64;
+					row.chunk_size = size as u32;
+				} else {
+					let row = parser::v0::PartitionTableRow {
+						id: self.id,
+						chunk_type: parser::v0::ChunkType::Note,
+						chunk_offset: offset as u64,
+						chunk_size: size as u32,
+						position: Vec2::new(0., 0.),
+						size: *self.size,
+						name: String::from(&*self.name),
+						children: Vec::new(),
+						preview: Vec::new(),
+					};
+					index.index_uuid.insert(row.id, index.rows.len());
+					index.rows.push(row);
 				}
-				Box::pin(run(self, index, storage))
+				Ok(size)
 			}
 		}
 	};

@@ -3,13 +3,11 @@ use crate::document::Document;
 use crate::parser;
 use crate::patch::*;
 use crate::sprite::*;
-use async_std::io;
-use async_std::io::prelude::*;
-use async_trait::async_trait;
 use math::interpolation::*;
 use math::{Extent2, Vec2};
 use nom::IResult;
 use serde::{Deserialize, Serialize};
+use std::io;
 use std::rc::Rc;
 use uuid::Uuid;
 
@@ -379,19 +377,18 @@ impl Patchable for LayerGroup {
 	}
 }
 
-#[async_trait(?Send)]
-impl<S> parser::v0::PartitionTableParse<S> for LayerGroup
-where
-	S: io::Read + io::Write + io::Seek + std::marker::Unpin,
-{
+impl parser::v0::PartitionTableParse for LayerGroup {
 	type Output = LayerGroup;
 
-	async fn parse<'a, 'b, 'c, 'd>(
-		index: &'b parser::v0::PartitionIndex,
-		row: &'c parser::v0::PartitionTableRow,
-		storage: &'d mut S,
-		bytes: &'a [u8],
-	) -> IResult<&'a [u8], Self::Output> {
+	fn parse<'b, S>(
+		index: &parser::v0::PartitionIndex,
+		row: &parser::v0::PartitionTableRow,
+		storage: &mut S,
+		bytes: &'b [u8],
+	) -> IResult<&'b [u8], Self::Output>
+	where
+		S: io::Read + io::Seek,
+	{
 		let (bytes, color_mode) = <ColorMode as parser::Parser>::parse(bytes)?;
 		let mut children: Vec<Rc<LayerNode>> = Vec::new();
 		for i in row.children.iter() {
@@ -404,19 +401,16 @@ where
 			let mut bytes: Vec<u8> = Vec::with_capacity(size as usize);
 			storage
 				.seek(io::SeekFrom::Start(offset))
-				.await
 				.expect("Could not seek to chunk.");
 			storage
 				.read(&mut bytes)
-				.await
 				.expect("Could not read chunk data.");
-			let (_, node) = <LayerNode as parser::v0::PartitionTableParse<S>>::parse(
+			let (_, node) = <LayerNode as parser::v0::PartitionTableParse>::parse(
 				index,
 				row,
 				storage,
 				&bytes[..],
 			)
-			.await
 			.expect("Could not parse node.");
 			children.push(Rc::new(node));
 		}
@@ -433,15 +427,14 @@ where
 		))
 	}
 
-	async fn write(
-		&self,
-		index: &mut parser::v0::PartitionIndex,
-		storage: &mut S,
-	) -> io::Result<usize> {
-		let offset = storage.seek(io::SeekFrom::Current(0)).await?;
+	fn write<S>(&self, index: &mut parser::v0::PartitionIndex, storage: &mut S) -> io::Result<usize>
+	where
+		S: io::Write + io::Seek,
+	{
+		let offset = storage.seek(io::SeekFrom::Current(0))?;
 		let mut size: usize = 0;
 		for child in self.children.iter() {
-			size += child.write(index, storage).await?;
+			size += child.write(index, storage)?;
 		}
 		let children = self
 			.children
