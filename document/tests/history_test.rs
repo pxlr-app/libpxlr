@@ -1,5 +1,5 @@
 use chrono::{TimeZone, Utc};
-use document::patch::{Patchable, Renamable};
+use document::patch::{IPatchable, Renamable};
 use document::Note;
 use document::{Event, History};
 use math::Vec2;

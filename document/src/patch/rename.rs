@@ -1,4 +1,4 @@
-use crate::patch::Patch;
+use crate::patch::{IPatch, Patch, PatchMode};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -6,6 +6,12 @@ use uuid::Uuid;
 pub struct RenamePatch {
 	pub target: Uuid,
 	pub name: String,
+}
+
+impl IPatch for RenamePatch {
+	fn mode(&self) -> PatchMode {
+		PatchMode::META
+	}
 }
 
 pub trait Renamable<'a> {

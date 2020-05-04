@@ -1,4 +1,4 @@
-use crate::patch::Patch;
+use crate::patch::{IPatch, Patch, PatchMode};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -8,7 +8,13 @@ pub struct SetVisibilityPatch {
 	pub visibility: bool,
 }
 
-pub trait Visible {
+impl IPatch for SetVisibilityPatch {
+	fn mode(&self) -> PatchMode {
+		PatchMode::META
+	}
+}
+
+pub trait IVisible {
 	fn set_visibility(&self, visible: bool) -> Result<(Patch, Patch), SetVisibilityError>;
 }
 

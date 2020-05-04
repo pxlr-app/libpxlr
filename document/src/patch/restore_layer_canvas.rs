@@ -1,4 +1,5 @@
 use crate::color::*;
+use crate::patch::IPatch;
 use math::Extent2;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -12,6 +13,8 @@ macro_rules! define_restore_canvas_patch {
 			pub size: Extent2<u32>,
 			pub data: Vec<$color>,
 		}
+
+		impl IPatch for $name {}
 	};
 }
 

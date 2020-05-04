@@ -1,7 +1,8 @@
 use crate::color::ColorMode;
 use crate::parser;
-use crate::patch::{CropLayerError, Patch, Patchable, ResizeLayerError};
+use crate::patch::{CropLayerError, IPatchable, Patch, ResizeLayerError};
 use crate::sprite::*;
+use crate::INode;
 use math::interpolation::*;
 use math::{Extent2, Vec2};
 use nom::IResult;
@@ -9,16 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::io;
 use uuid::Uuid;
 
-pub trait Layer {
-	fn is_visible(&self) -> bool {
-		true
-	}
-	fn is_locked(&self) -> bool {
-		false
-	}
-	fn is_folded(&self) -> bool {
-		false
-	}
+pub trait ILayer: INode {
 	fn crop(&self, offset: Vec2<u32>, size: Extent2<u32>)
 		-> Result<(Patch, Patch), CropLayerError>;
 	fn resize(
@@ -51,43 +43,6 @@ impl LayerNode {
 			LayerNode::CanvasRGBAXYZ(node) => node.id,
 			LayerNode::Group(node) => node.id,
 			LayerNode::Sprite(node) => node.id,
-		}
-	}
-
-	fn is_visible(&self) -> bool {
-		match self {
-			LayerNode::CanvasI(node) => node.is_visible(),
-			LayerNode::CanvasIXYZ(node) => node.is_visible(),
-			LayerNode::CanvasUV(node) => node.is_visible(),
-			LayerNode::CanvasRGB(node) => node.is_visible(),
-			LayerNode::CanvasRGBA(node) => node.is_visible(),
-			LayerNode::CanvasRGBAXYZ(node) => node.is_visible(),
-			LayerNode::Group(node) => node.is_visible(),
-			LayerNode::Sprite(node) => node.is_visible(),
-		}
-	}
-	fn is_locked(&self) -> bool {
-		match self {
-			LayerNode::CanvasI(node) => node.is_locked(),
-			LayerNode::CanvasIXYZ(node) => node.is_locked(),
-			LayerNode::CanvasUV(node) => node.is_locked(),
-			LayerNode::CanvasRGB(node) => node.is_locked(),
-			LayerNode::CanvasRGBA(node) => node.is_locked(),
-			LayerNode::CanvasRGBAXYZ(node) => node.is_locked(),
-			LayerNode::Group(node) => node.is_locked(),
-			LayerNode::Sprite(node) => node.is_locked(),
-		}
-	}
-	fn is_folded(&self) -> bool {
-		match self {
-			LayerNode::CanvasI(node) => node.is_folded(),
-			LayerNode::CanvasIXYZ(node) => node.is_folded(),
-			LayerNode::CanvasUV(node) => node.is_folded(),
-			LayerNode::CanvasRGB(node) => node.is_folded(),
-			LayerNode::CanvasRGBA(node) => node.is_folded(),
-			LayerNode::CanvasRGBAXYZ(node) => node.is_folded(),
-			LayerNode::Group(node) => node.is_folded(),
-			LayerNode::Sprite(node) => node.is_folded(),
 		}
 	}
 
@@ -156,6 +111,45 @@ impl LayerNode {
 			LayerNode::CanvasRGBAXYZ(node) => node.resize(size, interpolation),
 			LayerNode::Group(node) => node.resize(size, interpolation),
 			LayerNode::Sprite(node) => node.resize(size, interpolation),
+		}
+	}
+}
+
+impl INode for LayerNode {
+	fn is_visible(&self) -> bool {
+		match self {
+			LayerNode::CanvasI(node) => node.is_visible(),
+			LayerNode::CanvasIXYZ(node) => node.is_visible(),
+			LayerNode::CanvasUV(node) => node.is_visible(),
+			LayerNode::CanvasRGB(node) => node.is_visible(),
+			LayerNode::CanvasRGBA(node) => node.is_visible(),
+			LayerNode::CanvasRGBAXYZ(node) => node.is_visible(),
+			LayerNode::Group(node) => node.is_visible(),
+			LayerNode::Sprite(node) => node.is_visible(),
+		}
+	}
+	fn is_locked(&self) -> bool {
+		match self {
+			LayerNode::CanvasI(node) => node.is_locked(),
+			LayerNode::CanvasIXYZ(node) => node.is_locked(),
+			LayerNode::CanvasUV(node) => node.is_locked(),
+			LayerNode::CanvasRGB(node) => node.is_locked(),
+			LayerNode::CanvasRGBA(node) => node.is_locked(),
+			LayerNode::CanvasRGBAXYZ(node) => node.is_locked(),
+			LayerNode::Group(node) => node.is_locked(),
+			LayerNode::Sprite(node) => node.is_locked(),
+		}
+	}
+	fn is_folded(&self) -> bool {
+		match self {
+			LayerNode::CanvasI(node) => node.is_folded(),
+			LayerNode::CanvasIXYZ(node) => node.is_folded(),
+			LayerNode::CanvasUV(node) => node.is_folded(),
+			LayerNode::CanvasRGB(node) => node.is_folded(),
+			LayerNode::CanvasRGBA(node) => node.is_folded(),
+			LayerNode::CanvasRGBAXYZ(node) => node.is_folded(),
+			LayerNode::Group(node) => node.is_folded(),
+			LayerNode::Sprite(node) => node.is_folded(),
 		}
 	}
 }

@@ -9,7 +9,7 @@ use std::default::Default;
 use std::io;
 use std::ops::{Add, Div, Mul, Sub};
 
-pub trait Color: Copy {}
+pub trait IColor: Copy {}
 
 macro_rules! define_colors {
 	{$(
@@ -55,7 +55,7 @@ macro_rules! define_colors {
 				}
 			}
 
-			impl Color for $color {}
+			impl IColor for $color {}
 
 			impl Default for $color {
 				fn default() -> Self {

@@ -1,5 +1,5 @@
 use document::color::{ColorMode, I};
-use document::patch::{Patchable, Renamable};
+use document::patch::{IPatchable, Renamable};
 use document::sprite::*;
 use math::interpolation::Interpolation;
 use math::{Extent2, Vec2};

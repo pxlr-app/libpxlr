@@ -1,6 +1,7 @@
-use crate::document::Document;
+use crate::document::IDocument;
 use crate::parser;
 use crate::patch::*;
+use crate::INode;
 use math::{Extent2, Vec2};
 use nom::IResult;
 use serde::{Deserialize, Serialize};
@@ -29,10 +30,13 @@ impl Note {
 	}
 }
 
-impl Document for Note {
+impl IDocument for Note {
 	fn position(&self) -> Vec2<f32> {
 		*(self.position).clone()
 	}
+}
+
+impl INode for Note {
 	fn is_visible(&self) -> bool {
 		self.is_visible
 	}
@@ -60,7 +64,7 @@ impl<'a> Renamable<'a> for Note {
 	}
 }
 
-impl Visible for Note {
+impl IVisible for Note {
 	fn set_visibility(&self, visible: bool) -> Result<(Patch, Patch), SetVisibilityError> {
 		if self.is_visible == visible {
 			Err(SetVisibilityError::Unchanged)
@@ -79,7 +83,7 @@ impl Visible for Note {
 	}
 }
 
-impl Lockable for Note {
+impl ILockable for Note {
 	fn set_lock(&self, lock: bool) -> Result<(Patch, Patch), SetLockError> {
 		if self.is_locked == lock {
 			Err(SetLockError::Unchanged)
@@ -98,7 +102,7 @@ impl Lockable for Note {
 	}
 }
 
-impl Patchable for Note {
+impl IPatchable for Note {
 	fn patch(&self, patch: &Patch) -> Option<Box<Self>> {
 		if patch.target() == self.id {
 			return match patch {

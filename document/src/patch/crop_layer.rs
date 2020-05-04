@@ -1,3 +1,4 @@
+use crate::patch::IPatch;
 use math::{Extent2, Vec2};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -8,6 +9,8 @@ pub struct CropLayerPatch {
 	pub offset: Vec2<u32>,
 	pub size: Extent2<u32>,
 }
+
+impl IPatch for CropLayerPatch {}
 
 #[derive(Debug)]
 pub enum CropLayerError {

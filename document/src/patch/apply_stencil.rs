@@ -1,3 +1,4 @@
+use crate::patch::{IPatch, PatchMode};
 use crate::sprite::{StencilI, StencilIXYZ, StencilRGB, StencilRGBA, StencilRGBAXYZ, StencilUV};
 use math::blend::BlendMode;
 use math::Vec2;
@@ -12,6 +13,12 @@ macro_rules! define_stencil_patch {
 			pub stencil: $stencil,
 			pub offset: Vec2<u32>,
 			pub blend_mode: BlendMode,
+		}
+
+		impl IPatch for $name {
+			fn mode(&self) -> PatchMode {
+				PatchMode::DATA
+			}
 		}
 	};
 }

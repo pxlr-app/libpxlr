@@ -1,6 +1,9 @@
 #![allow(dead_code)]
 #![allow(unreachable_patterns)]
 
+#[macro_use]
+extern crate bitflags;
+
 pub mod color;
 mod document;
 pub mod file;

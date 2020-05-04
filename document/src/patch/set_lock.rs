@@ -1,4 +1,4 @@
-use crate::patch::Patch;
+use crate::patch::{IPatch, Patch, PatchMode};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -8,7 +8,13 @@ pub struct SetLockPatch {
 	pub lock: bool,
 }
 
-pub trait Lockable {
+impl IPatch for SetLockPatch {
+	fn mode(&self) -> PatchMode {
+		PatchMode::META
+	}
+}
+
+pub trait ILockable {
 	fn set_lock(&self, lock: bool) -> Result<(Patch, Patch), SetLockError>;
 }
 

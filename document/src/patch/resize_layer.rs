@@ -1,3 +1,4 @@
+use crate::patch::IPatch;
 use math::interpolation::Interpolation;
 use math::Extent2;
 use serde::{Deserialize, Serialize};
@@ -9,6 +10,8 @@ pub struct ResizeLayerPatch {
 	pub size: Extent2<u32>,
 	pub interpolation: Interpolation,
 }
+
+impl IPatch for ResizeLayerPatch {}
 
 #[derive(Debug)]
 pub enum ResizeLayerError {

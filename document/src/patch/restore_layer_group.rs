@@ -1,3 +1,4 @@
+use crate::patch::IPatch;
 use crate::patch::Patch;
 use math::{Extent2, Vec2};
 use serde::{Deserialize, Serialize};
@@ -11,3 +12,5 @@ pub struct RestoreLayerGroupPatch {
 	pub size: Extent2<u32>,
 	pub children: Vec<Patch>,
 }
+
+impl IPatch for RestoreLayerGroupPatch {}

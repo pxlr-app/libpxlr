@@ -1,4 +1,4 @@
-use crate::patch::Patch;
+use crate::patch::{IPatch, Patch, PatchMode};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -8,7 +8,13 @@ pub struct SetFoldPatch {
 	pub folded: bool,
 }
 
-pub trait Foldable {
+impl IPatch for SetFoldPatch {
+	fn mode(&self) -> PatchMode {
+		PatchMode::META
+	}
+}
+
+pub trait IFoldable {
 	fn set_fold(&self, folded: bool) -> Result<(Patch, Patch), SetFoldError>;
 }
 

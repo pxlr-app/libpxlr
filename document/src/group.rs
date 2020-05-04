@@ -1,6 +1,7 @@
-use crate::document::*;
 use crate::parser;
 use crate::patch::*;
+use crate::INode;
+use crate::{DocumentNode, IDocument};
 use math::{Extent2, Vec2};
 use nom::IResult;
 use serde::{Deserialize, Serialize};
@@ -132,9 +133,21 @@ impl Group {
 	}
 }
 
-impl Document for Group {
+impl IDocument for Group {
 	fn position(&self) -> Vec2<f32> {
 		*(self.position).clone()
+	}
+}
+
+impl INode for Group {
+	fn is_visible(&self) -> bool {
+		self.is_visible
+	}
+	fn is_locked(&self) -> bool {
+		self.is_locked
+	}
+	fn is_folded(&self) -> bool {
+		self.is_folded
 	}
 }
 
@@ -157,7 +170,7 @@ impl<'a> Renamable<'a> for Group {
 	}
 }
 
-impl Visible for Group {
+impl IVisible for Group {
 	fn set_visibility(&self, visible: bool) -> Result<(Patch, Patch), SetVisibilityError> {
 		if self.is_visible == visible {
 			Err(SetVisibilityError::Unchanged)
@@ -176,7 +189,7 @@ impl Visible for Group {
 	}
 }
 
-impl Lockable for Group {
+impl ILockable for Group {
 	fn set_lock(&self, lock: bool) -> Result<(Patch, Patch), SetLockError> {
 		if self.is_locked == lock {
 			Err(SetLockError::Unchanged)
@@ -195,7 +208,7 @@ impl Lockable for Group {
 	}
 }
 
-impl Foldable for Group {
+impl IFoldable for Group {
 	fn set_fold(&self, folded: bool) -> Result<(Patch, Patch), SetFoldError> {
 		if self.is_folded == folded {
 			Err(SetFoldError::Unchanged)
@@ -214,7 +227,7 @@ impl Foldable for Group {
 	}
 }
 
-impl Patchable for Group {
+impl IPatchable for Group {
 	fn patch(&self, patch: &Patch) -> Option<Box<Self>> {
 		if patch.target() == self.id {
 			return match patch {

@@ -1,25 +1,17 @@
-use crate::group::Group;
-use crate::note::Note;
 use crate::parser;
-use crate::patch::{Patch, Patchable};
+use crate::patch::{IPatchable, Patch};
 use crate::sprite::Sprite;
+use crate::Group;
+use crate::INode;
+use crate::Note;
 use math::Vec2;
 use nom::IResult;
 use serde::{Deserialize, Serialize};
 use std::io;
 use uuid::Uuid;
 
-pub trait Document {
+pub trait IDocument {
 	fn position(&self) -> Vec2<f32>;
-	fn is_visible(&self) -> bool {
-		true
-	}
-	fn is_locked(&self) -> bool {
-		false
-	}
-	fn is_folded(&self) -> bool {
-		false
-	}
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -38,6 +30,18 @@ impl DocumentNode {
 		}
 	}
 
+	pub fn patch(&self, patch: &Patch) -> Option<DocumentNode> {
+		match self {
+			DocumentNode::Note(node) => node.patch(&patch).map(|node| DocumentNode::Note(*node)),
+			DocumentNode::Group(node) => node.patch(&patch).map(|node| DocumentNode::Group(*node)),
+			DocumentNode::Sprite(node) => {
+				node.patch(&patch).map(|node| DocumentNode::Sprite(*node))
+			}
+		}
+	}
+}
+
+impl INode for DocumentNode {
 	fn is_visible(&self) -> bool {
 		match self {
 			DocumentNode::Note(node) => node.is_visible(),
@@ -57,16 +61,6 @@ impl DocumentNode {
 			DocumentNode::Note(node) => node.is_folded(),
 			DocumentNode::Group(node) => node.is_folded(),
 			DocumentNode::Sprite(node) => node.is_folded(),
-		}
-	}
-
-	pub fn patch(&self, patch: &Patch) -> Option<DocumentNode> {
-		match self {
-			DocumentNode::Note(node) => node.patch(&patch).map(|node| DocumentNode::Note(*node)),
-			DocumentNode::Group(node) => node.patch(&patch).map(|node| DocumentNode::Group(*node)),
-			DocumentNode::Sprite(node) => {
-				node.patch(&patch).map(|node| DocumentNode::Sprite(*node))
-			}
 		}
 	}
 }

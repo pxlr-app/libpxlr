@@ -3,6 +3,7 @@ use crate::parser;
 use crate::parser::Parser;
 use crate::patch::*;
 use crate::sprite::*;
+use crate::INode;
 use math::blend::*;
 use math::interpolation::*;
 use math::{Extent2, Mat2, Vec2};
@@ -16,7 +17,7 @@ use std::rc::Rc;
 use uuid::Uuid;
 
 pub trait Canvas {
-	type Color: Color;
+	type Color: IColor;
 	type Stencil: Stencil;
 }
 
@@ -88,7 +89,7 @@ macro_rules! define_canvas {
 			}
 		}
 
-		impl Layer for $name {
+		impl ILayer for $name {
 			fn crop(
 				&self,
 				offset: Vec2<u32>,
@@ -140,6 +141,15 @@ macro_rules! define_canvas {
 			}
 		}
 
+		impl INode for $name {
+			fn is_visible(&self) -> bool {
+				self.is_visible
+			}
+			fn is_locked(&self) -> bool {
+				self.is_locked
+			}
+		}
+
 		impl<'a> Renamable<'a> for $name {
 			fn rename(&self, new_name: &'a str) -> Result<(Patch, Patch), RenameError> {
 				if *self.name == new_name {
@@ -159,7 +169,7 @@ macro_rules! define_canvas {
 			}
 		}
 
-		impl Visible for $name {
+		impl IVisible for $name {
 			fn set_visibility(&self, visible: bool) -> Result<(Patch, Patch), SetVisibilityError> {
 				if self.is_visible == visible {
 					Err(SetVisibilityError::Unchanged)
@@ -177,7 +187,7 @@ macro_rules! define_canvas {
 				}
 			}
 		}
-		impl Lockable for $name {
+		impl ILockable for $name {
 			fn set_lock(&self, lock: bool) -> Result<(Patch, Patch), SetLockError> {
 				if self.is_locked == lock {
 					Err(SetLockError::Unchanged)
@@ -196,7 +206,7 @@ macro_rules! define_canvas {
 			}
 		}
 
-		impl Patchable for $name {
+		impl IPatchable for $name {
 			fn patch(&self, patch: &Patch) -> Option<Box<Self>> {
 				if patch.target() == self.id {
 					return match patch {

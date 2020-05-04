@@ -1,3 +1,4 @@
+use crate::patch::IPatch;
 use crate::sprite::LayerNode;
 use serde::{Deserialize, Serialize};
 use std::rc::Rc;
@@ -9,3 +10,5 @@ pub struct AddLayerPatch {
 	pub child: Rc<LayerNode>,
 	pub position: usize,
 }
+
+impl IPatch for AddLayerPatch {}

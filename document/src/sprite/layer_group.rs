@@ -1,8 +1,9 @@
 use crate::color::ColorMode;
-use crate::document::Document;
+use crate::document::IDocument;
 use crate::parser;
 use crate::patch::*;
 use crate::sprite::*;
+use crate::INode;
 use math::interpolation::*;
 use math::{Extent2, Vec2};
 use nom::IResult;
@@ -141,7 +142,7 @@ impl LayerGroup {
 	}
 }
 
-impl Layer for LayerGroup {
+impl ILayer for LayerGroup {
 	fn crop(
 		&self,
 		offset: Vec2<u32>,
@@ -203,9 +204,21 @@ impl Layer for LayerGroup {
 	}
 }
 
-impl Document for LayerGroup {
+impl IDocument for LayerGroup {
 	fn position(&self) -> Vec2<f32> {
 		*(self.position).clone()
+	}
+}
+
+impl INode for LayerGroup {
+	fn is_visible(&self) -> bool {
+		self.is_visible
+	}
+	fn is_locked(&self) -> bool {
+		self.is_locked
+	}
+	fn is_folded(&self) -> bool {
+		self.is_folded
 	}
 }
 
@@ -228,7 +241,7 @@ impl<'a> Renamable<'a> for LayerGroup {
 	}
 }
 
-impl Visible for LayerGroup {
+impl IVisible for LayerGroup {
 	fn set_visibility(&self, visible: bool) -> Result<(Patch, Patch), SetVisibilityError> {
 		if self.is_visible == visible {
 			Err(SetVisibilityError::Unchanged)
@@ -247,7 +260,7 @@ impl Visible for LayerGroup {
 	}
 }
 
-impl Lockable for LayerGroup {
+impl ILockable for LayerGroup {
 	fn set_lock(&self, lock: bool) -> Result<(Patch, Patch), SetLockError> {
 		if self.is_locked == lock {
 			Err(SetLockError::Unchanged)
@@ -266,7 +279,7 @@ impl Lockable for LayerGroup {
 	}
 }
 
-impl Foldable for LayerGroup {
+impl IFoldable for LayerGroup {
 	fn set_fold(&self, folded: bool) -> Result<(Patch, Patch), SetFoldError> {
 		if self.is_folded == folded {
 			Err(SetFoldError::Unchanged)
@@ -285,7 +298,7 @@ impl Foldable for LayerGroup {
 	}
 }
 
-impl Patchable for LayerGroup {
+impl IPatchable for LayerGroup {
 	fn patch(&self, patch: &Patch) -> Option<Box<Self>> {
 		if patch.target() == self.id {
 			return match patch {

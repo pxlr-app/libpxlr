@@ -37,7 +37,7 @@ impl<'a, T> Iterator for StencilDataIterator<'a, T> {
 }
 
 pub trait Stencil {
-	type Color: Color;
+	type Color: IColor;
 
 	fn new(size: Extent2<u32>, mask: BitVec, data: Vec<Self::Color>) -> Self;
 }
