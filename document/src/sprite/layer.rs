@@ -154,7 +154,7 @@ impl INode for LayerNode {
 	}
 }
 
-impl parser::v0::PartitionTableParse for LayerNode {
+impl parser::v0::IParser for LayerNode {
 	type Output = LayerNode;
 
 	fn parse<'b, S>(

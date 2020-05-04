@@ -367,7 +367,7 @@ impl IPatchable for Group {
 	}
 }
 
-impl parser::v0::PartitionTableParse for Group {
+impl parser::v0::IParser for Group {
 	type Output = Group;
 
 	fn parse<'b, S>(
@@ -396,13 +396,9 @@ impl parser::v0::PartitionTableParse for Group {
 				storage
 					.read(&mut bytes)
 					.expect("Could not read chunk data.");
-				let (_, node) = <DocumentNode as parser::v0::PartitionTableParse>::parse(
-					index,
-					row,
-					storage,
-					&bytes[..],
-				)
-				.expect("Could not parse node.");
+				let (_, node) =
+					<DocumentNode as parser::v0::IParser>::parse(index, row, storage, &bytes[..])
+						.expect("Could not parse node.");
 				Rc::new(node)
 			})
 			.collect::<Vec<_>>();

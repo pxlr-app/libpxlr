@@ -134,7 +134,7 @@ impl IPatchable for Note {
 	}
 }
 
-impl parser::v0::PartitionTableParse for Note {
+impl parser::v0::IParser for Note {
 	type Output = Note;
 
 	fn parse<'b, S>(

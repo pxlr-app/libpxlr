@@ -21,7 +21,7 @@ macro_rules! define_colors {
 			$($color),+
 		}
 
-		impl parser::Parser for ColorMode {
+		impl parser::IParser for ColorMode {
 			fn parse(bytes: &[u8]) -> IResult<&[u8], Self> {
 				let (bytes, index) = le_u16(bytes)?;
 				let value = match index {
@@ -134,7 +134,7 @@ macro_rules! define_colors {
 				}
 			}
 
-			impl parser::Parser for $color {
+			impl parser::IParser for $color {
 				fn parse(bytes: &[u8]) -> IResult<&[u8], $color> {
 					$(
 						let (bytes, $name) = $reader(bytes)?;

@@ -1,6 +1,6 @@
 use crate::color::*;
 use crate::parser;
-use crate::parser::Parser;
+use crate::parser::IParser;
 use crate::patch::*;
 use crate::sprite::*;
 use crate::INode;
@@ -307,7 +307,7 @@ macro_rules! define_canvas {
 			}
 		}
 
-		impl parser::v0::PartitionTableParse for $name {
+		impl parser::v0::IParser for $name {
 			type Output = $name;
 
 			fn parse<'b, S>(
@@ -323,7 +323,7 @@ macro_rules! define_canvas {
 				let (bytes, data) = many_m_n(
 					(size.w as usize) * (size.h as usize),
 					(size.w as usize) * (size.h as usize),
-					<$color as crate::parser::Parser>::parse,
+					<$color as crate::parser::IParser>::parse,
 				)(bytes)?;
 				Ok((
 					bytes,

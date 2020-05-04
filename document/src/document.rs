@@ -65,7 +65,7 @@ impl INode for DocumentNode {
 	}
 }
 
-impl parser::v0::PartitionTableParse for DocumentNode {
+impl parser::v0::IParser for DocumentNode {
 	type Output = DocumentNode;
 
 	fn parse<'b, S>(

@@ -1,5 +1,5 @@
 use crate::parser;
-use crate::parser::Parser;
+use crate::parser::IParser;
 use crate::Node;
 use collections::bitvec;
 use nom::multi::many0;
@@ -70,7 +70,7 @@ impl File {
 		storage.read(&mut buffer)?;
 
 		let (_, table) = match header.version {
-			0 => <parser::v0::PartitionTable as Parser>::parse(&buffer),
+			0 => <parser::v0::PartitionTable as IParser>::parse(&buffer),
 			_ => panic!(FileStorageError::VersionNotSupported),
 		}?;
 
@@ -82,7 +82,7 @@ impl File {
 			storage.read(&mut buffer)?;
 
 			let (_, rows) = match header.version {
-				0 => many0(<parser::v0::PartitionTableRow as Parser>::parse)(&buffer),
+				0 => many0(<parser::v0::PartitionTableRow as IParser>::parse)(&buffer),
 				_ => panic!(FileStorageError::VersionNotSupported),
 			}?;
 			rows
@@ -99,7 +99,7 @@ impl File {
 		storage: &mut S,
 		node: &Node,
 	) -> io::Result<usize> {
-		let size = parser::v0::PartitionTableParse::write(node, &mut self.index, storage)?;
+		let size = parser::v0::IParser::write(node, &mut self.index, storage)?;
 		Ok(size)
 	}
 
@@ -177,12 +177,9 @@ impl File {
 			let mut bytes: Vec<u8> = Vec::with_capacity(chunk_size as usize);
 			storage.seek(io::SeekFrom::Start(chunk_offset))?;
 			storage.read(&mut bytes)?;
-			if let Ok((_, node)) = <Node as parser::v0::PartitionTableParse>::parse(
-				&self.index,
-				row,
-				storage,
-				&bytes[..],
-			) {
+			if let Ok((_, node)) =
+				<Node as parser::v0::IParser>::parse(&self.index, row, storage, &bytes[..])
+			{
 				Ok(node)
 			} else {
 				Err(io::ErrorKind::InvalidData.into())

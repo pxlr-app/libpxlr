@@ -507,7 +507,7 @@ impl IPatchable for LayerGroup {
 	}
 }
 
-impl parser::v0::PartitionTableParse for LayerGroup {
+impl parser::v0::IParser for LayerGroup {
 	type Output = LayerGroup;
 
 	fn parse<'b, S>(
@@ -519,7 +519,7 @@ impl parser::v0::PartitionTableParse for LayerGroup {
 	where
 		S: io::Read + io::Seek,
 	{
-		let (bytes, color_mode) = <ColorMode as parser::Parser>::parse(bytes)?;
+		let (bytes, color_mode) = <ColorMode as parser::IParser>::parse(bytes)?;
 		let children = row
 			.children
 			.iter()
@@ -537,13 +537,9 @@ impl parser::v0::PartitionTableParse for LayerGroup {
 				storage
 					.read(&mut bytes)
 					.expect("Could not read chunk data.");
-				let (_, node) = <LayerNode as parser::v0::PartitionTableParse>::parse(
-					index,
-					row,
-					storage,
-					&bytes[..],
-				)
-				.expect("Could not parse node.");
+				let (_, node) =
+					<LayerNode as parser::v0::IParser>::parse(index, row, storage, &bytes[..])
+						.expect("Could not parse node.");
 				Rc::new(node)
 			})
 			.collect::<Vec<_>>();

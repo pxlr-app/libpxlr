@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 const MAGIC_NUMBER: &'static str = "PXLR";
 
-pub trait Parser {
+pub trait IParser {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], Self>
 	where
 		Self: Sized;
@@ -22,7 +22,7 @@ pub struct Header {
 	pub version: u8,
 }
 
-impl Parser for Header {
+impl IParser for Header {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], Self> {
 		let (bytes, _) = tag(MAGIC_NUMBER)(bytes)?;
 		let (bytes, version) = le_u8(bytes)?;
@@ -71,7 +71,7 @@ pub mod v0 {
 		}
 	}
 
-	pub trait PartitionTableParse {
+	pub trait IParser {
 		type Output;
 
 		fn parse<'b, S>(
@@ -89,9 +89,9 @@ pub mod v0 {
 			S: io::Write + io::Seek;
 	}
 
-	impl<T> PartitionTableParse for Vec<T>
+	impl<T> IParser for Vec<T>
 	where
-		T: PartitionTableParse,
+		T: IParser,
 	{
 		type Output = Vec<T::Output>;
 
@@ -107,9 +107,7 @@ pub mod v0 {
 			let mut items: Vec<T::Output> = Vec::new();
 			let mut remainder: &'b [u8] = bytes;
 			loop {
-				if let Ok((b, item)) =
-					<T as PartitionTableParse>::parse(index, row, storage, remainder)
-				{
+				if let Ok((b, item)) = <T as IParser>::parse(index, row, storage, remainder) {
 					remainder = b;
 					items.push(item);
 				} else {
@@ -137,7 +135,7 @@ pub mod v0 {
 		pub size: u32,
 	}
 
-	impl super::Parser for PartitionTable {
+	impl super::IParser for PartitionTable {
 		fn parse(bytes: &[u8]) -> IResult<&[u8], Self> {
 			let (bytes, size) = le_u32(bytes)?;
 			let (bytes, hash) = Uuid::parse(bytes)?;
@@ -168,7 +166,7 @@ pub mod v0 {
 		CanvasRGBAXYZ,
 	}
 
-	impl super::Parser for ChunkType {
+	impl super::IParser for ChunkType {
 		fn parse(bytes: &[u8]) -> IResult<&[u8], Self> {
 			let (bytes, index) = le_u16(bytes)?;
 			let value = match index {
@@ -226,10 +224,10 @@ pub mod v0 {
 		pub preview: Vec<u8>,
 	}
 
-	impl super::Parser for PartitionTableRow {
+	impl super::IParser for PartitionTableRow {
 		fn parse(bytes: &[u8]) -> IResult<&[u8], Self> {
 			let (bytes, id) = Uuid::parse(bytes)?;
-			let (bytes, chunk_type) = <ChunkType as super::Parser>::parse(bytes)?;
+			let (bytes, chunk_type) = <ChunkType as super::IParser>::parse(bytes)?;
 			let (bytes, chunk_offset) = le_u64(bytes)?;
 			let (bytes, chunk_size) = le_u32(bytes)?;
 			let (bytes, flag) = le_u8(bytes)?;
@@ -290,7 +288,7 @@ pub mod v0 {
 	}
 }
 
-impl Parser for String {
+impl IParser for String {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], Self> {
 		let (bytes, len) = le_u32(bytes)?;
 		let (bytes, buffer) = take(len as usize)(bytes)?;
@@ -308,7 +306,7 @@ impl Parser for String {
 	}
 }
 
-impl Parser for Uuid {
+impl IParser for Uuid {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], Self> {
 		let (bytes, buffer) = take(16usize)(bytes)?;
 		Ok((bytes, Uuid::from_slice(buffer).unwrap()))
@@ -323,7 +321,7 @@ impl Parser for Uuid {
 	}
 }
 
-impl Parser for Vec2<f32> {
+impl IParser for Vec2<f32> {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], Self> {
 		let (bytes, x) = le_f32(bytes)?;
 		let (bytes, y) = le_f32(bytes)?;
@@ -340,7 +338,7 @@ impl Parser for Vec2<f32> {
 	}
 }
 
-impl Parser for Extent2<u32> {
+impl IParser for Extent2<u32> {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], Self> {
 		let (bytes, w) = le_u32(bytes)?;
 		let (bytes, h) = le_u32(bytes)?;

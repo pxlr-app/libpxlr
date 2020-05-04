@@ -101,7 +101,7 @@ impl INode for Node {
 	}
 }
 
-impl parser::v0::PartitionTableParse for Node {
+impl parser::v0::IParser for Node {
 	type Output = Node;
 
 	fn parse<'b, S>(
