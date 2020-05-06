@@ -14,7 +14,7 @@ pub trait IParser {
 
 	fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 	where
-		S: io::Write + io::Seek;
+		S: io::Write;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -31,7 +31,7 @@ impl IParser for Header {
 
 	fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 	where
-		S: io::Write + io::Seek,
+		S: io::Write,
 	{
 		storage.write(MAGIC_NUMBER.as_bytes())?;
 		storage.write(&self.version.to_le_bytes())?;
@@ -69,6 +69,13 @@ pub mod v0 {
 				index_uuid,
 			}
 		}
+
+		pub fn reindex_rows(&mut self) {
+			self.index_uuid.clear();
+			for (i, row) in self.rows.iter().enumerate() {
+				self.index_uuid.insert(row.id, i);
+			}
+		}
 	}
 
 	pub trait IParser {
@@ -84,9 +91,14 @@ pub mod v0 {
 			S: io::Read + io::Seek,
 			Self::Output: Sized;
 
-		fn write<S>(&self, index: &mut PartitionIndex, storage: &mut S) -> io::Result<usize>
+		fn write<S>(
+			&self,
+			index: &mut PartitionIndex,
+			storage: &mut S,
+			offset: u64,
+		) -> io::Result<usize>
 		where
-			S: io::Write + io::Seek;
+			S: io::Write;
 	}
 
 	impl<T> IParser for Vec<T>
@@ -117,13 +129,18 @@ pub mod v0 {
 			Ok((remainder, items))
 		}
 
-		fn write<S>(&self, index: &mut PartitionIndex, storage: &mut S) -> io::Result<usize>
+		fn write<S>(
+			&self,
+			index: &mut PartitionIndex,
+			storage: &mut S,
+			offset: u64,
+		) -> io::Result<usize>
 		where
-			S: io::Write + io::Seek,
+			S: io::Write,
 		{
 			let mut b: usize = 0;
 			for item in self.iter() {
-				b += item.write(index, storage)?;
+				b += item.write(index, storage, offset + (b as u64))?;
 			}
 			Ok(b)
 		}
@@ -133,22 +150,32 @@ pub mod v0 {
 	pub struct PartitionTable {
 		pub hash: Uuid,
 		pub size: u32,
+		pub root_child: u32,
 	}
 
 	impl super::IParser for PartitionTable {
 		fn parse(bytes: &[u8]) -> IResult<&[u8], Self> {
+			let (bytes, root_child) = le_u32(bytes)?;
 			let (bytes, size) = le_u32(bytes)?;
 			let (bytes, hash) = Uuid::parse(bytes)?;
-			Ok((bytes, PartitionTable { size, hash }))
+			Ok((
+				bytes,
+				PartitionTable {
+					size,
+					hash,
+					root_child,
+				},
+			))
 		}
 
 		fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 		where
-			S: io::Write + io::Seek,
+			S: io::Write,
 		{
+			storage.write(&self.root_child.to_le_bytes())?;
 			storage.write(&self.size.to_le_bytes())?;
 			self.hash.write(storage)?;
-			Ok(20)
+			Ok(24)
 		}
 	}
 
@@ -187,7 +214,7 @@ pub mod v0 {
 
 		fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 		where
-			S: io::Write + io::Seek,
+			S: io::Write,
 		{
 			let index: u16 = match self {
 				ChunkType::Group => 0,
@@ -262,7 +289,7 @@ pub mod v0 {
 
 		fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 		where
-			S: io::Write + io::Seek,
+			S: io::Write,
 		{
 			let mut b: usize = 55;
 			self.id.write(storage)?;
@@ -297,7 +324,7 @@ impl IParser for String {
 
 	fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 	where
-		S: io::Write + io::Seek,
+		S: io::Write,
 	{
 		let mut b: usize = 0;
 		b += storage.write(&(self.len() as u32).to_le_bytes())?;
@@ -314,7 +341,7 @@ impl IParser for Uuid {
 
 	fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 	where
-		S: io::Write + io::Seek,
+		S: io::Write,
 	{
 		storage.write(self.as_bytes())?;
 		Ok(16)
@@ -330,7 +357,7 @@ impl IParser for Vec2<f32> {
 
 	fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 	where
-		S: io::Write + io::Seek,
+		S: io::Write,
 	{
 		storage.write(&self.x.to_le_bytes())?;
 		storage.write(&self.y.to_le_bytes())?;
@@ -347,7 +374,7 @@ impl IParser for Extent2<u32> {
 
 	fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 	where
-		S: io::Write + io::Seek,
+		S: io::Write,
 	{
 		storage.write(&self.w.to_le_bytes())?;
 		storage.write(&self.h.to_le_bytes())?;

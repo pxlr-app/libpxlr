@@ -53,7 +53,11 @@ impl File {
 		File {
 			header: parser::Header { version: 0 },
 			index: parser::v0::PartitionIndex::new(
-				parser::v0::PartitionTable { hash, size: 0 },
+				parser::v0::PartitionTable {
+					hash,
+					size: 0,
+					root_child: 0,
+				},
 				vec![],
 			),
 		}
@@ -65,8 +69,8 @@ impl File {
 		storage.read(&mut buffer)?;
 		let (_, header) = parser::Header::parse(&buffer)?;
 
-		let mut buffer = [0u8; 20];
-		storage.seek(io::SeekFrom::End(-20))?;
+		let mut buffer = [0u8; 24];
+		storage.seek(io::SeekFrom::End(-24))?;
 		storage.read(&mut buffer)?;
 
 		let (_, table) = match header.version {
@@ -78,7 +82,7 @@ impl File {
 			vec![]
 		} else {
 			let mut buffer = vec![0u8; table.size as usize];
-			storage.seek(io::SeekFrom::End(-20 - (table.size as i64)))?;
+			storage.seek(io::SeekFrom::End(-24 - (table.size as i64)))?;
 			storage.read(&mut buffer)?;
 
 			let (_, rows) = match header.version {
@@ -94,25 +98,28 @@ impl File {
 		})
 	}
 
-	fn write_node<S: io::Write + io::Seek>(
+	fn write_node<S: io::Write>(
 		&mut self,
 		storage: &mut S,
 		node: &Node,
+		offset: u64,
 	) -> io::Result<usize> {
-		let size = parser::v0::IParser::write(node, &mut self.index, storage)?;
+		let size = parser::v0::IParser::write(node, &mut self.index, storage, offset)?;
 		Ok(size)
 	}
 
-	fn write_partition<S: io::Write + io::Seek>(
-		&mut self,
-		storage: &mut S,
-		node: &Node,
-	) -> io::Result<usize> {
+	fn write_partition<S: io::Write>(&mut self, storage: &mut S) -> io::Result<usize> {
 		let mut size: usize = 0;
 		let mut row_dependencies = bitvec![0; self.index.rows.len()];
-		let root_idx = self.index.index_uuid.get(&node.id()).unwrap();
+		let root_idx = self.index.table.root_child as usize;
+		let root_uuid = self
+			.index
+			.rows
+			.get(self.index.table.root_child as usize)
+			.unwrap()
+			.id;
 		let mut row_to_visit: Vec<usize> = Vec::with_capacity(self.index.rows.len());
-		row_to_visit.push(*root_idx);
+		row_to_visit.push(root_idx);
 		while let Some(i) = row_to_visit.pop() {
 			row_dependencies.set(i, true);
 			if let Some(row) = self.index.rows.get(i) {
@@ -129,10 +136,12 @@ impl File {
 			.filter(|(c, _)| row_dependencies[*c])
 			.map(|(_, row)| row)
 			.collect::<Vec<_>>();
+		self.index.reindex_rows();
 		for row in self.index.rows.iter() {
 			size += row.write(storage)?;
 		}
 		self.index.table.size = size as u32;
+		self.index.table.root_child = *self.index.index_uuid.get(&root_uuid).unwrap() as u32;
 		size += self.index.table.write(storage)?;
 		Ok(size)
 	}
@@ -140,29 +149,66 @@ impl File {
 	pub fn write<S: io::Write + io::Seek>(
 		&mut self,
 		storage: &mut S,
-		node: &Node,
+		root: &Node,
 	) -> io::Result<usize> {
 		storage.seek(io::SeekFrom::Start(0))?;
 		let mut size: usize = 0;
 		size += self.header.write(storage)?;
-		size += self.write_node(storage, node)?;
-		size += self.write_partition(storage, node)?;
+		size += self.write_node(storage, root, 0u64)?;
+		self.index.table.root_child = (self.index.rows.len() as u32) - 1;
+		size += self.write_partition(storage)?;
 		Ok(size)
 	}
 
-	pub fn append<S: io::Write + io::Seek>(
+	pub fn update<S: io::Write + io::Seek>(
 		&mut self,
 		storage: &mut S,
 		node: &Node,
 	) -> io::Result<usize> {
-		storage.seek(io::SeekFrom::End(0))?;
+		let offset = storage.seek(io::SeekFrom::End(0))?;
 		let mut size: usize = 0;
-		size += self.write_node(storage, node)?;
-		size += self.write_partition(storage, node)?;
+		size += self.write_node(storage, node, offset)?;
+		size += self.write_partition(storage)?;
 		Ok(size)
 	}
 
-	pub fn get_node<S: io::Read + io::Seek>(
+	pub fn update_metadata_only<S: io::Write>(
+		&mut self,
+		storage: &mut S,
+		node: &Node,
+	) -> io::Result<usize> {
+		if let Some(row_idx) = self.index.index_uuid.get(&node.id()).copied() {
+			let (chunk_offset, chunk_size) = {
+				let row = self.index.rows.get(row_idx).unwrap();
+				(row.chunk_offset, row.chunk_size)
+			};
+			let mut size: usize = 0;
+			size += self.write_node(&mut io::sink(), node, 0u64)?;
+			let mut row = self.index.rows.get_mut(row_idx).unwrap();
+			row.chunk_offset = chunk_offset;
+			row.chunk_size = chunk_size;
+			size += self.write_partition(storage)?;
+			Ok(size)
+		} else {
+			Err(io::ErrorKind::NotFound.into())
+		}
+	}
+
+	pub fn get_root_node<S: io::Read + io::Seek>(&mut self, storage: &mut S) -> io::Result<Node> {
+		if (self.index.table.root_child as usize) > self.index.rows.len() {
+			Err(io::ErrorKind::NotFound.into())
+		} else {
+			let row_id = self
+				.index
+				.rows
+				.get(self.index.table.root_child as usize)
+				.unwrap()
+				.id;
+			self.get_node_by_uuid(storage, row_id)
+		}
+	}
+
+	pub fn get_node_by_uuid<S: io::Read + io::Seek>(
 		&mut self,
 		storage: &mut S,
 		id: Uuid,
@@ -201,8 +247,9 @@ mod tests {
 	#[test]
 	fn it_reads_empty_file() {
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(vec![
-			0x50, 0x58, 0x4C, 0x52, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4B, 0x26, 0xC4, 0x71, 0x30,
-			0x98, 0x4C, 0xCE, 0x9C, 0xDB, 0x9E, 0x77, 0xDB, 0xD3, 0x02, 0xEF,
+			0x50, 0x58, 0x4C, 0x52, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4B,
+			0x26, 0xC4, 0x71, 0x30, 0x98, 0x4C, 0xCE, 0x9C, 0xDB, 0x9E, 0x77, 0xDB, 0xD3, 0x02,
+			0xEF,
 		]);
 		let file = File::from(&mut buffer).expect("Failed to parse buffer.");
 		assert_eq!(file.header.version, 0);
@@ -210,7 +257,8 @@ mod tests {
 			file.index.table,
 			parser::v0::PartitionTable {
 				hash: Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap(),
-				size: 0
+				size: 0,
+				root_child: 0,
 			}
 		);
 		assert_eq!(file.index.rows.len(), 0);
@@ -235,22 +283,24 @@ mod tests {
 		let len = file
 			.write(&mut buffer, &doc)
 			.expect("Failed to write buffer.");
-		assert_eq!(len, 154);
-		assert_eq!(buffer.get_ref().len(), 154);
+		assert_eq!(len, 158);
+		assert_eq!(buffer.get_ref().len(), 158);
 		let mut file = File::from(&mut buffer).expect("Failed to parse buffer.");
 		assert_eq!(file.header.version, 0);
 		assert_eq!(
 			file.index.table,
 			parser::v0::PartitionTable {
 				hash: Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap(),
-				size: 129
+				size: 129,
+				root_child: 1,
 			}
 		);
 		assert_eq!(file.index.rows.len(), 2);
-		if let Ok(Node::Group(group)) = file.get_node(
-			&mut buffer,
-			Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap(),
-		) {
+		if let Ok(Node::Group(group)) = file.get_root_node(&mut buffer) {
+			assert_eq!(
+				group.id,
+				Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()
+			);
 			assert_eq!(*group.name, "Root");
 			assert_eq!(*group.position, Vec2::new(0., 0.));
 			assert_eq!(group.children.len(), 1);
@@ -260,12 +310,12 @@ mod tests {
 				panic!("Could not get child 0");
 			}
 		} else {
-			panic!("Could not get node fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b");
+			panic!("Could not get root node");
 		}
 	}
 
 	#[test]
-	fn it_appends_reads_file() {
+	fn it_updates_reads_file() {
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 		// Init file
 		{
@@ -285,8 +335,8 @@ mod tests {
 			let len = file
 				.write(&mut buffer, &doc)
 				.expect("Failed to write buffer.");
-			assert_eq!(len, 154);
-			assert_eq!(buffer.get_ref().len(), 154);
+			assert_eq!(len, 158);
+			assert_eq!(buffer.get_ref().len(), 158);
 		}
 
 		// Stip note from group and append to current file
@@ -299,10 +349,11 @@ mod tests {
 				vec![],
 			));
 			let len = file
-				.append(&mut buffer, &doc)
+				.update(&mut buffer, &doc)
 				.expect("Failed to write buffer.");
-			assert_eq!(len, 83);
-			assert_eq!(buffer.get_ref().len(), 237);
+			assert_eq!(len, 87);
+			assert_eq!(buffer.get_ref().len(), 245);
+			println!("{:?}", file.index);
 		}
 
 		// Assert that note is gone
@@ -310,10 +361,63 @@ mod tests {
 			let mut file = File::from(&mut buffer).expect("Failed to parse buffer.");
 			assert_eq!(file.header.version, 0);
 			assert_eq!(file.index.rows.len(), 1);
-			if let Ok(Node::Group(group)) = file.get_node(
-				&mut buffer,
-				Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap(),
-			) {
+			if let Ok(Node::Group(group)) = file.get_root_node(&mut buffer) {
+				assert_eq!(*group.name, "Root");
+				assert_eq!(*group.position, Vec2::new(0., 0.));
+				assert_eq!(group.children.len(), 0);
+			} else {
+				panic!("Could not get node fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b");
+			}
+		}
+	}
+
+	#[test]
+	fn it_updates_metadata_only_reads_file() {
+		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
+		// Init file
+		{
+			let doc = Node::Group(Group::new(
+				Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()),
+				"Root",
+				Vec2::new(0., 0.),
+				// vec![],
+				vec![Rc::new(DocumentNode::Note(Note::new(
+					Some(Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap()),
+					"Foo",
+					Vec2::new(0., 0.),
+				)))],
+			));
+			let mut file =
+				File::empty(Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap());
+			let len = file
+				.write(&mut buffer, &doc)
+				.expect("Failed to write buffer.");
+			assert_eq!(len, 158);
+			assert_eq!(buffer.get_ref().len(), 158);
+		}
+
+		// Stip note from group and append to current file
+		{
+			let mut file = File::from(&mut buffer).expect("Failed to parse buffer.");
+			let doc = Node::Group(Group::new(
+				Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()),
+				"Root",
+				Vec2::new(0., 0.),
+				vec![],
+			));
+			let len = file
+				.update_metadata_only(&mut buffer, &doc)
+				.expect("Failed to write buffer.");
+			assert_eq!(len, 87);
+			assert_eq!(buffer.get_ref().len(), 221);
+		}
+
+		// Assert that note is gone
+		{
+			let mut file = File::from(&mut buffer).expect("Failed to parse buffer.");
+			assert_eq!(file.header.version, 0);
+			assert_eq!(file.index.rows.len(), 1);
+			if let Ok(Node::Group(group)) = file.get_root_node(&mut buffer) {
 				assert_eq!(*group.name, "Root");
 				assert_eq!(*group.position, Vec2::new(0., 0.));
 				assert_eq!(group.children.len(), 0);
@@ -347,10 +451,10 @@ mod tests {
 		let len = file
 			.write(&mut buffer, &doc)
 			.expect("Failed to write buffer.");
-		assert_eq!(len, 154);
+		assert_eq!(len, 158);
 
 		let metadata = std::fs::metadata("it_dump_to_disk.bin").expect("Could not get metadata.");
-		assert_eq!(metadata.len(), 154);
+		assert_eq!(metadata.len(), 158);
 
 		std::fs::remove_file("it_dump_to_disk.bin").expect("Could not remove file.");
 	}

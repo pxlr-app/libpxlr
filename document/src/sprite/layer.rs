@@ -189,19 +189,24 @@ impl parser::v0::IParser for LayerNode {
 		}
 	}
 
-	fn write<S>(&self, index: &mut parser::v0::PartitionIndex, storage: &mut S) -> io::Result<usize>
+	fn write<S>(
+		&self,
+		index: &mut parser::v0::PartitionIndex,
+		storage: &mut S,
+		offset: u64,
+	) -> io::Result<usize>
 	where
-		S: io::Write + io::Seek,
+		S: io::Write,
 	{
 		match self {
-			LayerNode::CanvasI(node) => node.write(index, storage),
-			LayerNode::CanvasIXYZ(node) => node.write(index, storage),
-			LayerNode::CanvasUV(node) => node.write(index, storage),
-			LayerNode::CanvasRGB(node) => node.write(index, storage),
-			LayerNode::CanvasRGBA(node) => node.write(index, storage),
-			LayerNode::CanvasRGBAXYZ(node) => node.write(index, storage),
-			LayerNode::Sprite(node) => node.write(index, storage),
-			LayerNode::Group(node) => node.write(index, storage),
+			LayerNode::CanvasI(node) => node.write(index, storage, offset),
+			LayerNode::CanvasIXYZ(node) => node.write(index, storage, offset),
+			LayerNode::CanvasUV(node) => node.write(index, storage, offset),
+			LayerNode::CanvasRGB(node) => node.write(index, storage, offset),
+			LayerNode::CanvasRGBA(node) => node.write(index, storage, offset),
+			LayerNode::CanvasRGBAXYZ(node) => node.write(index, storage, offset),
+			LayerNode::Sprite(node) => node.write(index, storage, offset),
+			LayerNode::Group(node) => node.write(index, storage, offset),
 			_ => unimplemented!(),
 		}
 	}

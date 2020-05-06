@@ -158,14 +158,18 @@ impl parser::v0::IParser for Note {
 		))
 	}
 
-	fn write<S>(&self, index: &mut parser::v0::PartitionIndex, storage: &mut S) -> io::Result<usize>
+	fn write<S>(
+		&self,
+		index: &mut parser::v0::PartitionIndex,
+		_storage: &mut S,
+		offset: u64,
+	) -> io::Result<usize>
 	where
-		S: io::Write + io::Seek,
+		S: io::Write,
 	{
-		let offset = storage.seek(io::SeekFrom::Current(0))?;
 		if let Some(i) = index.index_uuid.get(&self.id) {
 			let mut row = index.rows.get_mut(*i).unwrap();
-			row.chunk_offset = offset as u64;
+			row.chunk_offset = offset;
 			row.chunk_size = 0;
 			row.is_visible = self.is_visible();
 			row.is_locked = self.is_locked();
@@ -175,7 +179,7 @@ impl parser::v0::IParser for Note {
 			let row = parser::v0::PartitionTableRow {
 				id: self.id,
 				chunk_type: parser::v0::ChunkType::Note,
-				chunk_offset: offset as u64,
+				chunk_offset: offset,
 				chunk_size: 0,
 				is_root: false,
 				is_visible: self.is_visible(),

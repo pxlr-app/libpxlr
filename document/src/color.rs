@@ -34,7 +34,7 @@ macro_rules! define_colors {
 			}
 
 
-			fn write<S>(&self, storage: &mut S) -> io::Result<usize> where S: io::Write + io::Seek {
+			fn write<S>(&self, storage: &mut S) -> io::Result<usize> where S: io::Write {
 				let index: u16 = match self {
 					$(ColorMode::$color => $idx),+
 				};
@@ -142,7 +142,7 @@ macro_rules! define_colors {
 					Ok((bytes, $color { $($name),+ }))
 				}
 
-				fn write<S>(&self, storage: &mut S) -> io::Result<usize> where S: io::Write + io::Seek {
+				fn write<S>(&self, storage: &mut S) -> io::Result<usize> where S: io::Write {
 					let mut b: usize = 0;
 					$(
 						b += storage.write(&self.$name.to_le_bytes())?;

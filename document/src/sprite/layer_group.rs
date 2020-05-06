@@ -559,14 +559,18 @@ impl parser::v0::IParser for LayerGroup {
 		))
 	}
 
-	fn write<S>(&self, index: &mut parser::v0::PartitionIndex, storage: &mut S) -> io::Result<usize>
+	fn write<S>(
+		&self,
+		index: &mut parser::v0::PartitionIndex,
+		storage: &mut S,
+		offset: u64,
+	) -> io::Result<usize>
 	where
-		S: io::Write + io::Seek,
+		S: io::Write,
 	{
-		let offset = storage.seek(io::SeekFrom::Current(0))?;
 		let mut size: usize = 0;
 		for child in self.children.iter() {
-			size += child.write(index, storage)?;
+			size += child.write(index, storage, offset + (size as u64))?;
 		}
 		let children = self
 			.children

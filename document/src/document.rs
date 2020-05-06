@@ -86,13 +86,18 @@ impl parser::v0::IParser for DocumentNode {
 		}
 	}
 
-	fn write<S>(&self, index: &mut parser::v0::PartitionIndex, storage: &mut S) -> io::Result<usize>
+	fn write<S>(
+		&self,
+		index: &mut parser::v0::PartitionIndex,
+		storage: &mut S,
+		offset: u64,
+	) -> io::Result<usize>
 	where
-		S: io::Write + io::Seek,
+		S: io::Write,
 	{
 		match self {
-			DocumentNode::Group(node) => node.write(index, storage),
-			DocumentNode::Note(node) => node.write(index, storage),
+			DocumentNode::Group(node) => node.write(index, storage, offset),
+			DocumentNode::Note(node) => node.write(index, storage, offset),
 			_ => unimplemented!(),
 		}
 	}

@@ -342,11 +342,11 @@ macro_rules! define_canvas {
 				&self,
 				index: &mut parser::v0::PartitionIndex,
 				storage: &mut S,
+				offset: u64,
 			) -> io::Result<usize>
 			where
-				S: io::Write + io::Seek,
+				S: io::Write,
 			{
-				let offset = storage.seek(io::SeekFrom::Current(0))?;
 				let size = {
 					let mut b: usize = 8;
 					self.size.write(storage)?;
