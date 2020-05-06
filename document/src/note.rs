@@ -146,7 +146,7 @@ impl parser::v0::IParser for Note {
 		bytes: &'b [u8],
 	) -> IResult<&'b [u8], Self::Output>
 	where
-		S: io::Read + io::Seek + std::marker::Send + std::marker::Unpin,
+		S: parser::ReadAt + std::marker::Send + std::marker::Unpin,
 	{
 		Ok((
 			bytes,

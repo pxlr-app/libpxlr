@@ -66,16 +66,14 @@ impl File {
 
 	pub async fn from<S>(storage: &mut S) -> Result<File, FileStorageError>
 	where
-		S: io::Read + io::Seek + std::marker::Send + std::marker::Unpin,
+		S: parser::ReadAt + std::marker::Send + std::marker::Unpin,
 	{
 		let mut buffer = [0u8; 5];
-		storage.seek(io::SeekFrom::Start(0)).await?;
-		storage.read(&mut buffer).await?;
+		storage.read_at(io::SeekFrom::Start(0), &mut buffer).await?;
 		let (_, header) = parser::Header::parse(&buffer)?;
 
 		let mut buffer = [0u8; 24];
-		storage.seek(io::SeekFrom::End(-24)).await?;
-		storage.read(&mut buffer).await?;
+		storage.read_at(io::SeekFrom::End(-24), &mut buffer).await?;
 
 		let (_, table) = match header.version {
 			0 => <parser::v0::PartitionTable as IParser>::parse(&buffer),
@@ -87,9 +85,8 @@ impl File {
 		} else {
 			let mut buffer = vec![0u8; table.size as usize];
 			storage
-				.seek(io::SeekFrom::End(-24 - (table.size as i64)))
+				.read_at(io::SeekFrom::End(-24 - (table.size as i64)), &mut buffer)
 				.await?;
-			storage.read(&mut buffer).await?;
 
 			let (_, rows) = match header.version {
 				0 => many0(<parser::v0::PartitionTableRow as IParser>::parse)(&buffer),
@@ -209,7 +206,7 @@ impl File {
 
 	pub async fn get_root_node<S>(&mut self, storage: &mut S) -> io::Result<Node>
 	where
-		S: io::Read + io::Seek + std::marker::Send + std::marker::Unpin,
+		S: parser::ReadAt + std::marker::Send + std::marker::Unpin,
 	{
 		if (self.index.table.root_child as usize) > self.index.rows.len() {
 			Err(io::ErrorKind::NotFound.into())
@@ -226,7 +223,7 @@ impl File {
 
 	pub async fn get_node_by_uuid<S>(&mut self, storage: &mut S, id: Uuid) -> io::Result<Node>
 	where
-		S: io::Read + io::Seek + std::marker::Send + std::marker::Unpin,
+		S: parser::ReadAt + std::marker::Send + std::marker::Unpin,
 	{
 		if !self.index.index_uuid.contains_key(&id) {
 			Err(io::ErrorKind::NotFound.into())
@@ -236,8 +233,9 @@ impl File {
 			let chunk_offset = row.chunk_offset;
 			let chunk_size = row.chunk_size;
 			let mut bytes: Vec<u8> = Vec::with_capacity(chunk_size as usize);
-			storage.seek(io::SeekFrom::Start(chunk_offset)).await?;
-			storage.read(&mut bytes).await?;
+			storage
+				.read_at(io::SeekFrom::Start(chunk_offset), &mut bytes)
+				.await?;
 			if let Ok((_, node)) =
 				<Node as parser::v0::IParser>::parse(&self.index, row, storage, &bytes[..]).await
 			{

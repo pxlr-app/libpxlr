@@ -320,7 +320,7 @@ macro_rules! define_canvas {
 			// 	bytes: &'b [u8],
 			// ) -> IResult<&'b [u8], Self::Output>
 			// where
-			// 	S: io::Read + io::Seek,
+			// 	S: parser::ReadAt,
 			// {
 			// 	let (bytes, size) = Extent2::<u32>::parse(bytes)?;
 			// 	let (bytes, data) = many_m_n(
@@ -358,7 +358,7 @@ macro_rules! define_canvas {
 				'c: 'async_trait,
 				'd: 'async_trait,
 				Self: std::marker::Sync + 'async_trait,
-				S: io::Read + io::Seek + std::marker::Send + std::marker::Unpin,
+				S: parser::ReadAt + std::marker::Send + std::marker::Unpin,
 			{
 				async fn run<'b, S>(
 					_index: &parser::v0::PartitionIndex,
@@ -367,7 +367,7 @@ macro_rules! define_canvas {
 					bytes: &'b [u8],
 				) -> IResult<&'b [u8], $name>
 				where
-					S: io::Read + io::Seek + std::marker::Send + std::marker::Unpin,
+					S: parser::ReadAt + std::marker::Send + std::marker::Unpin,
 				{
 					let (bytes, size) = Extent2::<u32>::parse(bytes)?;
 					let (bytes, data) = many_m_n(

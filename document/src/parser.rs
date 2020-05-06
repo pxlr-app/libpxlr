@@ -10,6 +10,23 @@ use uuid::Uuid;
 const MAGIC_NUMBER: &'static str = "PXLR";
 
 #[async_trait]
+pub trait ReadAt {
+	async fn read_at<'a>(&mut self, pos: io::SeekFrom, buf: &'a mut [u8]) -> io::Result<()>;
+}
+
+#[async_trait]
+impl<T> ReadAt for T
+where
+	T: io::Read + io::Seek + std::marker::Send + std::marker::Unpin,
+{
+	async fn read_at<'a>(&mut self, pos: io::SeekFrom, buf: &'a mut [u8]) -> io::Result<()> {
+		self.seek(pos).await?;
+		self.read_exact(buf).await?;
+		Ok(())
+	}
+}
+
+#[async_trait]
 pub trait IParser {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], Self>
 	where
@@ -95,7 +112,7 @@ pub mod v0 {
 			bytes: &'b [u8],
 		) -> IResult<&'b [u8], Self::Output>
 		where
-			S: io::Read + io::Seek + std::marker::Send + std::marker::Unpin,
+			S: super::ReadAt + std::marker::Send + std::marker::Unpin,
 			Self::Output: Sized;
 
 		async fn write<S>(
@@ -122,7 +139,7 @@ pub mod v0 {
 			bytes: &'b [u8],
 		) -> IResult<&'b [u8], Self::Output>
 		where
-			S: io::Read + io::Seek + std::marker::Send + std::marker::Unpin,
+			S: super::ReadAt + std::marker::Send + std::marker::Unpin,
 		{
 			let mut items: Vec<T::Output> = Vec::new();
 			let mut remainder: &'b [u8] = bytes;

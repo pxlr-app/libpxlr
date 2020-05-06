@@ -3,10 +3,10 @@ use crate::patch::*;
 use crate::INode;
 use crate::{DocumentNode, IDocument};
 use async_std::io;
-use async_std::io::prelude::*;
 use async_trait::async_trait;
 use math::{Extent2, Vec2};
 use nom::IResult;
+use parallel_stream::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -380,7 +380,7 @@ impl parser::v0::IParser for Group {
 		bytes: &'b [u8],
 	) -> IResult<&'b [u8], Self::Output>
 	where
-		S: io::Read + io::Seek + std::marker::Send + std::marker::Unpin,
+		S: parser::ReadAt + std::marker::Send + std::marker::Unpin,
 	{
 		let mut children: Vec<Arc<DocumentNode>> = Vec::new();
 		for i in row.children.iter() {
@@ -392,11 +392,7 @@ impl parser::v0::IParser for Group {
 			let chunk_offset = row.chunk_offset;
 			let mut bytes: Vec<u8> = Vec::with_capacity(chunk_size as usize);
 			storage
-				.seek(io::SeekFrom::Start(chunk_offset))
-				.await
-				.expect("Could not seek to chunk.");
-			storage
-				.read(&mut bytes)
+				.read_at(io::SeekFrom::Start(chunk_offset), &mut bytes)
 				.await
 				.expect("Could not read chunk data.");
 			let (_, node) =

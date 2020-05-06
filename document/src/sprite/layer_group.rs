@@ -6,7 +6,6 @@ use crate::patch::*;
 use crate::sprite::*;
 use crate::INode;
 use async_std::io;
-use async_std::io::prelude::*;
 use async_trait::async_trait;
 use math::interpolation::*;
 use math::{Extent2, Vec2};
@@ -521,7 +520,7 @@ impl parser::v0::IParser for LayerGroup {
 		bytes: &'b [u8],
 	) -> IResult<&'b [u8], Self::Output>
 	where
-		S: io::Read + io::Seek + std::marker::Send + std::marker::Unpin,
+		S: parser::ReadAt + std::marker::Send + std::marker::Unpin,
 	{
 		let (bytes, color_mode) = <ColorMode as parser::IParser>::parse(bytes)?;
 		let mut children: Vec<Arc<LayerNode>> = Vec::new();
@@ -534,11 +533,7 @@ impl parser::v0::IParser for LayerGroup {
 			let chunk_offset = row.chunk_offset;
 			let mut bytes: Vec<u8> = Vec::with_capacity(chunk_size as usize);
 			storage
-				.seek(io::SeekFrom::Start(chunk_offset))
-				.await
-				.expect("Could not seek to chunk.");
-			storage
-				.read(&mut bytes)
+				.read_at(io::SeekFrom::Start(chunk_offset), &mut bytes)
 				.await
 				.expect("Could not read chunk data.");
 			let (_, node) =
