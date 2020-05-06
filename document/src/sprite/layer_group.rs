@@ -1,15 +1,18 @@
 use crate::color::ColorMode;
 use crate::document::IDocument;
 use crate::parser;
+use crate::parser::IParser;
 use crate::patch::*;
 use crate::sprite::*;
 use crate::INode;
+use async_std::io;
+use async_std::io::prelude::*;
+use async_trait::async_trait;
 use math::interpolation::*;
 use math::{Extent2, Vec2};
 use nom::IResult;
 use serde::{Deserialize, Serialize};
-use std::io;
-use std::rc::Rc;
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -18,11 +21,11 @@ pub struct LayerGroup {
 	pub is_visible: bool,
 	pub is_locked: bool,
 	pub is_folded: bool,
-	pub name: Rc<String>,
+	pub name: Arc<String>,
 	pub color_mode: ColorMode,
-	pub children: Rc<Vec<Rc<LayerNode>>>,
-	pub position: Rc<Vec2<f32>>,
-	pub size: Rc<Extent2<u32>>,
+	pub children: Arc<Vec<Arc<LayerNode>>>,
+	pub position: Arc<Vec2<f32>>,
+	pub size: Arc<Extent2<u32>>,
 }
 
 #[derive(Debug)]
@@ -51,7 +54,7 @@ impl LayerGroup {
 		id: Option<Uuid>,
 		name: &str,
 		color_mode: ColorMode,
-		children: Vec<Rc<LayerNode>>,
+		children: Vec<Arc<LayerNode>>,
 		position: Vec2<f32>,
 		size: Extent2<u32>,
 	) -> LayerGroup {
@@ -60,19 +63,19 @@ impl LayerGroup {
 			is_visible: true,
 			is_locked: false,
 			is_folded: false,
-			name: Rc::new(name.to_owned()),
+			name: Arc::new(name.to_owned()),
 			color_mode: color_mode,
-			children: Rc::new(children),
-			position: Rc::new(position),
-			size: Rc::new(size),
+			children: Arc::new(children),
+			position: Arc::new(position),
+			size: Arc::new(size),
 		}
 	}
 
-	pub fn add_layer(&self, add_layer: Rc<LayerNode>) -> Result<(Patch, Patch), LayerGroupError> {
+	pub fn add_layer(&self, add_layer: Arc<LayerNode>) -> Result<(Patch, Patch), LayerGroupError> {
 		let index = self
 			.children
 			.iter()
-			.position(|child| Rc::ptr_eq(&child, &add_layer));
+			.position(|child| Arc::ptr_eq(&child, &add_layer));
 		if index.is_some() {
 			Err(LayerGroupError::LayerFound)
 		} else {
@@ -307,7 +310,7 @@ impl IPatchable for LayerGroup {
 					is_visible: self.is_visible,
 					is_locked: self.is_locked,
 					is_folded: self.is_folded,
-					name: Rc::new(patch.name.clone()),
+					name: Arc::new(patch.name.clone()),
 					color_mode: self.color_mode,
 					position: self.position.clone(),
 					size: self.size.clone(),
@@ -367,7 +370,7 @@ impl IPatchable for LayerGroup {
 						color_mode: self.color_mode,
 						position: self.position.clone(),
 						size: self.size.clone(),
-						children: Rc::new(children),
+						children: Arc::new(children),
 					}))
 				}
 				Patch::RemoveLayer(patch) => {
@@ -391,7 +394,7 @@ impl IPatchable for LayerGroup {
 						color_mode: self.color_mode,
 						position: self.position.clone(),
 						size: self.size.clone(),
-						children: Rc::new(children),
+						children: Arc::new(children),
 					}))
 				}
 				Patch::MoveLayer(patch) => {
@@ -419,7 +422,7 @@ impl IPatchable for LayerGroup {
 						color_mode: self.color_mode,
 						position: self.position.clone(),
 						size: self.size.clone(),
-						children: Rc::new(children),
+						children: Arc::new(children),
 					}))
 				}
 				Patch::CropLayer(patch) => {
@@ -431,7 +434,7 @@ impl IPatchable for LayerGroup {
 								target: child.id(),
 								..*patch
 							})) {
-								Some(new_child) => Rc::new(new_child),
+								Some(new_child) => Arc::new(new_child),
 								None => child.clone(),
 							}
 						})
@@ -441,11 +444,11 @@ impl IPatchable for LayerGroup {
 						is_visible: self.is_visible,
 						is_locked: self.is_locked,
 						is_folded: self.is_folded,
-						name: Rc::clone(&self.name),
+						name: Arc::clone(&self.name),
 						color_mode: self.color_mode,
-						position: Rc::clone(&self.position),
-						size: Rc::new(patch.size),
-						children: Rc::new(children),
+						position: Arc::clone(&self.position),
+						size: Arc::new(patch.size),
+						children: Arc::new(children),
 					}))
 				}
 				Patch::ResizeLayer(patch) => {
@@ -457,7 +460,7 @@ impl IPatchable for LayerGroup {
 								target: child.id(),
 								..*patch
 							})) {
-								Some(new_child) => Rc::new(new_child),
+								Some(new_child) => Arc::new(new_child),
 								None => child.clone(),
 							}
 						})
@@ -467,11 +470,11 @@ impl IPatchable for LayerGroup {
 						is_visible: self.is_visible,
 						is_locked: self.is_locked,
 						is_folded: self.is_folded,
-						name: Rc::clone(&self.name),
+						name: Arc::clone(&self.name),
 						color_mode: self.color_mode,
-						position: Rc::clone(&self.position),
-						size: Rc::new(patch.size),
-						children: Rc::new(children),
+						position: Arc::clone(&self.position),
+						size: Arc::new(patch.size),
+						children: Arc::new(children),
 					}))
 				}
 				_ => None,
@@ -484,7 +487,7 @@ impl IPatchable for LayerGroup {
 				.map(|child| match child.patch(patch) {
 					Some(new_child) => {
 						mutated = true;
-						Rc::new(new_child)
+						Arc::new(new_child)
 					}
 					None => child.clone(),
 				})
@@ -495,11 +498,11 @@ impl IPatchable for LayerGroup {
 					is_visible: self.is_visible,
 					is_locked: self.is_locked,
 					is_folded: self.is_folded,
-					name: Rc::clone(&self.name),
+					name: Arc::clone(&self.name),
 					color_mode: self.color_mode,
-					position: Rc::clone(&self.position),
-					size: Rc::clone(&self.size),
-					children: Rc::new(children),
+					position: Arc::clone(&self.position),
+					size: Arc::clone(&self.size),
+					children: Arc::new(children),
 				}));
 			}
 		}
@@ -507,42 +510,43 @@ impl IPatchable for LayerGroup {
 	}
 }
 
+#[async_trait]
 impl parser::v0::IParser for LayerGroup {
 	type Output = LayerGroup;
 
-	fn parse<'b, S>(
+	async fn parse<'b, S>(
 		index: &parser::v0::PartitionIndex,
 		row: &parser::v0::PartitionTableRow,
 		storage: &mut S,
 		bytes: &'b [u8],
 	) -> IResult<&'b [u8], Self::Output>
 	where
-		S: io::Read + io::Seek,
+		S: io::Read + io::Seek + std::marker::Send + std::marker::Unpin,
 	{
 		let (bytes, color_mode) = <ColorMode as parser::IParser>::parse(bytes)?;
-		let children = row
-			.children
-			.iter()
-			.map(|i| {
-				let row = index
-					.rows
-					.get(*i as usize)
-					.expect("Could not retrieve children in index.");
-				let size = row.chunk_size;
-				let offset = row.chunk_offset;
-				let mut bytes: Vec<u8> = Vec::with_capacity(size as usize);
-				storage
-					.seek(io::SeekFrom::Start(offset))
-					.expect("Could not seek to chunk.");
-				storage
-					.read(&mut bytes)
-					.expect("Could not read chunk data.");
-				let (_, node) =
-					<LayerNode as parser::v0::IParser>::parse(index, row, storage, &bytes[..])
-						.expect("Could not parse node.");
-				Rc::new(node)
-			})
-			.collect::<Vec<_>>();
+		let mut children: Vec<Arc<LayerNode>> = Vec::new();
+		for i in row.children.iter() {
+			let row = index
+				.rows
+				.get(*i as usize)
+				.expect("Count not retrieve children.");
+			let chunk_size = row.chunk_size;
+			let chunk_offset = row.chunk_offset;
+			let mut bytes: Vec<u8> = Vec::with_capacity(chunk_size as usize);
+			storage
+				.seek(io::SeekFrom::Start(chunk_offset))
+				.await
+				.expect("Could not seek to chunk.");
+			storage
+				.read(&mut bytes)
+				.await
+				.expect("Could not read chunk data.");
+			let (_, node) =
+				<LayerNode as parser::v0::IParser>::parse(index, row, storage, &bytes[..])
+					.await
+					.expect("Could not parse node.");
+			children.push(Arc::new(node));
+		}
 		Ok((
 			bytes,
 			LayerGroup {
@@ -550,27 +554,28 @@ impl parser::v0::IParser for LayerGroup {
 				is_visible: row.is_visible,
 				is_locked: row.is_locked,
 				is_folded: row.is_folded,
-				name: Rc::new(String::from(&row.name)),
+				name: Arc::new(String::from(&row.name)),
 				color_mode: color_mode,
-				children: Rc::new(children),
-				position: Rc::new(row.position),
-				size: Rc::new(row.size),
+				children: Arc::new(children),
+				position: Arc::new(row.position),
+				size: Arc::new(row.size),
 			},
 		))
 	}
 
-	fn write<S>(
+	async fn write<S>(
 		&self,
 		index: &mut parser::v0::PartitionIndex,
 		storage: &mut S,
 		offset: u64,
 	) -> io::Result<usize>
 	where
-		S: io::Write,
+		S: io::Write + std::marker::Send + std::marker::Unpin,
 	{
+		self.color_mode.write(storage).await?;
 		let mut size: usize = 0;
 		for child in self.children.iter() {
-			size += child.write(index, storage, offset + (size as u64))?;
+			size += child.write(index, storage, offset + (size as u64)).await?;
 		}
 		let children = self
 			.children

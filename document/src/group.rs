@@ -2,11 +2,13 @@ use crate::parser;
 use crate::patch::*;
 use crate::INode;
 use crate::{DocumentNode, IDocument};
+use async_std::io;
+use async_std::io::prelude::*;
+use async_trait::async_trait;
 use math::{Extent2, Vec2};
 use nom::IResult;
 use serde::{Deserialize, Serialize};
-use std::io;
-use std::rc::Rc;
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -15,9 +17,9 @@ pub struct Group {
 	pub is_visible: bool,
 	pub is_locked: bool,
 	pub is_folded: bool,
-	pub name: Rc<String>,
-	pub children: Rc<Vec<Rc<DocumentNode>>>,
-	pub position: Rc<Vec2<f32>>,
+	pub name: Arc<String>,
+	pub children: Arc<Vec<Arc<DocumentNode>>>,
+	pub position: Arc<Vec2<f32>>,
 }
 
 #[derive(Debug)]
@@ -46,24 +48,24 @@ impl Group {
 		id: Option<Uuid>,
 		name: &str,
 		position: Vec2<f32>,
-		children: Vec<Rc<DocumentNode>>,
+		children: Vec<Arc<DocumentNode>>,
 	) -> Group {
 		Group {
 			id: id.or(Some(Uuid::new_v4())).unwrap(),
 			is_visible: true,
 			is_locked: false,
 			is_folded: false,
-			name: Rc::new(name.to_owned()),
-			position: Rc::new(position),
-			children: Rc::new(children),
+			name: Arc::new(name.to_owned()),
+			position: Arc::new(position),
+			children: Arc::new(children),
 		}
 	}
 
-	pub fn add_child(&self, add_child: Rc<DocumentNode>) -> Result<(Patch, Patch), GroupError> {
+	pub fn add_child(&self, add_child: Arc<DocumentNode>) -> Result<(Patch, Patch), GroupError> {
 		let index = self
 			.children
 			.iter()
-			.position(|child| Rc::ptr_eq(&child, &add_child));
+			.position(|child| Arc::ptr_eq(&child, &add_child));
 		if index.is_some() {
 			Err(GroupError::ChildFound)
 		} else {
@@ -236,7 +238,7 @@ impl IPatchable for Group {
 					is_visible: self.is_visible,
 					is_locked: self.is_locked,
 					is_folded: self.is_folded,
-					name: Rc::new(patch.name.clone()),
+					name: Arc::new(patch.name.clone()),
 					position: self.position.clone(),
 					children: self.children.clone(),
 				})),
@@ -285,7 +287,7 @@ impl IPatchable for Group {
 						is_folded: self.is_folded,
 						name: self.name.clone(),
 						position: self.position.clone(),
-						children: Rc::new(children),
+						children: Arc::new(children),
 					}))
 				}
 				Patch::RemoveChild(patch) => {
@@ -307,7 +309,7 @@ impl IPatchable for Group {
 						is_folded: self.is_folded,
 						name: self.name.clone(),
 						position: self.position.clone(),
-						children: Rc::new(children),
+						children: Arc::new(children),
 					}))
 				}
 				Patch::MoveChild(patch) => {
@@ -333,7 +335,7 @@ impl IPatchable for Group {
 						is_folded: self.is_folded,
 						name: self.name.clone(),
 						position: self.position.clone(),
-						children: Rc::new(children),
+						children: Arc::new(children),
 					}))
 				}
 				_ => None,
@@ -346,7 +348,7 @@ impl IPatchable for Group {
 				.map(|child| match child.patch(patch) {
 					Some(new_child) => {
 						mutated = true;
-						Rc::new(new_child)
+						Arc::new(new_child)
 					}
 					None => child.clone(),
 				})
@@ -357,9 +359,9 @@ impl IPatchable for Group {
 					is_visible: self.is_visible,
 					is_locked: self.is_locked,
 					is_folded: self.is_folded,
-					name: Rc::clone(&self.name),
-					children: Rc::new(children),
-					position: Rc::clone(&self.position),
+					name: Arc::clone(&self.name),
+					children: Arc::new(children),
+					position: Arc::clone(&self.position),
 				}));
 			}
 		}
@@ -367,41 +369,42 @@ impl IPatchable for Group {
 	}
 }
 
+#[async_trait]
 impl parser::v0::IParser for Group {
 	type Output = Group;
 
-	fn parse<'b, S>(
+	async fn parse<'b, S>(
 		index: &parser::v0::PartitionIndex,
 		row: &parser::v0::PartitionTableRow,
 		storage: &mut S,
 		bytes: &'b [u8],
 	) -> IResult<&'b [u8], Self::Output>
 	where
-		S: io::Read + io::Seek,
+		S: io::Read + io::Seek + std::marker::Send + std::marker::Unpin,
 	{
-		let children = row
-			.children
-			.iter()
-			.map(|i| {
-				let row = index
-					.rows
-					.get(*i as usize)
-					.expect("Could not retrieve children in index.");
-				let size = row.chunk_size;
-				let offset = row.chunk_offset;
-				let mut bytes: Vec<u8> = Vec::with_capacity(size as usize);
-				storage
-					.seek(io::SeekFrom::Start(offset))
-					.expect("Could not seek to chunk.");
-				storage
-					.read(&mut bytes)
-					.expect("Could not read chunk data.");
-				let (_, node) =
-					<DocumentNode as parser::v0::IParser>::parse(index, row, storage, &bytes[..])
-						.expect("Could not parse node.");
-				Rc::new(node)
-			})
-			.collect::<Vec<_>>();
+		let mut children: Vec<Arc<DocumentNode>> = Vec::new();
+		for i in row.children.iter() {
+			let row = index
+				.rows
+				.get(*i as usize)
+				.expect("Count not retrieve children.");
+			let chunk_size = row.chunk_size;
+			let chunk_offset = row.chunk_offset;
+			let mut bytes: Vec<u8> = Vec::with_capacity(chunk_size as usize);
+			storage
+				.seek(io::SeekFrom::Start(chunk_offset))
+				.await
+				.expect("Could not seek to chunk.");
+			storage
+				.read(&mut bytes)
+				.await
+				.expect("Could not read chunk data.");
+			let (_, node) =
+				<DocumentNode as parser::v0::IParser>::parse(index, row, storage, &bytes[..])
+					.await
+					.expect("Could not parse node.");
+			children.push(Arc::new(node));
+		}
 		Ok((
 			bytes,
 			Group {
@@ -409,25 +412,25 @@ impl parser::v0::IParser for Group {
 				is_visible: row.is_visible,
 				is_locked: row.is_locked,
 				is_folded: row.is_folded,
-				name: Rc::new(String::from(&row.name)),
-				position: Rc::new(row.position),
-				children: Rc::new(children),
+				name: Arc::new(String::from(&row.name)),
+				position: Arc::new(row.position),
+				children: Arc::new(children),
 			},
 		))
 	}
 
-	fn write<S>(
+	async fn write<S>(
 		&self,
 		index: &mut parser::v0::PartitionIndex,
 		storage: &mut S,
 		offset: u64,
 	) -> io::Result<usize>
 	where
-		S: io::Write,
+		S: io::Write + std::marker::Send + std::marker::Unpin,
 	{
 		let mut size: usize = 0;
 		for child in self.children.iter() {
-			size += child.write(index, storage, offset + (size as u64))?;
+			size += child.write(index, storage, offset + (size as u64)).await?;
 		}
 		let children = self
 			.children

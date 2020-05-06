@@ -2,11 +2,12 @@ use crate::document::IDocument;
 use crate::parser;
 use crate::patch::*;
 use crate::INode;
+use async_std::io;
+use async_trait::async_trait;
 use math::{Extent2, Vec2};
 use nom::IResult;
 use serde::{Deserialize, Serialize};
-use std::io;
-use std::rc::Rc;
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -14,8 +15,8 @@ pub struct Note {
 	pub id: Uuid,
 	pub is_visible: bool,
 	pub is_locked: bool,
-	pub note: Rc<String>,
-	pub position: Rc<Vec2<f32>>,
+	pub note: Arc<String>,
+	pub position: Arc<Vec2<f32>>,
 }
 
 impl Note {
@@ -24,8 +25,8 @@ impl Note {
 			id: id.or(Some(Uuid::new_v4())).unwrap(),
 			is_visible: true,
 			is_locked: false,
-			note: Rc::new(note.to_owned()),
-			position: Rc::new(position),
+			note: Arc::new(note.to_owned()),
+			position: Arc::new(position),
 		}
 	}
 }
@@ -110,7 +111,7 @@ impl IPatchable for Note {
 					id: self.id,
 					is_visible: self.is_visible,
 					is_locked: self.is_locked,
-					note: Rc::new(patch.name.clone()),
+					note: Arc::new(patch.name.clone()),
 					position: self.position.clone(),
 				})),
 				Patch::SetVisibility(patch) => Some(Box::new(Note {
@@ -134,17 +135,18 @@ impl IPatchable for Note {
 	}
 }
 
+#[async_trait]
 impl parser::v0::IParser for Note {
 	type Output = Note;
 
-	fn parse<'b, S>(
+	async fn parse<'b, S>(
 		_index: &parser::v0::PartitionIndex,
 		row: &parser::v0::PartitionTableRow,
 		_storage: &mut S,
 		bytes: &'b [u8],
 	) -> IResult<&'b [u8], Self::Output>
 	where
-		S: io::Read + io::Seek,
+		S: io::Read + io::Seek + std::marker::Send + std::marker::Unpin,
 	{
 		Ok((
 			bytes,
@@ -152,20 +154,20 @@ impl parser::v0::IParser for Note {
 				id: row.id,
 				is_visible: row.is_visible,
 				is_locked: row.is_locked,
-				note: Rc::new(String::from(&row.name)),
-				position: Rc::new(row.position),
+				note: Arc::new(String::from(&row.name)),
+				position: Arc::new(row.position),
 			},
 		))
 	}
 
-	fn write<S>(
+	async fn write<S>(
 		&self,
 		index: &mut parser::v0::PartitionIndex,
 		_storage: &mut S,
 		offset: u64,
 	) -> io::Result<usize>
 	where
-		S: io::Write,
+		S: io::Write + std::marker::Send + std::marker::Unpin,
 	{
 		if let Some(i) = index.index_uuid.get(&self.id) {
 			let mut row = index.rows.get_mut(*i).unwrap();

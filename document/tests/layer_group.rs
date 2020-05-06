@@ -3,7 +3,7 @@ use document::patch::{IPatchable, Renamable};
 use document::sprite::*;
 use math::interpolation::Interpolation;
 use math::{Extent2, Vec2};
-use std::rc::Rc;
+use std::sync::Arc;
 
 #[test]
 fn it_adds_child() {
@@ -15,7 +15,7 @@ fn it_adds_child() {
 		Vec2::new(0., 0.),
 		Extent2::new(4u32, 4u32),
 	);
-	let c1 = Rc::new(LayerNode::CanvasI(CanvasI::new(
+	let c1 = Arc::new(LayerNode::CanvasI(CanvasI::new(
 		None,
 		"canvas",
 		Extent2::new(2u32, 2u32),
@@ -26,7 +26,7 @@ fn it_adds_child() {
 	let g2 = g1.patch(&patch).unwrap();
 
 	assert_eq!(g2.children.len(), 1);
-	assert_eq!(Rc::strong_count(&c1), 3);
+	assert_eq!(Arc::strong_count(&c1), 3);
 }
 
 #[test]
@@ -35,7 +35,7 @@ fn it_removes_child() {
 		None,
 		"group",
 		ColorMode::I,
-		vec![Rc::new(LayerNode::CanvasI(CanvasI::new(
+		vec![Arc::new(LayerNode::CanvasI(CanvasI::new(
 			None,
 			"canvas",
 			Extent2::new(2u32, 2u32),
@@ -60,13 +60,13 @@ fn it_removes_child() {
 
 #[test]
 fn it_moves_child() {
-	let rc1 = Rc::new(LayerNode::CanvasI(CanvasI::new(
+	let rc1 = Arc::new(LayerNode::CanvasI(CanvasI::new(
 		None,
 		"canvas_a",
 		Extent2::new(2u32, 2u32),
 		vec![I::new(255), I::new(128), I::new(64), I::new(32)],
 	)));
-	let rc2 = Rc::new(LayerNode::CanvasI(CanvasI::new(
+	let rc2 = Arc::new(LayerNode::CanvasI(CanvasI::new(
 		None,
 		"canvas_b",
 		Extent2::new(2u32, 2u32),
@@ -103,13 +103,13 @@ fn it_moves_child() {
 
 #[test]
 fn it_patchs_child() {
-	let rc1 = Rc::new(LayerNode::CanvasI(CanvasI::new(
+	let rc1 = Arc::new(LayerNode::CanvasI(CanvasI::new(
 		None,
 		"canvas_a",
 		Extent2::new(2u32, 2u32),
 		vec![I::new(255), I::new(128), I::new(64), I::new(32)],
 	)));
-	let rc2 = Rc::new(LayerNode::CanvasI(CanvasI::new(
+	let rc2 = Arc::new(LayerNode::CanvasI(CanvasI::new(
 		None,
 		"canvas_b",
 		Extent2::new(2u32, 2u32),
@@ -131,8 +131,8 @@ fn it_patchs_child() {
 	};
 	let g2 = g1.patch(&patch).unwrap();
 
-	assert_eq!(Rc::strong_count(&rc1), 2);
-	assert_eq!(Rc::strong_count(&rc2), 3);
+	assert_eq!(Arc::strong_count(&rc1), 2);
+	assert_eq!(Arc::strong_count(&rc2), 3);
 
 	let c1 = if let LayerNode::CanvasI(node) = &**g2.children.get(0).unwrap() {
 		node

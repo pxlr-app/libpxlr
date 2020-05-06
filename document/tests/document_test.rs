@@ -3,7 +3,7 @@ use document::DocumentNode;
 use document::Group;
 use document::Note;
 use math::Vec2;
-use std::rc::Rc;
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[test]
@@ -13,10 +13,10 @@ fn it_patches() {
 		let (rename, _) = group.rename("Boot").unwrap();
 		let new_group = group.patch(&rename).unwrap();
 		assert_eq!(*new_group.name, "Boot");
-		assert_eq!(Rc::strong_count(&group.name), 1);
-		assert_eq!(Rc::strong_count(&new_group.name), 1);
-		assert_eq!(Rc::strong_count(&group.position), 2);
-		assert_eq!(Rc::strong_count(&group.children), 2);
+		assert_eq!(Arc::strong_count(&group.name), 1);
+		assert_eq!(Arc::strong_count(&new_group.name), 1);
+		assert_eq!(Arc::strong_count(&group.position), 2);
+		assert_eq!(Arc::strong_count(&group.children), 2);
 	}
 	{
 		let group = Group::new(None, "Root", Vec2::new(0., 0.), vec![]);
@@ -26,9 +26,9 @@ fn it_patches() {
 		});
 		let new_group = group.patch(&rename);
 		assert_eq!(new_group.is_none(), true);
-		assert_eq!(Rc::strong_count(&group.name), 1);
-		assert_eq!(Rc::strong_count(&group.position), 1);
-		assert_eq!(Rc::strong_count(&group.children), 1);
+		assert_eq!(Arc::strong_count(&group.name), 1);
+		assert_eq!(Arc::strong_count(&group.position), 1);
+		assert_eq!(Arc::strong_count(&group.children), 1);
 	}
 }
 
@@ -39,7 +39,7 @@ fn it_patches_nested() {
 			None,
 			"Root",
 			Vec2::new(0., 0.),
-			vec![Rc::new(DocumentNode::Note(Note::new(
+			vec![Arc::new(DocumentNode::Note(Note::new(
 				None,
 				"Foo",
 				Vec2::new(0., 0.),
@@ -60,18 +60,18 @@ fn it_patches_nested() {
 		assert_eq!(*new_group.name, "Root");
 		assert_eq!(*note.note, "Foo");
 		assert_eq!(*new_note.note, "Bar");
-		assert_eq!(Rc::strong_count(&group.name), 2);
-		assert_eq!(Rc::strong_count(&group.position), 2);
-		assert_eq!(Rc::strong_count(&group.children), 1);
-		assert_eq!(Rc::strong_count(&note.note), 1);
-		assert_eq!(Rc::strong_count(&note.position), 2);
+		assert_eq!(Arc::strong_count(&group.name), 2);
+		assert_eq!(Arc::strong_count(&group.position), 2);
+		assert_eq!(Arc::strong_count(&group.children), 1);
+		assert_eq!(Arc::strong_count(&note.note), 1);
+		assert_eq!(Arc::strong_count(&note.position), 2);
 	}
 	{
 		let group = Group::new(
 			None,
 			"Root",
 			Vec2::new(0., 0.),
-			vec![Rc::new(DocumentNode::Note(Note::new(
+			vec![Arc::new(DocumentNode::Note(Note::new(
 				None,
 				"Foo",
 				Vec2::new(0., 0.),
@@ -88,10 +88,10 @@ fn it_patches_nested() {
 			panic!("Not a note?");
 		};
 		assert_eq!(new_group.is_none(), true);
-		assert_eq!(Rc::strong_count(&group.name), 1);
-		assert_eq!(Rc::strong_count(&group.position), 1);
-		assert_eq!(Rc::strong_count(&group.children), 1);
-		assert_eq!(Rc::strong_count(&note.note), 1);
-		assert_eq!(Rc::strong_count(&note.position), 1);
+		assert_eq!(Arc::strong_count(&group.name), 1);
+		assert_eq!(Arc::strong_count(&group.position), 1);
+		assert_eq!(Arc::strong_count(&group.children), 1);
+		assert_eq!(Arc::strong_count(&note.note), 1);
+		assert_eq!(Arc::strong_count(&note.position), 1);
 	}
 }

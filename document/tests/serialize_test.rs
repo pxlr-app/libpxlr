@@ -1,7 +1,7 @@
 use document::{DocumentNode, Group, Note};
 use math::Vec2;
 // use serde_json::{Result, Value};
-use std::rc::Rc;
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[test]
@@ -10,7 +10,7 @@ fn it_serialize() {
 		Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()),
 		"Root",
 		Vec2::new(0., 0.),
-		vec![Rc::new(DocumentNode::Note(Note::new(
+		vec![Arc::new(DocumentNode::Note(Note::new(
 			Some(Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap()),
 			"Foo",
 			Vec2::new(0., 0.),

@@ -4,16 +4,16 @@ use crate::parser::IParser;
 use crate::patch::*;
 use crate::sprite::*;
 use crate::INode;
+use async_std::io;
 use math::blend::*;
 use math::interpolation::*;
 use math::{Extent2, Mat2, Vec2};
 use nom::multi::many_m_n;
 use nom::IResult;
 use serde::{Deserialize, Serialize};
-use std::io;
 use std::iter::FromIterator;
 use std::ops::Index;
-use std::rc::Rc;
+use std::sync::Arc;
 use uuid::Uuid;
 
 pub trait Canvas {
@@ -28,9 +28,9 @@ macro_rules! define_canvas {
 			pub id: Uuid,
 			pub is_visible: bool,
 			pub is_locked: bool,
-			pub name: Rc<String>,
-			pub size: Rc<Extent2<u32>>,
-			pub data: Rc<Vec<$color>>,
+			pub name: Arc<String>,
+			pub size: Arc<Extent2<u32>>,
+			pub data: Arc<Vec<$color>>,
 		}
 
 		impl $name {
@@ -44,9 +44,9 @@ macro_rules! define_canvas {
 					id: id.or(Some(Uuid::new_v4())).unwrap(),
 					is_visible: true,
 					is_locked: false,
-					name: Rc::new(name.to_owned()),
-					size: Rc::new(size),
-					data: Rc::new(data),
+					name: Arc::new(name.to_owned()),
+					size: Arc::new(size),
+					data: Arc::new(data),
 				}
 			}
 
@@ -214,7 +214,7 @@ macro_rules! define_canvas {
 							id: self.id,
 							is_visible: self.is_visible,
 							is_locked: self.is_locked,
-							name: Rc::new(patch.name.clone()),
+							name: Arc::new(patch.name.clone()),
 							size: self.size.clone(),
 							data: self.data.clone(),
 						})),
@@ -249,17 +249,17 @@ macro_rules! define_canvas {
 								is_visible: self.is_visible,
 								is_locked: self.is_locked,
 								name: self.name.clone(),
-								size: Rc::new(patch.size),
-								data: Rc::new(data),
+								size: Arc::new(patch.size),
+								data: Arc::new(data),
 							}))
 						}
 						Patch::$patchrestorepatch(patch) => Some(Box::new($name {
 							id: self.id,
 							is_visible: self.is_visible,
 							is_locked: self.is_locked,
-							name: Rc::new(patch.name.to_owned()),
-							size: Rc::new(patch.size),
-							data: Rc::new(patch.data.to_owned()),
+							name: Arc::new(patch.name.to_owned()),
+							size: Arc::new(patch.size),
+							data: Arc::new(patch.data.to_owned()),
 						})),
 						Patch::ResizeLayer(patch) => {
 							let mut data =
@@ -279,8 +279,8 @@ macro_rules! define_canvas {
 								is_visible: self.is_visible,
 								is_locked: self.is_locked,
 								name: self.name.clone(),
-								size: Rc::new(patch.size),
-								data: Rc::new(data),
+								size: Arc::new(patch.size),
+								data: Arc::new(data),
 							}))
 						}
 						Patch::$patchstencilpatch(patch) => {
@@ -297,7 +297,7 @@ macro_rules! define_canvas {
 								is_locked: self.is_locked,
 								name: self.name.clone(),
 								size: self.size.clone(),
-								data: Rc::new(data),
+								data: Arc::new(data),
 							}))
 						}
 						_ => None,
@@ -310,77 +310,197 @@ macro_rules! define_canvas {
 		impl parser::v0::IParser for $name {
 			type Output = $name;
 
-			fn parse<'b, S>(
-				_index: &parser::v0::PartitionIndex,
-				row: &parser::v0::PartitionTableRow,
-				_storage: &mut S,
-				bytes: &'b [u8],
-			) -> IResult<&'b [u8], Self::Output>
+			// TODO Due to https://github.com/dtolnay/async-trait/issues/46
+			//		had to expand the macro manually
+			//
+			// fn parse<'b, S>(
+			// 	_index: &parser::v0::PartitionIndex,
+			// 	row: &parser::v0::PartitionTableRow,
+			// 	_storage: &mut S,
+			// 	bytes: &'b [u8],
+			// ) -> IResult<&'b [u8], Self::Output>
+			// where
+			// 	S: io::Read + io::Seek,
+			// {
+			// 	let (bytes, size) = Extent2::<u32>::parse(bytes)?;
+			// 	let (bytes, data) = many_m_n(
+			// 		(size.w as usize) * (size.h as usize),
+			// 		(size.w as usize) * (size.h as usize),
+			// 		<$color as crate::parser::IParser>::parse,
+			// 	)(bytes)?;
+			// 	Ok((
+			// 		bytes,
+			// 		$name {
+			// 			id: row.id,
+			// 			is_visible: row.is_visible,
+			// 			is_locked: row.is_locked,
+			// 			name: Arc::new(String::from(&row.name)),
+			// 			size: Arc::new(size),
+			// 			data: Arc::new(data),
+			// 		},
+			// 	))
+			// }
+			fn parse<'a, 'b, 'c, 'd, 'async_trait, S>(
+				index: &'b parser::v0::PartitionIndex,
+				row: &'c parser::v0::PartitionTableRow,
+				storage: &'d mut S,
+				bytes: &'a [u8],
+			) -> ::core::pin::Pin<
+				Box<
+					dyn ::core::future::Future<Output = IResult<&'a [u8], Self::Output>>
+						+ std::marker::Send
+						+ 'async_trait,
+				>,
+			>
 			where
-				S: io::Read + io::Seek,
+				'a: 'async_trait,
+				'b: 'async_trait,
+				'c: 'async_trait,
+				'd: 'async_trait,
+				Self: std::marker::Sync + 'async_trait,
+				S: io::Read + io::Seek + std::marker::Send + std::marker::Unpin,
 			{
-				let (bytes, size) = Extent2::<u32>::parse(bytes)?;
-				let (bytes, data) = many_m_n(
-					(size.w as usize) * (size.h as usize),
-					(size.w as usize) * (size.h as usize),
-					<$color as crate::parser::IParser>::parse,
-				)(bytes)?;
-				Ok((
-					bytes,
-					$name {
-						id: row.id,
-						is_visible: row.is_visible,
-						is_locked: row.is_locked,
-						name: Rc::new(String::from(&row.name)),
-						size: Rc::new(size),
-						data: Rc::new(data),
-					},
-				))
+				async fn run<'b, S>(
+					_index: &parser::v0::PartitionIndex,
+					row: &parser::v0::PartitionTableRow,
+					_storage: &mut S,
+					bytes: &'b [u8],
+				) -> IResult<&'b [u8], $name>
+				where
+					S: io::Read + io::Seek + std::marker::Send + std::marker::Unpin,
+				{
+					let (bytes, size) = Extent2::<u32>::parse(bytes)?;
+					let (bytes, data) = many_m_n(
+						(size.w as usize) * (size.h as usize),
+						(size.w as usize) * (size.h as usize),
+						<$color as crate::parser::IParser>::parse,
+					)(bytes)?;
+					Ok((
+						bytes,
+						$name {
+							id: row.id,
+							is_visible: row.is_visible,
+							is_locked: row.is_locked,
+							name: Arc::new(String::from(&row.name)),
+							size: Arc::new(size),
+							data: Arc::new(data),
+						},
+					))
+				}
+				Box::pin(run(index, row, storage, bytes))
 			}
 
-			fn write<S>(
-				&self,
-				index: &mut parser::v0::PartitionIndex,
-				storage: &mut S,
+			// TODO Due to https://github.com/dtolnay/async-trait/issues/46
+			//		had to expand the macro manually
+			//
+			// fn write<S>(
+			// 	&self,
+			// 	index: &mut parser::v0::PartitionIndex,
+			// 	storage: &mut S,
+			// 	offset: u64,
+			// ) -> io::Result<usize>
+			// where
+			// 	S: io::Write,
+			// {
+			// 	let size = {
+			// 		let mut b: usize = 8;
+			// 		self.size.write(storage)?;
+			// 		for color in self.data.iter() {
+			// 			b += color.write(storage)?;
+			// 		}
+			// 		b
+			// 	};
+			// 	if let Some(i) = index.index_uuid.get(&self.id) {
+			// 		let mut row = index.rows.get_mut(*i).unwrap();
+			// 		row.chunk_offset = offset as u64;
+			// 		row.chunk_size = size as u32;
+			// 		row.is_visible = self.is_visible;
+			// 		row.is_locked = self.is_locked;
+			// 	} else {
+			// 		let row = parser::v0::PartitionTableRow {
+			// 			id: self.id,
+			// 			chunk_type: parser::v0::ChunkType::Note,
+			// 			chunk_offset: offset as u64,
+			// 			chunk_size: size as u32,
+			// 			is_root: false,
+			// 			is_visible: self.is_visible,
+			// 			is_locked: self.is_locked,
+			// 			is_folded: false,
+			// 			position: Vec2::new(0., 0.),
+			// 			size: *self.size,
+			// 			name: String::from(&*self.name),
+			// 			children: Vec::new(),
+			// 			preview: Vec::new(),
+			// 		};
+			// 		index.index_uuid.insert(row.id, index.rows.len());
+			// 		index.rows.push(row);
+			// 	}
+			// 	Ok(size)
+			// }
+			fn write<'a, 'b, 'c, 'async_trait, S>(
+				&'a self,
+				index: &'b mut parser::v0::PartitionIndex,
+				storage: &'c mut S,
 				offset: u64,
-			) -> io::Result<usize>
+			) -> ::core::pin::Pin<
+				Box<
+					dyn ::core::future::Future<Output = io::Result<usize>>
+						+ std::marker::Send
+						+ 'async_trait,
+				>,
+			>
 			where
-				S: io::Write,
+				'a: 'async_trait,
+				'b: 'async_trait,
+				'c: 'async_trait,
+				Self: std::marker::Sync + 'async_trait,
+				S: io::Write + std::marker::Send + std::marker::Unpin,
 			{
-				let size = {
-					let mut b: usize = 8;
-					self.size.write(storage)?;
-					for color in self.data.iter() {
-						b += color.write(storage)?;
-					}
-					b
-				};
-				if let Some(i) = index.index_uuid.get(&self.id) {
-					let mut row = index.rows.get_mut(*i).unwrap();
-					row.chunk_offset = offset as u64;
-					row.chunk_size = size as u32;
-					row.is_visible = self.is_visible;
-					row.is_locked = self.is_locked;
-				} else {
-					let row = parser::v0::PartitionTableRow {
-						id: self.id,
-						chunk_type: parser::v0::ChunkType::Note,
-						chunk_offset: offset as u64,
-						chunk_size: size as u32,
-						is_root: false,
-						is_visible: self.is_visible,
-						is_locked: self.is_locked,
-						is_folded: false,
-						position: Vec2::new(0., 0.),
-						size: *self.size,
-						name: String::from(&*self.name),
-						children: Vec::new(),
-						preview: Vec::new(),
+				async fn run<S>(
+					canvas: &$name,
+					index: &mut parser::v0::PartitionIndex,
+					storage: &mut S,
+					offset: u64,
+				) -> io::Result<usize>
+				where
+					S: io::Write + std::marker::Send + std::marker::Unpin,
+				{
+					let size = {
+						let mut b: usize = 8;
+						canvas.size.write(storage).await?;
+						for color in canvas.data.iter() {
+							b += color.write(storage).await?;
+						}
+						b
 					};
-					index.index_uuid.insert(row.id, index.rows.len());
-					index.rows.push(row);
+					if let Some(i) = index.index_uuid.get(&canvas.id) {
+						let mut row = index.rows.get_mut(*i).unwrap();
+						row.chunk_offset = offset as u64;
+						row.chunk_size = size as u32;
+						row.is_visible = canvas.is_visible;
+						row.is_locked = canvas.is_locked;
+					} else {
+						let row = parser::v0::PartitionTableRow {
+							id: canvas.id,
+							chunk_type: parser::v0::ChunkType::Note,
+							chunk_offset: offset as u64,
+							chunk_size: size as u32,
+							is_root: false,
+							is_visible: canvas.is_visible,
+							is_locked: canvas.is_locked,
+							is_folded: false,
+							position: Vec2::new(0., 0.),
+							size: *canvas.size,
+							name: String::from(&*canvas.name),
+							children: Vec::new(),
+							preview: Vec::new(),
+						};
+						index.index_uuid.insert(row.id, index.rows.len());
+						index.rows.push(row);
+					}
+					Ok(size)
 				}
-				Ok(size)
+				Box::pin(run(self, index, storage, offset))
 			}
 		}
 	};

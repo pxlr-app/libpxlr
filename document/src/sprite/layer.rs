@@ -3,11 +3,12 @@ use crate::parser;
 use crate::patch::{CropLayerError, IPatchable, Patch, ResizeLayerError};
 use crate::sprite::*;
 use crate::INode;
+use async_std::io;
+use async_trait::async_trait;
 use math::interpolation::*;
 use math::{Extent2, Vec2};
 use nom::IResult;
 use serde::{Deserialize, Serialize};
-use std::io;
 use uuid::Uuid;
 
 pub trait ILayer: INode {
@@ -154,59 +155,68 @@ impl INode for LayerNode {
 	}
 }
 
+#[async_trait]
 impl parser::v0::IParser for LayerNode {
 	type Output = LayerNode;
 
-	fn parse<'b, S>(
+	async fn parse<'b, S>(
 		index: &parser::v0::PartitionIndex,
 		row: &parser::v0::PartitionTableRow,
 		storage: &mut S,
 		bytes: &'b [u8],
 	) -> IResult<&'b [u8], Self::Output>
 	where
-		S: io::Read + io::Seek,
+		S: io::Read + io::Seek + std::marker::Send + std::marker::Unpin,
 	{
 		match row.chunk_type {
 			parser::v0::ChunkType::CanvasI => CanvasI::parse(index, row, storage, bytes)
+				.await
 				.map(|(bytes, node)| (bytes, LayerNode::CanvasI(node))),
 			parser::v0::ChunkType::CanvasIXYZ => CanvasIXYZ::parse(index, row, storage, bytes)
+				.await
 				.map(|(bytes, node)| (bytes, LayerNode::CanvasIXYZ(node))),
 			parser::v0::ChunkType::CanvasUV => CanvasUV::parse(index, row, storage, bytes)
+				.await
 				.map(|(bytes, node)| (bytes, LayerNode::CanvasUV(node))),
 			parser::v0::ChunkType::CanvasRGB => CanvasRGB::parse(index, row, storage, bytes)
+				.await
 				.map(|(bytes, node)| (bytes, LayerNode::CanvasRGB(node))),
 			parser::v0::ChunkType::CanvasRGBA => CanvasRGBA::parse(index, row, storage, bytes)
+				.await
 				.map(|(bytes, node)| (bytes, LayerNode::CanvasRGBA(node))),
 			parser::v0::ChunkType::CanvasRGBAXYZ => {
 				CanvasRGBAXYZ::parse(index, row, storage, bytes)
+					.await
 					.map(|(bytes, node)| (bytes, LayerNode::CanvasRGBAXYZ(node)))
 			}
 			parser::v0::ChunkType::Sprite => Sprite::parse(index, row, storage, bytes)
+				.await
 				.map(|(bytes, node)| (bytes, LayerNode::Sprite(node))),
 			parser::v0::ChunkType::LayerGroup => LayerGroup::parse(index, row, storage, bytes)
+				.await
 				.map(|(bytes, node)| (bytes, LayerNode::Group(node))),
 			_ => unimplemented!(),
 		}
 	}
 
-	fn write<S>(
+	async fn write<S>(
 		&self,
 		index: &mut parser::v0::PartitionIndex,
 		storage: &mut S,
 		offset: u64,
 	) -> io::Result<usize>
 	where
-		S: io::Write,
+		S: io::Write + std::marker::Send + std::marker::Unpin,
 	{
 		match self {
-			LayerNode::CanvasI(node) => node.write(index, storage, offset),
-			LayerNode::CanvasIXYZ(node) => node.write(index, storage, offset),
-			LayerNode::CanvasUV(node) => node.write(index, storage, offset),
-			LayerNode::CanvasRGB(node) => node.write(index, storage, offset),
-			LayerNode::CanvasRGBA(node) => node.write(index, storage, offset),
-			LayerNode::CanvasRGBAXYZ(node) => node.write(index, storage, offset),
-			LayerNode::Sprite(node) => node.write(index, storage, offset),
-			LayerNode::Group(node) => node.write(index, storage, offset),
+			LayerNode::CanvasI(node) => node.write(index, storage, offset).await,
+			LayerNode::CanvasIXYZ(node) => node.write(index, storage, offset).await,
+			LayerNode::CanvasUV(node) => node.write(index, storage, offset).await,
+			LayerNode::CanvasRGB(node) => node.write(index, storage, offset).await,
+			LayerNode::CanvasRGBA(node) => node.write(index, storage, offset).await,
+			LayerNode::CanvasRGBAXYZ(node) => node.write(index, storage, offset).await,
+			LayerNode::Sprite(node) => node.write(index, storage, offset).await,
+			LayerNode::Group(node) => node.write(index, storage, offset).await,
 			_ => unimplemented!(),
 		}
 	}
