@@ -139,16 +139,11 @@ impl IPatchable for Note {
 impl parser::v0::IParser for Note {
 	type Output = Note;
 
-	async fn parse<'b, S>(
-		_index: &parser::v0::PartitionIndex,
+	async fn parse<'b>(
 		row: &parser::v0::PartitionTableRow,
-		_storage: &mut S,
-		bytes: &'b [u8],
 		_children: &mut Vec<Node>,
-	) -> IResult<&'b [u8], Self::Output>
-	where
-		S: parser::ReadAt + std::marker::Send + std::marker::Unpin,
-	{
+		bytes: &'b [u8],
+	) -> IResult<&'b [u8], Self::Output> {
 		Ok((
 			bytes,
 			Note {

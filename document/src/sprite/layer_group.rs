@@ -512,16 +512,11 @@ impl IPatchable for LayerGroup {
 impl parser::v0::IParser for LayerGroup {
 	type Output = LayerGroup;
 
-	async fn parse<'b, S>(
-		index: &parser::v0::PartitionIndex,
+	async fn parse<'b>(
 		row: &parser::v0::PartitionTableRow,
-		storage: &mut S,
-		bytes: &'b [u8],
 		children: &mut Vec<Node>,
-	) -> IResult<&'b [u8], Self::Output>
-	where
-		S: parser::ReadAt + std::marker::Send + std::marker::Unpin,
-	{
+		bytes: &'b [u8],
+	) -> IResult<&'b [u8], Self::Output> {
 		use std::convert::TryInto;
 		let (bytes, color_mode) = <ColorMode as parser::IParser>::parse(bytes)?;
 		let children: Vec<Arc<LayerNode>> = children

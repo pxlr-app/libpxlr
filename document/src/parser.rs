@@ -106,15 +106,12 @@ pub mod v0 {
 	pub trait IParser {
 		type Output: std::marker::Send;
 
-		async fn parse<'b, S>(
-			index: &PartitionIndex,
+		async fn parse<'b>(
 			row: &PartitionTableRow,
-			storage: &mut S,
-			bytes: &'b [u8],
 			children: &mut Vec<Node>,
+			bytes: &'b [u8],
 		) -> IResult<&'b [u8], Self::Output>
 		where
-			S: super::ReadAt + std::marker::Send + std::marker::Unpin,
 			Self::Output: Sized;
 
 		async fn write<S>(
@@ -134,23 +131,16 @@ pub mod v0 {
 	{
 		type Output = Vec<T::Output>;
 
-		async fn parse<'b, S>(
-			index: &PartitionIndex,
+		async fn parse<'b>(
 			row: &PartitionTableRow,
-			storage: &mut S,
-			bytes: &'b [u8],
 			_children: &mut Vec<Node>,
-		) -> IResult<&'b [u8], Self::Output>
-		where
-			S: super::ReadAt + std::marker::Send + std::marker::Unpin,
-		{
+			bytes: &'b [u8],
+		) -> IResult<&'b [u8], Self::Output> {
 			let mut items: Vec<T::Output> = Vec::new();
 			let mut children: Vec<Node> = Vec::new();
 			let mut remainder: &'b [u8] = bytes;
 			loop {
-				if let Ok((b, item)) =
-					<T as IParser>::parse(index, row, storage, remainder, &mut children).await
-				{
+				if let Ok((b, item)) = <T as IParser>::parse(row, &mut children, remainder).await {
 					remainder = b;
 					items.push(item);
 				} else {

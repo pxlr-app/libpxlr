@@ -340,12 +340,10 @@ macro_rules! define_canvas {
 			// 		},
 			// 	))
 			// }
-			fn parse<'a, 'b, 'c, 'd, 'e, 'async_trait, S>(
-				index: &'b parser::v0::PartitionIndex,
-				row: &'c parser::v0::PartitionTableRow,
-				storage: &'d mut S,
+			fn parse<'a, 'b, 'c, 'async_trait>(
+				row: &'b parser::v0::PartitionTableRow,
+				_children: &'c mut Vec<Node>,
 				bytes: &'a [u8],
-				_children: &'e mut Vec<Node>,
 			) -> ::core::pin::Pin<
 				Box<
 					dyn ::core::future::Future<Output = IResult<&'a [u8], Self::Output>>
@@ -357,20 +355,12 @@ macro_rules! define_canvas {
 				'a: 'async_trait,
 				'b: 'async_trait,
 				'c: 'async_trait,
-				'd: 'async_trait,
-				'e: 'async_trait,
 				Self: std::marker::Sync + 'async_trait,
-				S: parser::ReadAt + std::marker::Send + std::marker::Unpin,
 			{
-				async fn run<'b, S>(
-					_index: &parser::v0::PartitionIndex,
+				async fn run<'b>(
 					row: &parser::v0::PartitionTableRow,
-					_storage: &mut S,
 					bytes: &'b [u8],
-				) -> IResult<&'b [u8], $name>
-				where
-					S: parser::ReadAt + std::marker::Send + std::marker::Unpin,
-				{
+				) -> IResult<&'b [u8], $name> {
 					let (bytes, size) = Extent2::<u32>::parse(bytes)?;
 					let (bytes, data) = many_m_n(
 						(size.w as usize) * (size.h as usize),
@@ -389,7 +379,7 @@ macro_rules! define_canvas {
 						},
 					))
 				}
-				Box::pin(run(index, row, storage, bytes))
+				Box::pin(run(row, bytes))
 			}
 
 			// TODO Due to https://github.com/dtolnay/async-trait/issues/46

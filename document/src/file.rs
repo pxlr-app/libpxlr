@@ -237,14 +237,8 @@ impl File {
 			storage
 				.read_at(io::SeekFrom::Start(chunk_offset), &mut bytes)
 				.await?;
-			if let Ok((_, node)) = <Node as parser::v0::IParser>::parse(
-				&self.index,
-				row,
-				storage,
-				&bytes[..],
-				&mut children,
-			)
-			.await
+			if let Ok((_, node)) =
+				<Node as parser::v0::IParser>::parse(row, &mut children, &bytes[..]).await
 			{
 				Ok(node)
 			} else {

@@ -81,21 +81,16 @@ impl std::convert::TryFrom<Node> for DocumentNode {
 impl parser::v0::IParser for DocumentNode {
 	type Output = DocumentNode;
 
-	async fn parse<'b, S>(
-		index: &parser::v0::PartitionIndex,
+	async fn parse<'b>(
 		row: &parser::v0::PartitionTableRow,
-		storage: &mut S,
-		bytes: &'b [u8],
 		children: &mut Vec<Node>,
-	) -> IResult<&'b [u8], Self::Output>
-	where
-		S: parser::ReadAt + std::marker::Send + std::marker::Unpin,
-	{
+		bytes: &'b [u8],
+	) -> IResult<&'b [u8], Self::Output> {
 		match row.chunk_type {
-			parser::v0::ChunkType::Group => Group::parse(index, row, storage, bytes, children)
+			parser::v0::ChunkType::Group => Group::parse(row, children, bytes)
 				.await
 				.map(|(bytes, node)| (bytes, DocumentNode::Group(node))),
-			parser::v0::ChunkType::Note => Note::parse(index, row, storage, bytes, children)
+			parser::v0::ChunkType::Note => Note::parse(row, children, bytes)
 				.await
 				.map(|(bytes, node)| (bytes, DocumentNode::Note(node))),
 			_ => unimplemented!(),

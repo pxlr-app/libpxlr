@@ -372,16 +372,11 @@ impl IPatchable for Group {
 impl parser::v0::IParser for Group {
 	type Output = Group;
 
-	async fn parse<'b, S>(
-		index: &parser::v0::PartitionIndex,
+	async fn parse<'b>(
 		row: &parser::v0::PartitionTableRow,
-		storage: &mut S,
-		bytes: &'b [u8],
 		children: &mut Vec<Node>,
-	) -> IResult<&'b [u8], Self::Output>
-	where
-		S: parser::ReadAt + std::marker::Send + std::marker::Unpin,
-	{
+		bytes: &'b [u8],
+	) -> IResult<&'b [u8], Self::Output> {
 		use std::convert::TryInto;
 		let children: Vec<Arc<DocumentNode>> = children
 			.drain(..)
