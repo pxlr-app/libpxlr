@@ -1,10 +1,9 @@
 use crate::color::ColorMode;
-use crate::document::IDocument;
 use crate::parser;
 use crate::parser::IParser;
 use crate::patch::*;
 use crate::sprite::*;
-use crate::INode;
+use crate::{IDocument, INode, Node};
 use async_std::io;
 use async_trait::async_trait;
 use math::interpolation::*;
@@ -518,30 +517,17 @@ impl parser::v0::IParser for LayerGroup {
 		row: &parser::v0::PartitionTableRow,
 		storage: &mut S,
 		bytes: &'b [u8],
+		children: &mut Vec<Node>,
 	) -> IResult<&'b [u8], Self::Output>
 	where
 		S: parser::ReadAt + std::marker::Send + std::marker::Unpin,
 	{
+		use std::convert::TryInto;
 		let (bytes, color_mode) = <ColorMode as parser::IParser>::parse(bytes)?;
-		let mut children: Vec<Arc<LayerNode>> = Vec::new();
-		for i in row.children.iter() {
-			let row = index
-				.rows
-				.get(*i as usize)
-				.expect("Count not retrieve children.");
-			let chunk_size = row.chunk_size;
-			let chunk_offset = row.chunk_offset;
-			let mut bytes: Vec<u8> = Vec::with_capacity(chunk_size as usize);
-			storage
-				.read_at(io::SeekFrom::Start(chunk_offset), &mut bytes)
-				.await
-				.expect("Could not read chunk data.");
-			let (_, node) =
-				<LayerNode as parser::v0::IParser>::parse(index, row, storage, &bytes[..])
-					.await
-					.expect("Could not parse node.");
-			children.push(Arc::new(node));
-		}
+		let children: Vec<Arc<LayerNode>> = children
+			.drain(..)
+			.map(|node| Arc::new(node.try_into().expect("Node is not a valid LayerNode.")))
+			.collect();
 		Ok((
 			bytes,
 			LayerGroup {

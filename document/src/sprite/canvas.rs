@@ -3,7 +3,7 @@ use crate::parser;
 use crate::parser::IParser;
 use crate::patch::*;
 use crate::sprite::*;
-use crate::INode;
+use crate::{INode, Node};
 use async_std::io;
 use math::blend::*;
 use math::interpolation::*;
@@ -340,11 +340,12 @@ macro_rules! define_canvas {
 			// 		},
 			// 	))
 			// }
-			fn parse<'a, 'b, 'c, 'd, 'async_trait, S>(
+			fn parse<'a, 'b, 'c, 'd, 'e, 'async_trait, S>(
 				index: &'b parser::v0::PartitionIndex,
 				row: &'c parser::v0::PartitionTableRow,
 				storage: &'d mut S,
 				bytes: &'a [u8],
+				_children: &'e mut Vec<Node>,
 			) -> ::core::pin::Pin<
 				Box<
 					dyn ::core::future::Future<Output = IResult<&'a [u8], Self::Output>>
@@ -357,6 +358,7 @@ macro_rules! define_canvas {
 				'b: 'async_trait,
 				'c: 'async_trait,
 				'd: 'async_trait,
+				'e: 'async_trait,
 				Self: std::marker::Sync + 'async_trait,
 				S: parser::ReadAt + std::marker::Send + std::marker::Unpin,
 			{

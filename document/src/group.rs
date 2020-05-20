@@ -1,7 +1,6 @@
 use crate::parser;
 use crate::patch::*;
-use crate::INode;
-use crate::{DocumentNode, IDocument};
+use crate::{DocumentNode, IDocument, INode, Node};
 use async_std::io;
 use async_trait::async_trait;
 use math::{Extent2, Vec2};
@@ -378,29 +377,16 @@ impl parser::v0::IParser for Group {
 		row: &parser::v0::PartitionTableRow,
 		storage: &mut S,
 		bytes: &'b [u8],
+		children: &mut Vec<Node>,
 	) -> IResult<&'b [u8], Self::Output>
 	where
 		S: parser::ReadAt + std::marker::Send + std::marker::Unpin,
 	{
-		let mut children: Vec<Arc<DocumentNode>> = Vec::new();
-		for i in row.children.iter() {
-			let row = index
-				.rows
-				.get(*i as usize)
-				.expect("Count not retrieve children.");
-			let chunk_size = row.chunk_size;
-			let chunk_offset = row.chunk_offset;
-			let mut bytes: Vec<u8> = Vec::with_capacity(chunk_size as usize);
-			storage
-				.read_at(io::SeekFrom::Start(chunk_offset), &mut bytes)
-				.await
-				.expect("Could not read chunk data.");
-			let (_, node) =
-				<DocumentNode as parser::v0::IParser>::parse(index, row, storage, &bytes[..])
-					.await
-					.expect("Could not parse node.");
-			children.push(Arc::new(node));
-		}
+		use std::convert::TryInto;
+		let children: Vec<Arc<DocumentNode>> = children
+			.drain(..)
+			.map(|node| Arc::new(node.try_into().expect("Node is not a valid DocumentNode.")))
+			.collect();
 		Ok((
 			bytes,
 			Group {

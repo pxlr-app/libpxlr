@@ -111,41 +111,54 @@ impl parser::v0::IParser for Node {
 		row: &parser::v0::PartitionTableRow,
 		storage: &mut S,
 		bytes: &'b [u8],
+		children: &mut Vec<Node>,
 	) -> IResult<&'b [u8], Self::Output>
 	where
 		S: parser::ReadAt + std::marker::Send + std::marker::Unpin,
 	{
 		match row.chunk_type {
-			parser::v0::ChunkType::Group => Group::parse(index, row, storage, bytes)
+			parser::v0::ChunkType::Group => Group::parse(index, row, storage, bytes, children)
 				.await
 				.map(|(bytes, node)| (bytes, Node::Group(node))),
-			parser::v0::ChunkType::Note => Note::parse(index, row, storage, bytes)
+			parser::v0::ChunkType::Note => Note::parse(index, row, storage, bytes, children)
 				.await
 				.map(|(bytes, node)| (bytes, Node::Note(node))),
-			parser::v0::ChunkType::LayerGroup => LayerGroup::parse(index, row, storage, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, Node::LayerGroup(node))),
-			parser::v0::ChunkType::Sprite => Sprite::parse(index, row, storage, bytes)
+			parser::v0::ChunkType::LayerGroup => {
+				LayerGroup::parse(index, row, storage, bytes, children)
+					.await
+					.map(|(bytes, node)| (bytes, Node::LayerGroup(node)))
+			}
+			parser::v0::ChunkType::Sprite => Sprite::parse(index, row, storage, bytes, children)
 				.await
 				.map(|(bytes, node)| (bytes, Node::Sprite(node))),
-			parser::v0::ChunkType::CanvasI => CanvasI::parse(index, row, storage, bytes)
+			parser::v0::ChunkType::CanvasI => CanvasI::parse(index, row, storage, bytes, children)
 				.await
 				.map(|(bytes, node)| (bytes, Node::CanvasI(node))),
-			parser::v0::ChunkType::CanvasIXYZ => CanvasIXYZ::parse(index, row, storage, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, Node::CanvasIXYZ(node))),
-			parser::v0::ChunkType::CanvasUV => CanvasUV::parse(index, row, storage, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, Node::CanvasUV(node))),
-			parser::v0::ChunkType::CanvasRGB => CanvasRGB::parse(index, row, storage, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, Node::CanvasRGB(node))),
-			parser::v0::ChunkType::CanvasRGBA => CanvasRGBA::parse(index, row, storage, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, Node::CanvasRGBA(node))),
-			parser::v0::ChunkType::CanvasRGBA => CanvasRGBA::parse(index, row, storage, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, Node::CanvasRGBA(node))),
+			parser::v0::ChunkType::CanvasIXYZ => {
+				CanvasIXYZ::parse(index, row, storage, bytes, children)
+					.await
+					.map(|(bytes, node)| (bytes, Node::CanvasIXYZ(node)))
+			}
+			parser::v0::ChunkType::CanvasUV => {
+				CanvasUV::parse(index, row, storage, bytes, children)
+					.await
+					.map(|(bytes, node)| (bytes, Node::CanvasUV(node)))
+			}
+			parser::v0::ChunkType::CanvasRGB => {
+				CanvasRGB::parse(index, row, storage, bytes, children)
+					.await
+					.map(|(bytes, node)| (bytes, Node::CanvasRGB(node)))
+			}
+			parser::v0::ChunkType::CanvasRGBA => {
+				CanvasRGBA::parse(index, row, storage, bytes, children)
+					.await
+					.map(|(bytes, node)| (bytes, Node::CanvasRGBA(node)))
+			}
+			parser::v0::ChunkType::CanvasRGBA => {
+				CanvasRGBA::parse(index, row, storage, bytes, children)
+					.await
+					.map(|(bytes, node)| (bytes, Node::CanvasRGBA(node)))
+			}
 			_ => unimplemented!(),
 		}
 	}

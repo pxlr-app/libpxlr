@@ -1,7 +1,7 @@
 use crate::document::IDocument;
 use crate::parser;
 use crate::patch::*;
-use crate::INode;
+use crate::{INode, Node};
 use async_std::io;
 use async_trait::async_trait;
 use math::{Extent2, Vec2};
@@ -144,6 +144,7 @@ impl parser::v0::IParser for Note {
 		row: &parser::v0::PartitionTableRow,
 		_storage: &mut S,
 		bytes: &'b [u8],
+		_children: &mut Vec<Node>,
 	) -> IResult<&'b [u8], Self::Output>
 	where
 		S: parser::ReadAt + std::marker::Send + std::marker::Unpin,

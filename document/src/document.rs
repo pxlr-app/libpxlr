@@ -1,9 +1,7 @@
 use crate::parser;
 use crate::patch::{IPatchable, Patch};
 use crate::sprite::Sprite;
-use crate::Group;
-use crate::INode;
-use crate::Note;
+use crate::{Group, INode, Node, Note};
 use async_std::io;
 use async_trait::async_trait;
 use math::Vec2;
@@ -66,6 +64,19 @@ impl INode for DocumentNode {
 	}
 }
 
+impl std::convert::TryFrom<Node> for DocumentNode {
+	type Error = &'static str;
+
+	fn try_from(node: Node) -> Result<Self, Self::Error> {
+		match node {
+			Node::Group(node) => Ok(DocumentNode::Group(node)),
+			Node::Note(node) => Ok(DocumentNode::Note(node)),
+			Node::Sprite(node) => Ok(DocumentNode::Sprite(node)),
+			_ => Err("Node is not a valid DocumentNode."),
+		}
+	}
+}
+
 #[async_trait]
 impl parser::v0::IParser for DocumentNode {
 	type Output = DocumentNode;
@@ -75,15 +86,16 @@ impl parser::v0::IParser for DocumentNode {
 		row: &parser::v0::PartitionTableRow,
 		storage: &mut S,
 		bytes: &'b [u8],
+		children: &mut Vec<Node>,
 	) -> IResult<&'b [u8], Self::Output>
 	where
 		S: parser::ReadAt + std::marker::Send + std::marker::Unpin,
 	{
 		match row.chunk_type {
-			parser::v0::ChunkType::Group => Group::parse(index, row, storage, bytes)
+			parser::v0::ChunkType::Group => Group::parse(index, row, storage, bytes, children)
 				.await
 				.map(|(bytes, node)| (bytes, DocumentNode::Group(node))),
-			parser::v0::ChunkType::Note => Note::parse(index, row, storage, bytes)
+			parser::v0::ChunkType::Note => Note::parse(index, row, storage, bytes, children)
 				.await
 				.map(|(bytes, node)| (bytes, DocumentNode::Note(node))),
 			_ => unimplemented!(),

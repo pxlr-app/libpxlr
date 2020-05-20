@@ -233,11 +233,18 @@ impl File {
 			let chunk_offset = row.chunk_offset;
 			let chunk_size = row.chunk_size;
 			let mut bytes: Vec<u8> = Vec::with_capacity(chunk_size as usize);
+			let mut children: Vec<Node> = Vec::new();
 			storage
 				.read_at(io::SeekFrom::Start(chunk_offset), &mut bytes)
 				.await?;
-			if let Ok((_, node)) =
-				<Node as parser::v0::IParser>::parse(&self.index, row, storage, &bytes[..]).await
+			if let Ok((_, node)) = <Node as parser::v0::IParser>::parse(
+				&self.index,
+				row,
+				storage,
+				&bytes[..],
+				&mut children,
+			)
+			.await
 			{
 				Ok(node)
 			} else {

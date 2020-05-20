@@ -2,7 +2,7 @@ use crate::color::ColorMode;
 use crate::parser;
 use crate::patch::{CropLayerError, IPatchable, Patch, ResizeLayerError};
 use crate::sprite::*;
-use crate::INode;
+use crate::{INode, Node};
 use async_std::io;
 use async_trait::async_trait;
 use math::interpolation::*;
@@ -155,6 +155,23 @@ impl INode for LayerNode {
 	}
 }
 
+impl std::convert::TryFrom<Node> for LayerNode {
+	type Error = &'static str;
+
+	fn try_from(node: Node) -> Result<Self, Self::Error> {
+		match node {
+			Node::CanvasI(node) => Ok(LayerNode::CanvasI(node)),
+			Node::CanvasIXYZ(node) => Ok(LayerNode::CanvasIXYZ(node)),
+			Node::CanvasUV(node) => Ok(LayerNode::CanvasUV(node)),
+			Node::CanvasRGB(node) => Ok(LayerNode::CanvasRGB(node)),
+			Node::CanvasRGBA(node) => Ok(LayerNode::CanvasRGBA(node)),
+			Node::CanvasRGBAXYZ(node) => Ok(LayerNode::CanvasRGBAXYZ(node)),
+			Node::Sprite(node) => Ok(LayerNode::Sprite(node)),
+			_ => Err("Node is not a valid LayerNode."),
+		}
+	}
+}
+
 #[async_trait]
 impl parser::v0::IParser for LayerNode {
 	type Output = LayerNode;
@@ -164,37 +181,48 @@ impl parser::v0::IParser for LayerNode {
 		row: &parser::v0::PartitionTableRow,
 		storage: &mut S,
 		bytes: &'b [u8],
+		children: &mut Vec<Node>,
 	) -> IResult<&'b [u8], Self::Output>
 	where
 		S: parser::ReadAt + std::marker::Send + std::marker::Unpin,
 	{
 		match row.chunk_type {
-			parser::v0::ChunkType::CanvasI => CanvasI::parse(index, row, storage, bytes)
+			parser::v0::ChunkType::CanvasI => CanvasI::parse(index, row, storage, bytes, children)
 				.await
 				.map(|(bytes, node)| (bytes, LayerNode::CanvasI(node))),
-			parser::v0::ChunkType::CanvasIXYZ => CanvasIXYZ::parse(index, row, storage, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, LayerNode::CanvasIXYZ(node))),
-			parser::v0::ChunkType::CanvasUV => CanvasUV::parse(index, row, storage, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, LayerNode::CanvasUV(node))),
-			parser::v0::ChunkType::CanvasRGB => CanvasRGB::parse(index, row, storage, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, LayerNode::CanvasRGB(node))),
-			parser::v0::ChunkType::CanvasRGBA => CanvasRGBA::parse(index, row, storage, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, LayerNode::CanvasRGBA(node))),
+			parser::v0::ChunkType::CanvasIXYZ => {
+				CanvasIXYZ::parse(index, row, storage, bytes, children)
+					.await
+					.map(|(bytes, node)| (bytes, LayerNode::CanvasIXYZ(node)))
+			}
+			parser::v0::ChunkType::CanvasUV => {
+				CanvasUV::parse(index, row, storage, bytes, children)
+					.await
+					.map(|(bytes, node)| (bytes, LayerNode::CanvasUV(node)))
+			}
+			parser::v0::ChunkType::CanvasRGB => {
+				CanvasRGB::parse(index, row, storage, bytes, children)
+					.await
+					.map(|(bytes, node)| (bytes, LayerNode::CanvasRGB(node)))
+			}
+			parser::v0::ChunkType::CanvasRGBA => {
+				CanvasRGBA::parse(index, row, storage, bytes, children)
+					.await
+					.map(|(bytes, node)| (bytes, LayerNode::CanvasRGBA(node)))
+			}
 			parser::v0::ChunkType::CanvasRGBAXYZ => {
-				CanvasRGBAXYZ::parse(index, row, storage, bytes)
+				CanvasRGBAXYZ::parse(index, row, storage, bytes, children)
 					.await
 					.map(|(bytes, node)| (bytes, LayerNode::CanvasRGBAXYZ(node)))
 			}
-			parser::v0::ChunkType::Sprite => Sprite::parse(index, row, storage, bytes)
+			parser::v0::ChunkType::Sprite => Sprite::parse(index, row, storage, bytes, children)
 				.await
 				.map(|(bytes, node)| (bytes, LayerNode::Sprite(node))),
-			parser::v0::ChunkType::LayerGroup => LayerGroup::parse(index, row, storage, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, LayerNode::Group(node))),
+			parser::v0::ChunkType::LayerGroup => {
+				LayerGroup::parse(index, row, storage, bytes, children)
+					.await
+					.map(|(bytes, node)| (bytes, LayerNode::Group(node)))
+			}
 			_ => unimplemented!(),
 		}
 	}

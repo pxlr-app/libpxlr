@@ -61,6 +61,7 @@ impl IParser for Header {
 }
 
 pub mod v0 {
+	use crate::Node;
 	use async_std::io;
 	use async_std::io::prelude::*;
 	use async_trait::async_trait;
@@ -110,6 +111,7 @@ pub mod v0 {
 			row: &PartitionTableRow,
 			storage: &mut S,
 			bytes: &'b [u8],
+			children: &mut Vec<Node>,
 		) -> IResult<&'b [u8], Self::Output>
 		where
 			S: super::ReadAt + std::marker::Send + std::marker::Unpin,
@@ -137,14 +139,18 @@ pub mod v0 {
 			row: &PartitionTableRow,
 			storage: &mut S,
 			bytes: &'b [u8],
+			_children: &mut Vec<Node>,
 		) -> IResult<&'b [u8], Self::Output>
 		where
 			S: super::ReadAt + std::marker::Send + std::marker::Unpin,
 		{
 			let mut items: Vec<T::Output> = Vec::new();
+			let mut children: Vec<Node> = Vec::new();
 			let mut remainder: &'b [u8] = bytes;
 			loop {
-				if let Ok((b, item)) = <T as IParser>::parse(index, row, storage, remainder).await {
+				if let Ok((b, item)) =
+					<T as IParser>::parse(index, row, storage, remainder, &mut children).await
+				{
 					remainder = b;
 					items.push(item);
 				} else {
