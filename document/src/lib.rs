@@ -13,6 +13,7 @@ mod node;
 mod note;
 pub mod parser;
 pub mod patch;
+pub mod range;
 pub mod sprite;
 pub use self::document::*;
 pub use self::group::*;

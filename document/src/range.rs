@@ -29,29 +29,49 @@ where
 	}
 }
 
-pub(crate) fn merge_ranges<T>(ranges: &mut Vec<Range<T>>)
+pub trait MergeOverlapping {
+	fn merge_overlapping(&self) -> Self;
+}
+
+impl<T> MergeOverlapping for Vec<Range<T>>
 where
 	T: Ord + Copy,
 {
-	let mut old_ranges: Vec<Range<T>> = ranges.drain(..).collect();
-	old_ranges.sort_by(|a, b| a.start.cmp(&b.start));
+	fn merge_overlapping(&self) -> Self {
+		let mut merged: Vec<Range<T>> = Vec::with_capacity(self.len());
+		let mut old_ranges: Vec<Range<T>> = self
+			.iter()
+			.map(|r| Range {
+				start: r.start,
+				end: r.end,
+			})
+			.collect();
+		old_ranges.sort_by(|a, b| a.start.cmp(&b.start));
 
-	let mut remainder = old_ranges
-		.drain(..)
-		.fold::<Option<Range<T>>, _>(None, |merging, range| {
-			if let Some(mut last) = merging {
-				if last.overlaps(&range) {
-					last.merge(&range);
-					return Some(last);
-				} else {
-					ranges.push(last);
-					return Some(range);
-				}
-			} else {
-				return Some(range);
-			}
-		});
-	if let Some(last) = remainder.take() {
-		ranges.push(last);
+		let mut remainder =
+			old_ranges
+				.drain(..)
+				.fold::<Option<Range<T>>, _>(None, |merging, range| {
+					if range.start != range.end {
+						if let Some(mut last) = merging {
+							if last.overlaps(&range) {
+								last.merge(&range);
+								return Some(last);
+							} else {
+								merged.push(last);
+								return Some(range);
+							}
+						} else {
+							return Some(range);
+						}
+					} else {
+						return None;
+					}
+				});
+		if let Some(last) = remainder.take() {
+			merged.push(last);
+		}
+
+		merged
 	}
 }

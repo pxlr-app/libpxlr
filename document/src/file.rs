@@ -1,10 +1,13 @@
 use crate::parser;
 use crate::parser::IParser;
+use crate::range::MergeOverlapping;
 use crate::Node;
 use async_std::io;
 use async_std::io::prelude::*;
 use collections::bitvec;
 use nom::multi::many0;
+use std::collections::HashMap;
+use std::ops::Range;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -228,22 +231,57 @@ impl File {
 		if !self.index.index_uuid.contains_key(&id) {
 			Err(io::ErrorKind::NotFound.into())
 		} else {
-			let idx = self.index.index_uuid.get(&id).unwrap();
-			let row = self.index.rows.get(*idx).unwrap();
-			let chunk_offset = row.chunk_offset;
-			let chunk_size = row.chunk_size;
-			let mut bytes: Vec<u8> = Vec::with_capacity(chunk_size as usize);
-			let mut children: Vec<Node> = Vec::new();
-			storage
-				.read_at(io::SeekFrom::Start(chunk_offset), &mut bytes)
-				.await?;
-			if let Ok((_, node)) =
-				<Node as parser::v0::IParser>::parse(row, &mut children, &bytes[..]).await
-			{
-				Ok(node)
-			} else {
-				Err(io::ErrorKind::InvalidData.into())
+			// Collect all descending rows, depth first
+			let index = &self.index;
+			let mut rows: Vec<&parser::v0::PartitionTableRow> = Vec::new();
+			let mut queue: Vec<u32> = Vec::with_capacity(index.rows.len());
+			queue.push(*index.index_uuid.get(&id).unwrap() as u32);
+			while let Some(idx) = queue.pop() {
+				let row = self.index.rows.get(idx as usize).unwrap();
+				rows.push(row);
+				for child in row.children.iter() {
+					queue.push(*child);
+				}
 			}
+
+			// Collect rows's chunk ranges
+			let ranges: Vec<Range<u64>> = rows
+				.iter()
+				.map(|r| Range {
+					start: r.chunk_offset,
+					end: r.chunk_offset + (r.chunk_size as u64),
+				})
+				.collect();
+
+			// Merge ranges into longest overlapping
+			let merged_ranges = ranges.merge_overlapping();
+
+			println!("{:?}", ranges);
+			println!("{:?}", merged_ranges);
+
+			let mut dict: HashMap<u32, Node> = HashMap::new();
+
+			// let row = self.index.rows.get(idx).unwrap();
+			// let chunk_offset = row.chunk_offset;
+			// let chunk_size = row.chunk_size;
+			// let mut bytes: Vec<u8> = Vec::with_capacity(chunk_size as usize);
+			// let mut nodes: Vec<Node> = Vec::with_capacity(row.children.len());
+			// // for idx in row.children.iter() {
+			// // 	let p = self.get_node_by_idx(storage, *idx as usize).await;
+			// // 	nodes.push(p.into_inner().expect("Could not get children."));
+			// // }
+			// storage
+			// 	.read_at(io::SeekFrom::Start(chunk_offset), &mut bytes)
+			// 	.await?;
+			// let row = self.index.rows.get(idx).unwrap();
+			// if let Ok((_, node)) =
+			// 	<Node as parser::v0::IParser>::parse(row, &mut nodes, &bytes[..]).await
+			// {
+			// 	Ok(node)
+			// } else {
+			// 	Err(io::ErrorKind::InvalidData.into())
+			// }
+			Err(io::ErrorKind::InvalidData.into())
 		}
 	}
 }
@@ -259,6 +297,62 @@ mod tests {
 	use math::Vec2;
 	use std::sync::Arc;
 	use uuid::Uuid;
+
+	#[test]
+	fn it_blep() {
+		task::block_on(async {
+			let doc = Node::Group(Group::new(
+				Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()),
+				"Root",
+				Vec2::new(0., 0.),
+				// vec![],
+				vec![
+					Arc::new(DocumentNode::Note(Note::new(
+						Some(Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap()),
+						"NoteA",
+						Vec2::new(0., 0.),
+					))),
+					Arc::new(DocumentNode::Group(Group::new(
+						Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82c").unwrap()),
+						"GroupA",
+						Vec2::new(0., 0.),
+						// vec![],
+						vec![
+							Arc::new(DocumentNode::Note(Note::new(
+								Some(
+									Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9392")
+										.unwrap(),
+								),
+								"NoteB",
+								Vec2::new(0., 0.),
+							))),
+							Arc::new(DocumentNode::Note(Note::new(
+								Some(
+									Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9393")
+										.unwrap(),
+								),
+								"NoteC",
+								Vec2::new(0., 0.),
+							))),
+						],
+					))),
+				],
+			));
+			let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
+			let mut file =
+				File::empty(Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap());
+			let len = file
+				.write(&mut buffer, &doc)
+				.await
+				.expect("Failed to write buffer.");
+
+			if let Ok(Node::Group(doc)) = file.get_root_node(&mut buffer).await {
+				assert_eq!(*doc.name, "Root");
+			} else {
+				panic!("Could not get node fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b");
+			}
+		});
+	}
 
 	#[test]
 	fn it_reads_empty_file() {
