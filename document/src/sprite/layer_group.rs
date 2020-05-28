@@ -549,7 +549,7 @@ impl parser::v0::IParser for LayerGroup {
 		S: io::Write + std::marker::Send + std::marker::Unpin,
 	{
 		self.color_mode.write(storage).await?;
-		let mut size: usize = 0;
+		let mut size: usize = 2;
 		for child in self.children.iter() {
 			size += child.write(index, storage, offset + (size as u64)).await?;
 		}
@@ -561,7 +561,7 @@ impl parser::v0::IParser for LayerGroup {
 		if let Some(i) = index.index_uuid.get(&self.id) {
 			let mut row = index.rows.get_mut(*i).unwrap();
 			row.chunk_offset = offset as u64;
-			row.chunk_size = 0;
+			row.chunk_size = 2;
 			row.is_visible = self.is_visible;
 			row.is_locked = self.is_locked;
 			row.is_folded = self.is_folded;
@@ -573,7 +573,7 @@ impl parser::v0::IParser for LayerGroup {
 				id: self.id,
 				chunk_type: parser::v0::ChunkType::Group,
 				chunk_offset: offset as u64,
-				chunk_size: 0,
+				chunk_size: 2,
 				is_root: false,
 				is_visible: self.is_visible,
 				is_locked: self.is_locked,

@@ -93,6 +93,11 @@ impl parser::v0::IParser for DocumentNode {
 			parser::v0::ChunkType::Note => Note::parse(row, children, bytes)
 				.await
 				.map(|(bytes, node)| (bytes, DocumentNode::Note(node))),
+			parser::v0::ChunkType::Sprite | parser::v0::ChunkType::LayerGroup => {
+				Sprite::parse(row, children, bytes)
+					.await
+					.map(|(bytes, node)| (bytes, DocumentNode::Sprite(node)))
+			}
 			_ => unimplemented!(),
 		}
 	}
@@ -109,6 +114,7 @@ impl parser::v0::IParser for DocumentNode {
 		match self {
 			DocumentNode::Group(node) => node.write(index, storage, offset).await,
 			DocumentNode::Note(node) => node.write(index, storage, offset).await,
+			DocumentNode::Sprite(node) => node.write(index, storage, offset).await,
 			_ => unimplemented!(),
 		}
 	}

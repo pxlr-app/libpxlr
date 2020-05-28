@@ -1,11 +1,11 @@
 use std::cmp::{max, min, Ord};
 use std::ops::Range;
 
-pub(crate) trait Overlaps {
+pub trait Overlaps {
 	fn overlaps(&self, other: &Self) -> bool;
 }
 
-pub(crate) trait Merge {
+pub trait Merge {
 	fn merge(&mut self, other: &Self);
 }
 
@@ -41,10 +41,8 @@ where
 		let mut merged: Vec<Range<T>> = Vec::with_capacity(self.len());
 		let mut old_ranges: Vec<Range<T>> = self
 			.iter()
-			.map(|r| Range {
-				start: r.start,
-				end: r.end,
-			})
+			.filter(|r| r.start != r.end)
+			.map(|r| r.clone())
 			.collect();
 		old_ranges.sort_by(|a, b| a.start.cmp(&b.start));
 
@@ -52,20 +50,16 @@ where
 			old_ranges
 				.drain(..)
 				.fold::<Option<Range<T>>, _>(None, |merging, range| {
-					if range.start != range.end {
-						if let Some(mut last) = merging {
-							if last.overlaps(&range) {
-								last.merge(&range);
-								return Some(last);
-							} else {
-								merged.push(last);
-								return Some(range);
-							}
+					if let Some(mut last) = merging {
+						if last.overlaps(&range) {
+							last.merge(&range);
+							return Some(last);
 						} else {
+							merged.push(last);
 							return Some(range);
 						}
 					} else {
-						return None;
+						return Some(range);
 					}
 				});
 		if let Some(last) = remainder.take() {
@@ -73,5 +67,22 @@ where
 		}
 
 		merged
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use std::ops::Range;
+
+	#[test]
+	fn it_merge() {
+		let ranges: Vec<Range<i32>> = vec![0..1, 1..3, 5..10, 10..20];
+		let ranges = ranges.merge_overlapping();
+		assert_eq!(ranges, vec![0..3, 5..20]);
+
+		let ranges: Vec<Range<i32>> = vec![0..0, 0..2, 2..2, 0..0, 0..0];
+		let ranges = ranges.merge_overlapping();
+		assert_eq!(ranges, vec![0..2]);
 	}
 }
