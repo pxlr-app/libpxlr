@@ -5,16 +5,13 @@ authors = ["Michael Grenier <michael@grenier.dev>"]
 edition = "2018"
 
 [dependencies]
-async-std = "1.5.0"
 async-trait = "0.1.30"
 bitflags = "1.2.1"
 chrono = { version = "0.4", features = ["serde"] }
 collections = { path = "../collections" }
 futures = "0.3.5"
 math = { path = "../math" }
-nom = "5"
 num-traits = "0.2.11"
-parallel-stream = "2.1.1"
 serde = { version = "1.0.106", features = ["rc"] }
 sha2 = "0.8.1"
 uuid = { version = "0.8", features = ["serde", "stdweb", "v4"] }

@@ -1,11 +1,7 @@
-use crate::parser;
 use crate::patch::{IPatchable, Patch};
 use crate::sprite::Sprite;
 use crate::{Group, INode, Node, Note};
-use async_std::io;
-use async_trait::async_trait;
 use math::Vec2;
-use nom::IResult;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -73,49 +69,6 @@ impl std::convert::TryFrom<Node> for DocumentNode {
 			Node::Note(node) => Ok(DocumentNode::Note(node)),
 			Node::Sprite(node) => Ok(DocumentNode::Sprite(node)),
 			_ => Err("Node is not a valid DocumentNode."),
-		}
-	}
-}
-
-#[async_trait]
-impl parser::v0::IParser for DocumentNode {
-	type Output = DocumentNode;
-
-	async fn parse<'b>(
-		row: &parser::v0::PartitionTableRow,
-		children: &mut Vec<Node>,
-		bytes: &'b [u8],
-	) -> IResult<&'b [u8], Self::Output> {
-		match row.chunk_type {
-			parser::v0::ChunkType::Group => Group::parse(row, children, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, DocumentNode::Group(node))),
-			parser::v0::ChunkType::Note => Note::parse(row, children, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, DocumentNode::Note(node))),
-			parser::v0::ChunkType::Sprite | parser::v0::ChunkType::LayerGroup => {
-				Sprite::parse(row, children, bytes)
-					.await
-					.map(|(bytes, node)| (bytes, DocumentNode::Sprite(node)))
-			}
-			_ => unimplemented!(),
-		}
-	}
-
-	async fn write<S>(
-		&self,
-		index: &mut parser::v0::PartitionIndex,
-		storage: &mut S,
-		offset: u64,
-	) -> io::Result<usize>
-	where
-		S: io::Write + std::marker::Send + std::marker::Unpin,
-	{
-		match self {
-			DocumentNode::Group(node) => node.write(index, storage, offset).await,
-			DocumentNode::Note(node) => node.write(index, storage, offset).await,
-			DocumentNode::Sprite(node) => node.write(index, storage, offset).await,
-			_ => unimplemented!(),
 		}
 	}
 }

@@ -1,6 +1,5 @@
-use async_std::io;
-use async_std::io::prelude::*;
 use async_trait::async_trait;
+use futures::io;
 use math::{Extent2, Vec2};
 use nom::bytes::complete::{tag, take};
 use nom::number::complete::{le_f32, le_u32, le_u8};
@@ -10,23 +9,6 @@ use uuid::Uuid;
 const MAGIC_NUMBER: &'static str = "PXLR";
 
 #[async_trait]
-pub trait ReadAt {
-	async fn read_at<'a>(&mut self, pos: io::SeekFrom, buf: &'a mut [u8]) -> io::Result<()>;
-}
-
-#[async_trait]
-impl<T> ReadAt for T
-where
-	T: io::Read + io::Seek + std::marker::Send + std::marker::Unpin,
-{
-	async fn read_at<'a>(&mut self, pos: io::SeekFrom, buf: &'a mut [u8]) -> io::Result<()> {
-		self.seek(pos).await?;
-		self.read_exact(buf).await?;
-		Ok(())
-	}
-}
-
-#[async_trait]
 pub trait IParser {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], Self>
 	where
@@ -34,7 +16,7 @@ pub trait IParser {
 
 	async fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 	where
-		S: io::Write + std::marker::Send + std::marker::Unpin;
+		S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -52,19 +34,18 @@ impl IParser for Header {
 
 	async fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 	where
-		S: io::Write + std::marker::Send + std::marker::Unpin,
+		S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
 	{
-		storage.write_all(MAGIC_NUMBER.as_bytes()).await?;
-		storage.write_all(&self.version.to_le_bytes()).await?;
+		storage.write(MAGIC_NUMBER.as_bytes()).await?;
+		storage.write(&self.version.to_le_bytes()).await?;
 		Ok(5)
 	}
 }
 
 pub mod v0 {
-	use crate::Node;
-	use async_std::io;
-	use async_std::io::prelude::*;
 	use async_trait::async_trait;
+	use document::Node;
+	use futures::io;
 	use math::{Extent2, Vec2};
 	use nom::multi::many_m_n;
 	use nom::number::complete::{le_u16, le_u32, le_u64, le_u8};
@@ -121,7 +102,7 @@ pub mod v0 {
 			offset: u64,
 		) -> io::Result<usize>
 		where
-			S: io::Write + std::marker::Send + std::marker::Unpin;
+			S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin;
 	}
 
 	#[async_trait]
@@ -157,7 +138,7 @@ pub mod v0 {
 			offset: u64,
 		) -> io::Result<usize>
 		where
-			S: io::Write + std::marker::Send + std::marker::Unpin,
+			S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
 		{
 			let mut b: usize = 0;
 			for item in self.iter() {
@@ -192,7 +173,7 @@ pub mod v0 {
 
 		async fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 		where
-			S: io::Write + std::marker::Send + std::marker::Unpin,
+			S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
 		{
 			storage.write_all(&self.root_child.to_le_bytes()).await?;
 			storage.write_all(&self.size.to_le_bytes()).await?;
@@ -237,7 +218,7 @@ pub mod v0 {
 
 		async fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 		where
-			S: io::Write + std::marker::Send + std::marker::Unpin,
+			S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
 		{
 			let index: u16 = match self {
 				ChunkType::Group => 0,
@@ -313,7 +294,7 @@ pub mod v0 {
 
 		async fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 		where
-			S: io::Write + std::marker::Send + std::marker::Unpin,
+			S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
 		{
 			let mut b: usize = 55;
 			self.id.write(storage).await?;
@@ -355,7 +336,7 @@ impl IParser for String {
 
 	async fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 	where
-		S: io::Write + std::marker::Send + std::marker::Unpin,
+		S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
 	{
 		let mut b: usize = 4;
 		storage
@@ -377,7 +358,7 @@ impl IParser for Uuid {
 
 	async fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 	where
-		S: io::Write + std::marker::Send + std::marker::Unpin,
+		S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
 	{
 		storage.write_all(self.as_bytes()).await?;
 		Ok(16)
@@ -394,7 +375,7 @@ impl IParser for Vec2<f32> {
 
 	async fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 	where
-		S: io::Write + std::marker::Send + std::marker::Unpin,
+		S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
 	{
 		storage.write_all(&self.x.to_le_bytes()).await?;
 		storage.write_all(&self.y.to_le_bytes()).await?;
@@ -412,7 +393,7 @@ impl IParser for Extent2<u32> {
 
 	async fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 	where
-		S: io::Write + std::marker::Send + std::marker::Unpin,
+		S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
 	{
 		storage.write_all(&self.w.to_le_bytes()).await?;
 		storage.write_all(&self.h.to_le_bytes()).await?;

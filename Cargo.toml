@@ -4,5 +4,6 @@ members = [
 	"collections",
 	"document",
 	"editor",
-	"math"
+	"math",
+	"parser"
 ]

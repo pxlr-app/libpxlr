@@ -1,13 +1,9 @@
 use crate::color::ColorMode;
-use crate::parser;
 use crate::patch::{CropLayerError, IPatchable, Patch, ResizeLayerError};
 use crate::sprite::*;
 use crate::{INode, Node};
-use async_std::io;
-use async_trait::async_trait;
 use math::interpolation::*;
 use math::{Extent2, Vec2};
-use nom::IResult;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -168,67 +164,6 @@ impl std::convert::TryFrom<Node> for LayerNode {
 			Node::CanvasRGBAXYZ(node) => Ok(LayerNode::CanvasRGBAXYZ(node)),
 			Node::Sprite(node) => Ok(LayerNode::Sprite(node)),
 			_ => Err("Node is not a valid LayerNode."),
-		}
-	}
-}
-
-#[async_trait]
-impl parser::v0::IParser for LayerNode {
-	type Output = LayerNode;
-
-	async fn parse<'b>(
-		row: &parser::v0::PartitionTableRow,
-		children: &mut Vec<Node>,
-		bytes: &'b [u8],
-	) -> IResult<&'b [u8], Self::Output> {
-		match row.chunk_type {
-			parser::v0::ChunkType::CanvasI => CanvasI::parse(row, children, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, LayerNode::CanvasI(node))),
-			parser::v0::ChunkType::CanvasIXYZ => CanvasIXYZ::parse(row, children, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, LayerNode::CanvasIXYZ(node))),
-			parser::v0::ChunkType::CanvasUV => CanvasUV::parse(row, children, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, LayerNode::CanvasUV(node))),
-			parser::v0::ChunkType::CanvasRGB => CanvasRGB::parse(row, children, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, LayerNode::CanvasRGB(node))),
-			parser::v0::ChunkType::CanvasRGBA => CanvasRGBA::parse(row, children, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, LayerNode::CanvasRGBA(node))),
-			parser::v0::ChunkType::CanvasRGBAXYZ => CanvasRGBAXYZ::parse(row, children, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, LayerNode::CanvasRGBAXYZ(node))),
-			parser::v0::ChunkType::Sprite => Sprite::parse(row, children, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, LayerNode::Sprite(node))),
-			parser::v0::ChunkType::LayerGroup => LayerGroup::parse(row, children, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, LayerNode::Group(node))),
-			_ => unimplemented!(),
-		}
-	}
-
-	async fn write<S>(
-		&self,
-		index: &mut parser::v0::PartitionIndex,
-		storage: &mut S,
-		offset: u64,
-	) -> io::Result<usize>
-	where
-		S: io::Write + std::marker::Send + std::marker::Unpin,
-	{
-		match self {
-			LayerNode::CanvasI(node) => node.write(index, storage, offset).await,
-			LayerNode::CanvasIXYZ(node) => node.write(index, storage, offset).await,
-			LayerNode::CanvasUV(node) => node.write(index, storage, offset).await,
-			LayerNode::CanvasRGB(node) => node.write(index, storage, offset).await,
-			LayerNode::CanvasRGBA(node) => node.write(index, storage, offset).await,
-			LayerNode::CanvasRGBAXYZ(node) => node.write(index, storage, offset).await,
-			LayerNode::Sprite(node) => node.write(index, storage, offset).await,
-			LayerNode::Group(node) => node.write(index, storage, offset).await,
-			_ => unimplemented!(),
 		}
 	}
 }
