@@ -72,13 +72,6 @@ impl File {
 	where
 		S: ReadRanges + std::marker::Send + std::marker::Unpin,
 	{
-		// let mut buffer = [0u8; 5];
-		// storage.read_at(io::SeekFrom::Start(0), &mut buffer).await?;
-		// let (_, header) = parser::Header::parse(&buffer)?;
-
-		// let mut buffer = [0u8; 24];
-		// storage.read_at(io::SeekFrom::End(-24), &mut buffer).await?;
-
 		let buffer = storage
 			.read_ranges(vec![Box::new(0..5), Box::new(-24..)])
 			.await?;
@@ -94,7 +87,7 @@ impl File {
 			vec![]
 		} else {
 			let buffer = storage
-				.read_ranges(vec![Box::new((-24 - (table.size as i64))..)])
+				.read_ranges(vec![Box::new((-24 - (table.size as i64))..-24)])
 				.await?;
 
 			let (_, rows) = match header.version {
@@ -324,6 +317,7 @@ impl File {
 mod tests {
 	use super::*;
 	// use crate::parser;
+	use async_std::fs;
 	use document::color::ColorMode;
 	use document::{sprite::Sprite, DocumentNode, Group, Node, Note};
 	use futures::{executor::block_on, io};
@@ -332,7 +326,254 @@ mod tests {
 	use uuid::Uuid;
 
 	#[test]
-	fn it_blep() {
+	fn it_reads_empty_file() {
+		block_on(async {
+			let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(vec![
+				0x50, 0x58, 0x4C, 0x52, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4B,
+				0x26, 0xC4, 0x71, 0x30, 0x98, 0x4C, 0xCE, 0x9C, 0xDB, 0x9E, 0x77, 0xDB, 0xD3, 0x02,
+				0xEF,
+			]);
+			let file = File::from(&mut buffer)
+				.await
+				.expect("Failed to parse buffer.");
+			assert_eq!(file.header.version, 0);
+			assert_eq!(
+				file.index.table,
+				parser::v0::PartitionTable {
+					hash: Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap(),
+					size: 0,
+					root_child: 0,
+				}
+			);
+			assert_eq!(file.index.rows.len(), 0);
+		});
+	}
+
+	#[test]
+	fn it_writes_reads_file() {
+		block_on(async {
+			let doc = Node::Group(Group::new(
+				Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()),
+				"Root",
+				Vec2::new(0., 0.),
+				// vec![],
+				vec![Arc::new(DocumentNode::Note(Note::new(
+					Some(Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap()),
+					"Foo",
+					Vec2::new(0., 0.),
+				)))],
+			));
+			let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
+			let mut file =
+				File::empty(Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap());
+			let len = file
+				.write(&mut buffer, &doc)
+				.await
+				.expect("Failed to write buffer.");
+			assert_eq!(len, 158);
+			assert_eq!(buffer.get_ref().len(), 158);
+			let mut file = File::from(&mut buffer)
+				.await
+				.expect("Failed to parse buffer.");
+			assert_eq!(file.header.version, 0);
+			assert_eq!(
+				file.index.table,
+				parser::v0::PartitionTable {
+					hash: Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap(),
+					size: 129,
+					root_child: 1,
+				}
+			);
+			assert_eq!(file.index.rows.len(), 2);
+			if let Ok(Node::Group(group)) = file.get_root_node(&mut buffer).await {
+				assert_eq!(
+					group.id,
+					Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()
+				);
+				assert_eq!(*group.name, "Root");
+				assert_eq!(*group.position, Vec2::new(0., 0.));
+				assert_eq!(group.children.len(), 1);
+				if let DocumentNode::Note(note) = &**group.children.get(0).unwrap() {
+					assert_eq!(*note.note, "Foo");
+				} else {
+					panic!("Could not get child 0");
+				}
+			} else {
+				panic!("Could not get root node");
+			}
+		});
+	}
+
+	#[test]
+	fn it_updates_reads_file() {
+		block_on(async {
+			let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
+			// Init file
+			{
+				let doc = Node::Group(Group::new(
+					Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()),
+					"Root",
+					Vec2::new(0., 0.),
+					// vec![],
+					vec![Arc::new(DocumentNode::Note(Note::new(
+						Some(Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap()),
+						"Foo",
+						Vec2::new(0., 0.),
+					)))],
+				));
+				let mut file =
+					File::empty(Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap());
+				let len = file
+					.write(&mut buffer, &doc)
+					.await
+					.expect("Failed to write buffer.");
+				assert_eq!(len, 158);
+				assert_eq!(buffer.get_ref().len(), 158);
+			}
+
+			// Stip note from group and append to current file
+			{
+				let mut file = File::from(&mut buffer)
+					.await
+					.expect("Failed to parse buffer.");
+				let doc = Node::Group(Group::new(
+					Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()),
+					"Root",
+					Vec2::new(0., 0.),
+					vec![],
+				));
+				let len = file
+					.update(&mut buffer, &doc)
+					.await
+					.expect("Failed to write buffer.");
+				assert_eq!(len, 87);
+				assert_eq!(buffer.get_ref().len(), 245);
+			}
+
+			// Assert that note is gone
+			{
+				let mut file = File::from(&mut buffer)
+					.await
+					.expect("Failed to parse buffer.");
+				assert_eq!(file.header.version, 0);
+				assert_eq!(file.index.rows.len(), 1);
+				if let Ok(Node::Group(group)) = file.get_root_node(&mut buffer).await {
+					assert_eq!(*group.name, "Root");
+					assert_eq!(*group.position, Vec2::new(0., 0.));
+					assert_eq!(group.children.len(), 0);
+				} else {
+					panic!("Could not get node fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b");
+				}
+			}
+		});
+	}
+
+	#[test]
+	fn it_updates_metadata_only_reads_file() {
+		block_on(async {
+			let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
+			// Init file
+			{
+				let doc = Node::Group(Group::new(
+					Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()),
+					"Root",
+					Vec2::new(0., 0.),
+					// vec![],
+					vec![Arc::new(DocumentNode::Note(Note::new(
+						Some(Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap()),
+						"Foo",
+						Vec2::new(0., 0.),
+					)))],
+				));
+				let mut file =
+					File::empty(Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap());
+				let len = file
+					.write(&mut buffer, &doc)
+					.await
+					.expect("Failed to write buffer.");
+				assert_eq!(len, 158);
+				assert_eq!(buffer.get_ref().len(), 158);
+			}
+
+			// Stip note from group and append to current file
+			{
+				let mut file = File::from(&mut buffer)
+					.await
+					.expect("Failed to parse buffer.");
+				let doc = Node::Group(Group::new(
+					Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()),
+					"Root",
+					Vec2::new(0., 0.),
+					vec![],
+				));
+				let len = file
+					.update_metadata_only(&mut buffer, &doc)
+					.await
+					.expect("Failed to write buffer.");
+				assert_eq!(len, 87);
+				assert_eq!(buffer.get_ref().len(), 221);
+			}
+
+			// Assert that note is gone
+			{
+				let mut file = File::from(&mut buffer)
+					.await
+					.expect("Failed to parse buffer.");
+				assert_eq!(file.header.version, 0);
+				assert_eq!(file.index.rows.len(), 1);
+				if let Ok(Node::Group(group)) = file.get_root_node(&mut buffer).await {
+					assert_eq!(*group.name, "Root");
+					assert_eq!(*group.position, Vec2::new(0., 0.));
+					assert_eq!(group.children.len(), 0);
+				} else {
+					panic!("Could not get node fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b");
+				}
+			}
+		});
+	}
+
+	#[test]
+	fn it_dumps_to_disk() {
+		block_on(async {
+			let mut buffer = fs::OpenOptions::new()
+				.truncate(true)
+				.create(true)
+				.write(true)
+				.open("it_dump_to_disk.pxlr")
+				.await
+				.expect("Could not open file.");
+			let doc = Node::Group(Group::new(
+				Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()),
+				"Root",
+				Vec2::new(0., 0.),
+				// vec![],
+				vec![Arc::new(DocumentNode::Note(Note::new(
+					Some(Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap()),
+					"Foo",
+					Vec2::new(0., 0.),
+				)))],
+			));
+			let mut file =
+				File::empty(Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap());
+			let len = file
+				.write(&mut buffer, &doc)
+				.await
+				.expect("Failed to write buffer.");
+			assert_eq!(len, 158);
+
+			buffer.sync_all().await.expect("Sync to disk.");
+
+			let metadata = buffer.metadata().await.expect("Could not get metadata.");
+			assert_eq!(metadata.len(), 158);
+
+			fs::remove_file("it_dump_to_disk.pxlr")
+				.await
+				.expect("Could not remove file.");
+		});
+	}
+
+	#[test]
+	fn it_reads_node_on_demand() {
 		block_on(async {
 			let doc = Node::Group(Group::new(
 				Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()),
@@ -395,257 +636,10 @@ mod tests {
 			}
 			if let Ok(Node::Group(doc)) = file.get_root_node(&mut buffer).await {
 				assert_eq!(*doc.name, "Root");
+				assert_eq!(doc.children.len(), 2);
 			} else {
 				panic!("Could not get root node");
 			}
 		});
 	}
-
-	// #[test]
-	// fn it_reads_empty_file() {
-	// 	block_on(async {
-	// 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(vec![
-	// 			0x50, 0x58, 0x4C, 0x52, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4B,
-	// 			0x26, 0xC4, 0x71, 0x30, 0x98, 0x4C, 0xCE, 0x9C, 0xDB, 0x9E, 0x77, 0xDB, 0xD3, 0x02,
-	// 			0xEF,
-	// 		]);
-	// 		let file = File::from(&mut buffer)
-	// 			.await
-	// 			.expect("Failed to parse buffer.");
-	// 		assert_eq!(file.header.version, 0);
-	// 		assert_eq!(
-	// 			file.index.table,
-	// 			parser::v0::PartitionTable {
-	// 				hash: Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap(),
-	// 				size: 0,
-	// 				root_child: 0,
-	// 			}
-	// 		);
-	// 		assert_eq!(file.index.rows.len(), 0);
-	// 	});
-	// }
-
-	// #[test]
-	// fn it_writes_reads_file() {
-	// 	block_on(async {
-	// 		let doc = Node::Group(Group::new(
-	// 			Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()),
-	// 			"Root",
-	// 			Vec2::new(0., 0.),
-	// 			// vec![],
-	// 			vec![Arc::new(DocumentNode::Note(Note::new(
-	// 				Some(Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap()),
-	// 				"Foo",
-	// 				Vec2::new(0., 0.),
-	// 			)))],
-	// 		));
-	// 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
-	// 		let mut file =
-	// 			File::empty(Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap());
-	// 		let len = file
-	// 			.write(&mut buffer, &doc)
-	// 			.await
-	// 			.expect("Failed to write buffer.");
-	// 		assert_eq!(len, 158);
-	// 		assert_eq!(buffer.get_ref().len(), 158);
-	// 		let mut file = File::from(&mut buffer)
-	// 			.await
-	// 			.expect("Failed to parse buffer.");
-	// 		assert_eq!(file.header.version, 0);
-	// 		assert_eq!(
-	// 			file.index.table,
-	// 			parser::v0::PartitionTable {
-	// 				hash: Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap(),
-	// 				size: 129,
-	// 				root_child: 1,
-	// 			}
-	// 		);
-	// 		assert_eq!(file.index.rows.len(), 2);
-	// 		if let Ok(Node::Group(group)) = file.get_root_node(&mut buffer).await {
-	// 			assert_eq!(
-	// 				group.id,
-	// 				Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()
-	// 			);
-	// 			assert_eq!(*group.name, "Root");
-	// 			assert_eq!(*group.position, Vec2::new(0., 0.));
-	// 			assert_eq!(group.children.len(), 1);
-	// 			if let DocumentNode::Note(note) = &**group.children.get(0).unwrap() {
-	// 				assert_eq!(*note.note, "Foo");
-	// 			} else {
-	// 				panic!("Could not get child 0");
-	// 			}
-	// 		} else {
-	// 			panic!("Could not get root node");
-	// 		}
-	// 	});
-	// }
-
-	// #[test]
-	// fn it_updates_reads_file() {
-	// 	block_on(async {
-	// 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
-	// 		// Init file
-	// 		{
-	// 			let doc = Node::Group(Group::new(
-	// 				Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()),
-	// 				"Root",
-	// 				Vec2::new(0., 0.),
-	// 				// vec![],
-	// 				vec![Arc::new(DocumentNode::Note(Note::new(
-	// 					Some(Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap()),
-	// 					"Foo",
-	// 					Vec2::new(0., 0.),
-	// 				)))],
-	// 			));
-	// 			let mut file =
-	// 				File::empty(Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap());
-	// 			let len = file
-	// 				.write(&mut buffer, &doc)
-	// 				.await
-	// 				.expect("Failed to write buffer.");
-	// 			assert_eq!(len, 158);
-	// 			assert_eq!(buffer.get_ref().len(), 158);
-	// 		}
-
-	// 		// Stip note from group and append to current file
-	// 		{
-	// 			let mut file = File::from(&mut buffer)
-	// 				.await
-	// 				.expect("Failed to parse buffer.");
-	// 			let doc = Node::Group(Group::new(
-	// 				Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()),
-	// 				"Root",
-	// 				Vec2::new(0., 0.),
-	// 				vec![],
-	// 			));
-	// 			let len = file
-	// 				.update(&mut buffer, &doc)
-	// 				.await
-	// 				.expect("Failed to write buffer.");
-	// 			assert_eq!(len, 87);
-	// 			assert_eq!(buffer.get_ref().len(), 245);
-	// 			println!("{:?}", file.index);
-	// 		}
-
-	// 		// Assert that note is gone
-	// 		{
-	// 			let mut file = File::from(&mut buffer)
-	// 				.await
-	// 				.expect("Failed to parse buffer.");
-	// 			assert_eq!(file.header.version, 0);
-	// 			assert_eq!(file.index.rows.len(), 1);
-	// 			if let Ok(Node::Group(group)) = file.get_root_node(&mut buffer).await {
-	// 				assert_eq!(*group.name, "Root");
-	// 				assert_eq!(*group.position, Vec2::new(0., 0.));
-	// 				assert_eq!(group.children.len(), 0);
-	// 			} else {
-	// 				panic!("Could not get node fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b");
-	// 			}
-	// 		}
-	// 	});
-	// }
-
-	// #[test]
-	// fn it_updates_metadata_only_reads_file() {
-	// 	block_on(async {
-	// 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
-	// 		// Init file
-	// 		{
-	// 			let doc = Node::Group(Group::new(
-	// 				Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()),
-	// 				"Root",
-	// 				Vec2::new(0., 0.),
-	// 				// vec![],
-	// 				vec![Arc::new(DocumentNode::Note(Note::new(
-	// 					Some(Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap()),
-	// 					"Foo",
-	// 					Vec2::new(0., 0.),
-	// 				)))],
-	// 			));
-	// 			let mut file =
-	// 				File::empty(Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap());
-	// 			let len = file
-	// 				.write(&mut buffer, &doc)
-	// 				.await
-	// 				.expect("Failed to write buffer.");
-	// 			assert_eq!(len, 158);
-	// 			assert_eq!(buffer.get_ref().len(), 158);
-	// 		}
-
-	// 		// Stip note from group and append to current file
-	// 		{
-	// 			let mut file = File::from(&mut buffer)
-	// 				.await
-	// 				.expect("Failed to parse buffer.");
-	// 			let doc = Node::Group(Group::new(
-	// 				Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()),
-	// 				"Root",
-	// 				Vec2::new(0., 0.),
-	// 				vec![],
-	// 			));
-	// 			let len = file
-	// 				.update_metadata_only(&mut buffer, &doc)
-	// 				.await
-	// 				.expect("Failed to write buffer.");
-	// 			assert_eq!(len, 87);
-	// 			assert_eq!(buffer.get_ref().len(), 221);
-	// 		}
-
-	// 		// Assert that note is gone
-	// 		{
-	// 			let mut file = File::from(&mut buffer)
-	// 				.await
-	// 				.expect("Failed to parse buffer.");
-	// 			assert_eq!(file.header.version, 0);
-	// 			assert_eq!(file.index.rows.len(), 1);
-	// 			if let Ok(Node::Group(group)) = file.get_root_node(&mut buffer).await {
-	// 				assert_eq!(*group.name, "Root");
-	// 				assert_eq!(*group.position, Vec2::new(0., 0.));
-	// 				assert_eq!(group.children.len(), 0);
-	// 			} else {
-	// 				panic!("Could not get node fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b");
-	// 			}
-	// 		}
-	// 	});
-	// }
-
-	// #[test]
-	// fn it_dumps_to_disk() {
-	// 	block_on(async {
-	// 		let mut buffer = fs::OpenOptions::new()
-	// 			.truncate(true)
-	// 			.create(true)
-	// 			.write(true)
-	// 			.open("it_dump_to_disk.bin")
-	// 			.await
-	// 			.expect("Could not open file.");
-	// 		let doc = Node::Group(Group::new(
-	// 			Some(Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap()),
-	// 			"Root",
-	// 			Vec2::new(0., 0.),
-	// 			// vec![],
-	// 			vec![Arc::new(DocumentNode::Note(Note::new(
-	// 				Some(Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap()),
-	// 				"Foo",
-	// 				Vec2::new(0., 0.),
-	// 			)))],
-	// 		));
-	// 		let mut file =
-	// 			File::empty(Uuid::parse_str("4b26c471-3098-4cce-9cdb-9e77dbd302ef").unwrap());
-	// 		let len = file
-	// 			.write(&mut buffer, &doc)
-	// 			.await
-	// 			.expect("Failed to write buffer.");
-	// 		assert_eq!(len, 158);
-
-	// 		buffer.sync_all().await.expect("Sync to disk.");
-
-	// 		let metadata = buffer.metadata().await.expect("Could not get metadata.");
-	// 		assert_eq!(metadata.len(), 158);
-
-	// 		fs::remove_file("it_dump_to_disk.bin")
-	// 			.await
-	// 			.expect("Could not remove file.");
-	// 	});
-	// }
 }
