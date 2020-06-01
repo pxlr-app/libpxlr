@@ -231,7 +231,6 @@ pub mod v0 {
 				ChunkType::CanvasRGB => 7,
 				ChunkType::CanvasRGBA => 8,
 				ChunkType::CanvasRGBAXYZ => 9,
-				_ => panic!("Unknown chunk type"),
 			};
 			storage.write_all(&index.to_le_bytes()).await?;
 			Ok(2)

@@ -1,8 +1,8 @@
-use super::range::MergeOverlapping;
+use super::range::{map_range_within_merged_ranges, MergeOverlapping};
 use super::range_bounds::RangeBounds;
 use crate::parser;
 use crate::parser::IParser;
-use async_trait::async_trait;
+use crate::ReadRanges;
 use collections::bitvec;
 use document::Node;
 use futures::io;
@@ -10,11 +10,6 @@ use nom::multi::many0;
 use std::collections::HashMap;
 use std::ops::Range;
 use uuid::Uuid;
-
-#[async_trait]
-pub trait ReadRanges {
-	async fn read_ranges(&mut self, ranges: Vec<Box<dyn RangeBounds<i64>>>) -> io::Result<Vec<u8>>;
-}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FileStorageError {
@@ -176,7 +171,7 @@ impl File {
 		storage.seek(io::SeekFrom::Start(0)).await?;
 		let mut size: usize = 0;
 		size += self.header.write(storage).await?;
-		size += self.write_node(storage, root, 0u64).await?;
+		size += self.write_node(storage, root, size as u64).await?;
 		self.index.table.root_child = (self.index.rows.len() as u32) - 1;
 		size += self.write_partition(storage).await?;
 		Ok(size)
@@ -257,34 +252,57 @@ impl File {
 			rows.reverse();
 
 			// Collect rows's chunk ranges
-			let ranges: Vec<Range<u64>> = rows
+			let ranges: Vec<Range<i64>> = rows
 				.iter()
+				.filter(|r| r.chunk_size > 0)
 				.map(|r| Range {
-					start: r.chunk_offset,
-					end: r.chunk_offset + (r.chunk_size as u64),
+					start: r.chunk_offset as i64,
+					end: r.chunk_offset as i64 + (r.chunk_size as i64) + 1,
 				})
 				.collect();
 
 			// Merge ranges into longest overlapping
 			let merged_ranges = ranges.merge_overlapping();
-			let size = merged_ranges
-				.iter()
-				.fold(0, |size, range| size + range.end - range.start);
 
-			println!("{:?} -> {:?} -> {}", ranges, merged_ranges, size);
+			// Map ranges to RangeBounds
+			let range_bounds: Vec<Box<dyn RangeBounds<i64> + std::marker::Send>> = merged_ranges
+				.iter()
+				.map(|r| {
+					Box::new(Range {
+						start: r.start,
+						end: r.end,
+					}) as _
+				})
+				.collect();
+
+			// Read buffer
+			let buffer = storage.read_ranges(range_bounds).await?;
 
 			// Parse node leaf-first
 			let mut dict: HashMap<u32, Node> = HashMap::new();
 			for row in rows.iter() {
 				let idx = *index.index_uuid.get(&row.id).unwrap() as u32;
-				let bytes: Vec<u8> = Vec::new();
+				let bytes: &[u8] = if row.chunk_size > 0 {
+					let range = Range {
+						start: row.chunk_offset as i64,
+						end: row.chunk_offset as i64 + row.chunk_size as i64,
+					};
+					let range = map_range_within_merged_ranges(range, &merged_ranges).unwrap();
+					let range: Range<usize> = Range {
+						start: range.start as usize,
+						end: range.end as usize,
+					};
+					&buffer[range]
+				} else {
+					&[]
+				};
 				let mut children: Vec<Node> = row
 					.children
 					.iter()
 					.filter_map(|idx| dict.remove(&idx))
 					.collect();
 				if let Ok((_, node)) =
-					<Node as parser::v0::IParser>::parse(row, &mut children, &bytes[..]).await
+					<Node as parser::v0::IParser>::parse(row, &mut children, &bytes).await
 				{
 					dict.insert(idx, node);
 				} else {
@@ -305,7 +323,7 @@ impl File {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::parser;
+	// use crate::parser;
 	use document::color::ColorMode;
 	use document::{sprite::Sprite, DocumentNode, Group, Node, Note};
 	use futures::{executor::block_on, io};
@@ -363,11 +381,23 @@ mod tests {
 				.await
 				.expect("Failed to write buffer.");
 
-			// if let Ok(Node::Group(doc)) = file.get_root_node(&mut buffer).await {
-			// 	assert_eq!(*doc.name, "Root");
-			// } else {
-			// 	panic!("Could not get root node");
-			// }
+			if let Ok(Node::LayerGroup(sprite)) = file
+				.get_node_by_uuid(
+					&mut buffer,
+					Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9392").unwrap(),
+				)
+				.await
+			{
+				assert_eq!(*sprite.name, "SpriteB");
+				assert_eq!(sprite.color_mode, ColorMode::RGB);
+			} else {
+				panic!("Could not get sprite.");
+			}
+			if let Ok(Node::Group(doc)) = file.get_root_node(&mut buffer).await {
+				assert_eq!(*doc.name, "Root");
+			} else {
+				panic!("Could not get root node");
+			}
 		});
 	}
 

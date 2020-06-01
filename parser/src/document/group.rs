@@ -1,7 +1,6 @@
 use crate::parser;
-use crate::parser::IParser;
 use async_trait::async_trait;
-use document::{DocumentNode, Group, INode, Node};
+use document::{DocumentNode, Group, Node};
 use futures::io;
 use math::Extent2;
 use nom::IResult;

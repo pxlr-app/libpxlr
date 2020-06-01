@@ -66,7 +66,6 @@ impl parser::v0::IParser for LayerNode {
 			LayerNode::CanvasRGBAXYZ(node) => node.write(index, storage, offset).await,
 			LayerNode::Sprite(node) => node.write(index, storage, offset).await,
 			LayerNode::Group(node) => node.write(index, storage, offset).await,
-			_ => unimplemented!(),
 		}
 	}
 }

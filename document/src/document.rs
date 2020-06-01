@@ -68,6 +68,7 @@ impl std::convert::TryFrom<Node> for DocumentNode {
 			Node::Group(node) => Ok(DocumentNode::Group(node)),
 			Node::Note(node) => Ok(DocumentNode::Note(node)),
 			Node::Sprite(node) => Ok(DocumentNode::Sprite(node)),
+			Node::LayerGroup(node) => Ok(DocumentNode::Sprite(node)),
 			_ => Err("Node is not a valid DocumentNode."),
 		}
 	}

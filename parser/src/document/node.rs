@@ -46,10 +46,9 @@ impl parser::v0::IParser for Node {
 			parser::v0::ChunkType::CanvasRGBA => CanvasRGBA::parse(row, children, bytes)
 				.await
 				.map(|(bytes, node)| (bytes, Node::CanvasRGBA(node))),
-			parser::v0::ChunkType::CanvasRGBA => CanvasRGBA::parse(row, children, bytes)
+			parser::v0::ChunkType::CanvasRGBAXYZ => CanvasRGBAXYZ::parse(row, children, bytes)
 				.await
-				.map(|(bytes, node)| (bytes, Node::CanvasRGBA(node))),
-			_ => unimplemented!(),
+				.map(|(bytes, node)| (bytes, Node::CanvasRGBAXYZ(node))),
 		}
 	}
 

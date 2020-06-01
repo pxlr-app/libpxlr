@@ -42,7 +42,6 @@ impl parser::v0::IParser for DocumentNode {
 			DocumentNode::Group(node) => node.write(index, storage, offset).await,
 			DocumentNode::Note(node) => node.write(index, storage, offset).await,
 			DocumentNode::Sprite(node) => node.write(index, storage, offset).await,
-			_ => unimplemented!(),
 		}
 	}
 }

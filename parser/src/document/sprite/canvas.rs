@@ -3,7 +3,7 @@ use crate::parser::IParser;
 use document::{
 	color::{I, IXYZ, RGB, RGBA, RGBAXYZ, UV},
 	sprite::{CanvasI, CanvasIXYZ, CanvasRGB, CanvasRGBA, CanvasRGBAXYZ, CanvasUV},
-	INode, Node,
+	Node,
 };
 use futures::io;
 use math::Extent2;

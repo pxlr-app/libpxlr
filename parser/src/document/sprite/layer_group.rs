@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use document::{
 	color::ColorMode,
 	sprite::{LayerGroup, LayerNode},
-	INode, Node,
+	Node,
 };
 use futures::io;
 use math::Extent2;
@@ -74,7 +74,7 @@ impl parser::v0::IParser for LayerGroup {
 		} else {
 			let row = parser::v0::PartitionTableRow {
 				id: self.id,
-				chunk_type: parser::v0::ChunkType::Group,
+				chunk_type: parser::v0::ChunkType::LayerGroup,
 				chunk_offset: offset as u64,
 				chunk_size: 2,
 				is_root: false,
