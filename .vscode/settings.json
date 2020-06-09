@@ -4,7 +4,12 @@
 	"debug.allowBreakpointsEverywhere": true,
 	"files.exclude": {
 		".cargo-husky": true,
-		"target": true
+		".editorconfig": true,
+		".gitignore": true,
+		".prettierrc": true,
+		"rustfmt.toml": true,
+		"target": true,
+		"Cargo.lock": true
 	},
 	"editor.formatOnSave": true,
 	"editor.defaultFormatter": "rust-lang.rust",
