@@ -9,12 +9,17 @@ edition = "2018"
 [dependencies]
 async-trait = "0.1.30"
 bitflags = "1.2.1"
+bytes = "0.5.4"
 collections = { path = "../collections" }
 document = { path = "../document" }
 futures = "0.3.5"
 math = { path = "../math" }
 nom = "5"
+reqwest = "0.10.6"
 uuid = { version = "0.8", features = ["serde", "stdweb", "v4"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = "0.2"
 
 [dev-dependencies]
 async-std = "1.6.0"

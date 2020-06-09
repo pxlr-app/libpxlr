@@ -258,7 +258,9 @@ impl File {
 			let merged_ranges = ranges.merge_overlapping();
 
 			// Map ranges to RangeBounds
-			let range_bounds: Vec<Box<dyn RangeBounds<i64> + std::marker::Send>> = merged_ranges
+			let range_bounds: Vec<
+				Box<dyn RangeBounds<i64> + std::marker::Send + std::marker::Sync>,
+			> = merged_ranges
 				.iter()
 				.map(|r| {
 					Box::new(Range {

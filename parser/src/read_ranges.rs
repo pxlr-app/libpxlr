@@ -7,7 +7,7 @@ use std::ops::Bound;
 pub trait ReadRanges {
 	async fn read_ranges(
 		&mut self,
-		ranges: Vec<Box<dyn RangeBounds<i64> + std::marker::Send>>,
+		ranges: Vec<Box<dyn RangeBounds<i64> + std::marker::Send + std::marker::Sync>>,
 	) -> io::Result<Vec<u8>>;
 }
 
@@ -18,7 +18,7 @@ where
 {
 	async fn read_ranges(
 		&mut self,
-		ranges: Vec<Box<dyn RangeBounds<i64> + std::marker::Send>>,
+		ranges: Vec<Box<dyn RangeBounds<i64> + std::marker::Send + std::marker::Sync>>,
 	) -> io::Result<Vec<u8>> {
 		let mut seek_sizes: Vec<(io::SeekFrom, u64)> = ranges
 			.iter()
