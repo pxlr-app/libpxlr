@@ -36,7 +36,7 @@ impl<'a, T> Iterator for StencilDataIterator<'a, T> {
 	}
 }
 
-pub trait Stencil {
+pub trait IStencil {
 	type Color: IColor;
 
 	fn new(size: Extent2<u32>, mask: BitVec, data: Vec<Self::Color>) -> Self;
@@ -81,7 +81,7 @@ macro_rules! define_stencil {
 			}
 		}
 
-		impl Stencil for $name {
+		impl IStencil for $name {
 			type Color = $color;
 
 			fn new(size: Extent2<u32>, mask: BitVec, data: Vec<Self::Color>) -> Self {
@@ -163,9 +163,8 @@ macro_rules! define_stencil {
 	};
 }
 
-define_stencil!(StencilI I);
-define_stencil!(StencilIXYZ IXYZ);
-define_stencil!(StencilUV UV);
+define_stencil!(StencilPalette Palette);
 define_stencil!(StencilRGB RGB);
-define_stencil!(StencilRGBA RGBA);
-define_stencil!(StencilRGBAXYZ RGBAXYZ);
+define_stencil!(StencilUV UV);
+define_stencil!(StencilAlpha Alpha);
+define_stencil!(StencilNormal Normal);

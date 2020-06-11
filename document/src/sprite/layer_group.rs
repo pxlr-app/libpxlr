@@ -1,4 +1,4 @@
-use crate::color::ColorMode;
+use crate::color::AlbedoMode;
 use crate::patch::*;
 use crate::sprite::*;
 use crate::{IDocument, INode};
@@ -15,7 +15,7 @@ pub struct LayerGroup {
 	pub is_locked: bool,
 	pub is_folded: bool,
 	pub name: Arc<String>,
-	pub color_mode: ColorMode,
+	pub albedo_mode: AlbedoMode,
 	pub children: Arc<Vec<Arc<LayerNode>>>,
 	pub position: Arc<Vec2<f32>>,
 	pub size: Arc<Extent2<u32>>,
@@ -46,7 +46,7 @@ impl LayerGroup {
 	pub fn new(
 		id: Option<Uuid>,
 		name: &str,
-		color_mode: ColorMode,
+		albedo_mode: AlbedoMode,
 		children: Vec<Arc<LayerNode>>,
 		position: Vec2<f32>,
 		size: Extent2<u32>,
@@ -57,7 +57,7 @@ impl LayerGroup {
 			is_locked: false,
 			is_folded: false,
 			name: Arc::new(name.to_owned()),
-			color_mode: color_mode,
+			albedo_mode: albedo_mode,
 			children: Arc::new(children),
 			position: Arc::new(position),
 			size: Arc::new(size),
@@ -304,7 +304,7 @@ impl IPatchable for LayerGroup {
 					is_locked: self.is_locked,
 					is_folded: self.is_folded,
 					name: Arc::new(patch.name.clone()),
-					color_mode: self.color_mode,
+					albedo_mode: self.albedo_mode,
 					position: self.position.clone(),
 					size: self.size.clone(),
 					children: self.children.clone(),
@@ -315,7 +315,7 @@ impl IPatchable for LayerGroup {
 					is_locked: self.is_locked,
 					is_folded: self.is_folded,
 					name: self.name.clone(),
-					color_mode: self.color_mode,
+					albedo_mode: self.albedo_mode,
 					position: self.position.clone(),
 					size: self.size.clone(),
 					children: self.children.clone(),
@@ -326,7 +326,7 @@ impl IPatchable for LayerGroup {
 					is_locked: patch.lock,
 					is_folded: self.is_folded,
 					name: self.name.clone(),
-					color_mode: self.color_mode,
+					albedo_mode: self.albedo_mode,
 					position: self.position.clone(),
 					size: self.size.clone(),
 					children: self.children.clone(),
@@ -337,13 +337,13 @@ impl IPatchable for LayerGroup {
 					is_locked: self.is_locked,
 					is_folded: patch.folded,
 					name: self.name.clone(),
-					color_mode: self.color_mode,
+					albedo_mode: self.albedo_mode,
 					position: self.position.clone(),
 					size: self.size.clone(),
 					children: self.children.clone(),
 				})),
 				Patch::AddLayer(patch) => {
-					assert_eq!(patch.child.color_mode(), self.color_mode);
+					assert_eq!(patch.child.albedo_mode(), self.albedo_mode);
 					let mut children = self
 						.children
 						.iter()
@@ -360,7 +360,7 @@ impl IPatchable for LayerGroup {
 						is_locked: self.is_locked,
 						is_folded: self.is_folded,
 						name: self.name.clone(),
-						color_mode: self.color_mode,
+						albedo_mode: self.albedo_mode,
 						position: self.position.clone(),
 						size: self.size.clone(),
 						children: Arc::new(children),
@@ -384,7 +384,7 @@ impl IPatchable for LayerGroup {
 						is_locked: self.is_locked,
 						is_folded: self.is_folded,
 						name: self.name.clone(),
-						color_mode: self.color_mode,
+						albedo_mode: self.albedo_mode,
 						position: self.position.clone(),
 						size: self.size.clone(),
 						children: Arc::new(children),
@@ -412,7 +412,7 @@ impl IPatchable for LayerGroup {
 						is_locked: self.is_locked,
 						is_folded: self.is_folded,
 						name: self.name.clone(),
-						color_mode: self.color_mode,
+						albedo_mode: self.albedo_mode,
 						position: self.position.clone(),
 						size: self.size.clone(),
 						children: Arc::new(children),
@@ -438,7 +438,7 @@ impl IPatchable for LayerGroup {
 						is_locked: self.is_locked,
 						is_folded: self.is_folded,
 						name: Arc::clone(&self.name),
-						color_mode: self.color_mode,
+						albedo_mode: self.albedo_mode,
 						position: Arc::clone(&self.position),
 						size: Arc::new(patch.size),
 						children: Arc::new(children),
@@ -464,7 +464,7 @@ impl IPatchable for LayerGroup {
 						is_locked: self.is_locked,
 						is_folded: self.is_folded,
 						name: Arc::clone(&self.name),
-						color_mode: self.color_mode,
+						albedo_mode: self.albedo_mode,
 						position: Arc::clone(&self.position),
 						size: Arc::new(patch.size),
 						children: Arc::new(children),
@@ -492,7 +492,7 @@ impl IPatchable for LayerGroup {
 					is_locked: self.is_locked,
 					is_folded: self.is_folded,
 					name: Arc::clone(&self.name),
-					color_mode: self.color_mode,
+					albedo_mode: self.albedo_mode,
 					position: Arc::clone(&self.position),
 					size: Arc::clone(&self.size),
 					children: Arc::new(children),

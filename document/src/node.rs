@@ -1,6 +1,4 @@
-use crate::sprite::{
-	CanvasI, CanvasIXYZ, CanvasRGB, CanvasRGBA, CanvasRGBAXYZ, CanvasUV, LayerGroup, Sprite,
-};
+use crate::sprite::{CanvasPalette, CanvasRGB, CanvasUV, LayerGroup, Sprite};
 use crate::{Group, Note};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -24,12 +22,9 @@ pub enum Node {
 	Note(Note),
 	Sprite(Sprite),
 	LayerGroup(LayerGroup),
-	CanvasI(CanvasI),
-	CanvasIXYZ(CanvasIXYZ),
-	CanvasUV(CanvasUV),
+	CanvasPalette(CanvasPalette),
 	CanvasRGB(CanvasRGB),
-	CanvasRGBA(CanvasRGBA),
-	CanvasRGBAXYZ(CanvasRGBAXYZ),
+	CanvasUV(CanvasUV),
 }
 
 impl Node {
@@ -40,12 +35,9 @@ impl Node {
 			Node::Group(node) => node.id,
 			Node::Sprite(node) => node.id,
 			Node::LayerGroup(node) => node.id,
-			Node::CanvasI(node) => node.id,
-			Node::CanvasIXYZ(node) => node.id,
-			Node::CanvasUV(node) => node.id,
+			Node::CanvasPalette(node) => node.id,
 			Node::CanvasRGB(node) => node.id,
-			Node::CanvasRGBA(node) => node.id,
-			Node::CanvasRGBAXYZ(node) => node.id,
+			Node::CanvasUV(node) => node.id,
 		}
 	}
 }
@@ -58,12 +50,9 @@ impl INode for Node {
 			Node::Group(node) => node.is_visible(),
 			Node::Sprite(node) => node.is_visible(),
 			Node::LayerGroup(node) => node.is_visible(),
-			Node::CanvasI(node) => node.is_visible(),
-			Node::CanvasIXYZ(node) => node.is_visible(),
-			Node::CanvasUV(node) => node.is_visible(),
+			Node::CanvasPalette(node) => node.is_visible(),
 			Node::CanvasRGB(node) => node.is_visible(),
-			Node::CanvasRGBA(node) => node.is_visible(),
-			Node::CanvasRGBAXYZ(node) => node.is_visible(),
+			Node::CanvasUV(node) => node.is_visible(),
 		}
 	}
 	fn is_locked(&self) -> bool {
@@ -73,12 +62,9 @@ impl INode for Node {
 			Node::Group(node) => node.is_locked(),
 			Node::Sprite(node) => node.is_locked(),
 			Node::LayerGroup(node) => node.is_locked(),
-			Node::CanvasI(node) => node.is_locked(),
-			Node::CanvasIXYZ(node) => node.is_locked(),
-			Node::CanvasUV(node) => node.is_locked(),
+			Node::CanvasPalette(node) => node.is_locked(),
 			Node::CanvasRGB(node) => node.is_locked(),
-			Node::CanvasRGBA(node) => node.is_locked(),
-			Node::CanvasRGBAXYZ(node) => node.is_locked(),
+			Node::CanvasUV(node) => node.is_locked(),
 		}
 	}
 	fn is_folded(&self) -> bool {
@@ -88,12 +74,9 @@ impl INode for Node {
 			Node::Group(node) => node.is_folded(),
 			Node::Sprite(node) => node.is_folded(),
 			Node::LayerGroup(node) => node.is_folded(),
-			Node::CanvasI(node) => node.is_folded(),
-			Node::CanvasIXYZ(node) => node.is_folded(),
-			Node::CanvasUV(node) => node.is_folded(),
+			Node::CanvasPalette(node) => node.is_folded(),
 			Node::CanvasRGB(node) => node.is_folded(),
-			Node::CanvasRGBA(node) => node.is_folded(),
-			Node::CanvasRGBAXYZ(node) => node.is_folded(),
+			Node::CanvasUV(node) => node.is_folded(),
 		}
 	}
 }

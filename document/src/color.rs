@@ -9,13 +9,8 @@ pub trait IColor: Copy {}
 
 macro_rules! define_colors {
 	{$(
-		$idx:expr, $color:ident, ($($name:ident:$type:ty:$reader:ident),+);
+		$color:ident, ($($name:ident:$type:ty:$reader:ident),+);
 	)+} => {
-
-		#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-		pub enum ColorMode {
-			$($color),+
-		}
 
 		$(
 			#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -111,11 +106,17 @@ macro_rules! define_colors {
 	}
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum AlbedoMode {
+	Palette,
+	RGB,
+	UV,
+}
+
 define_colors! {
-	0, I, (i:u8:le_u8);
-	1, IXYZ, (i:u8:le_u8, x:f32:le_f32, y:f32:le_f32, z:f32:le_f32);
-	2, UV, (u:f32:le_f32, v:f32:le_f32);
-	3, RGB, (r:u8:le_u8, g:u8:le_u8, b:u8:le_u8);
-	4, RGBA, (r:u8:le_u8, g:u8:le_u8, b:u8:le_u8, a:u8:le_u8);
-	5, RGBAXYZ, (r:u8:le_u8, g:u8:le_u8, b:u8:le_u8, a:u8:le_u8, x:f32:le_f32, y:f32:le_f32, z:f32:le_f32);
+	Palette, (i:u8:le_u8);
+	RGB, (r:u8:le_u8, g:u8:le_u8, b:u8:le_u8);
+	Alpha, (a:f32:le_f32);
+	UV, (u:f32:le_f32, v:f32:le_f32);
+	Normal, (x:f32:le_f32, y:f32:le_f32, z:f32:le_f32);
 }
