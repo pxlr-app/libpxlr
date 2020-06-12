@@ -7,15 +7,14 @@ use uuid::Uuid;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RestoreLayerCanvasPatch<A>
 where
-	A: IColor, {
+	A: IColor,
+{
 	pub target: Uuid,
 	pub name: String,
 	pub size: Extent2<u32>,
-	pub albedo: Vec<A>,
-	pub alpha: Vec<Alpha>,
+	pub color: Vec<A>,
+	pub has_normal: bool,
 	pub normal: Vec<Normal>,
 }
 
-impl<A> IPatch for RestoreLayerCanvasPatch<A>
-where
-	A: IColor, {}
+impl<A> IPatch for RestoreLayerCanvasPatch<A> where A: IColor {}

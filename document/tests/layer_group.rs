@@ -1,4 +1,4 @@
-use document::color::{ColorMode, I};
+use document::color::{*};
 use document::patch::{IPatchable, Renamable};
 use document::sprite::*;
 use math::interpolation::Interpolation;
@@ -10,16 +10,17 @@ fn it_adds_child() {
 	let g1 = LayerGroup::new(
 		None,
 		"group",
-		ColorMode::I,
+		ColorMode::Palette,
 		vec![],
 		Vec2::new(0., 0.),
 		Extent2::new(4u32, 4u32),
 	);
-	let c1 = Arc::new(LayerNode::CanvasI(CanvasI::new(
+	let c1 = Arc::new(LayerNode::CanvasPalette(CanvasPalette::new(
 		None,
 		"canvas",
 		Extent2::new(2u32, 2u32),
-		vec![I::new(255), I::new(128), I::new(64), I::new(32)],
+		vec![Palette::new(255), Palette::new(128), Palette::new(64), Palette::new(32)],
+		Vec::new(),
 	)));
 
 	let (patch, _) = g1.add_layer(c1.clone()).unwrap();
@@ -34,21 +35,22 @@ fn it_removes_child() {
 	let g1 = LayerGroup::new(
 		None,
 		"group",
-		ColorMode::I,
-		vec![Arc::new(LayerNode::CanvasI(CanvasI::new(
+		ColorMode::Palette,
+		vec![Arc::new(LayerNode::CanvasPalette(CanvasPalette::new(
 			None,
 			"canvas",
 			Extent2::new(2u32, 2u32),
-			vec![I::new(255), I::new(128), I::new(64), I::new(32)],
+			vec![Palette::new(255), Palette::new(128), Palette::new(64), Palette::new(32)],
+			Vec::new(),
 		)))],
 		Vec2::new(0., 0.),
 		Extent2::new(4u32, 4u32),
 	);
 
-	let c1 = if let LayerNode::CanvasI(node) = &**g1.children.get(0).unwrap() {
+	let c1 = if let LayerNode::CanvasPalette(node) = &**g1.children.get(0).unwrap() {
 		node
 	} else {
-		panic!("Note a CanvasI");
+		panic!("Note a CanvasPalette");
 	};
 
 	let (patch, _) = g1.remove_layer(c1.id).unwrap();
@@ -60,37 +62,39 @@ fn it_removes_child() {
 
 #[test]
 fn it_moves_child() {
-	let rc1 = Arc::new(LayerNode::CanvasI(CanvasI::new(
+	let rc1 = Arc::new(LayerNode::CanvasPalette(CanvasPalette::new(
 		None,
 		"canvas_a",
 		Extent2::new(2u32, 2u32),
-		vec![I::new(255), I::new(128), I::new(64), I::new(32)],
+		vec![Palette::new(255), Palette::new(128), Palette::new(64), Palette::new(32)],
+		Vec::new(),
 	)));
-	let rc2 = Arc::new(LayerNode::CanvasI(CanvasI::new(
+	let rc2 = Arc::new(LayerNode::CanvasPalette(CanvasPalette::new(
 		None,
 		"canvas_b",
 		Extent2::new(2u32, 2u32),
-		vec![I::new(255), I::new(128), I::new(64), I::new(32)],
+		vec![Palette::new(255), Palette::new(128), Palette::new(64), Palette::new(32)],
+		Vec::new(),
 	)));
 	let g1 = LayerGroup::new(
 		None,
 		"group",
-		ColorMode::I,
+		ColorMode::Palette,
 		vec![rc1.clone(), rc2.clone()],
 		Vec2::new(0., 0.),
 		Extent2::new(4u32, 4u32),
 	);
 
-	let c1 = if let LayerNode::CanvasI(node) = &**g1.children.get(0).unwrap() {
+	let c1 = if let LayerNode::CanvasPalette(node) = &**g1.children.get(0).unwrap() {
 		node
 	} else {
-		panic!("Note a CanvasI");
+		panic!("Note a CanvasPalette");
 	};
 
-	let c2 = if let LayerNode::CanvasI(node) = &**g1.children.get(1).unwrap() {
+	let c2 = if let LayerNode::CanvasPalette(node) = &**g1.children.get(1).unwrap() {
 		node
 	} else {
-		panic!("Note a CanvasI");
+		panic!("Note a CanvasPalette");
 	};
 
 	let (patch, _) = g1.move_layer(c2.id, 0).unwrap();
@@ -103,47 +107,49 @@ fn it_moves_child() {
 
 #[test]
 fn it_patchs_child() {
-	let rc1 = Arc::new(LayerNode::CanvasI(CanvasI::new(
+	let rc1 = Arc::new(LayerNode::CanvasPalette(CanvasPalette::new(
 		None,
 		"canvas_a",
 		Extent2::new(2u32, 2u32),
-		vec![I::new(255), I::new(128), I::new(64), I::new(32)],
+		vec![Palette::new(255), Palette::new(128), Palette::new(64), Palette::new(32)],
+		Vec::new(),
 	)));
-	let rc2 = Arc::new(LayerNode::CanvasI(CanvasI::new(
+	let rc2 = Arc::new(LayerNode::CanvasPalette(CanvasPalette::new(
 		None,
 		"canvas_b",
 		Extent2::new(2u32, 2u32),
-		vec![I::new(32), I::new(64), I::new(128), I::new(255)],
+		vec![Palette::new(32), Palette::new(64), Palette::new(128), Palette::new(255)],
+		Vec::new(),
 	)));
 	let g1 = LayerGroup::new(
 		None,
 		"group",
-		ColorMode::I,
+		ColorMode::Palette,
 		vec![rc1.clone(), rc2.clone()],
 		Vec2::new(0., 0.),
 		Extent2::new(4u32, 4u32),
 	);
 
-	let (patch, _) = if let LayerNode::CanvasI(node) = &**g1.children.get(0).unwrap() {
+	let (patch, _) = if let LayerNode::CanvasPalette(node) = &**g1.children.get(0).unwrap() {
 		node.rename("canvas_aa").unwrap()
 	} else {
-		panic!("Note a CanvasI");
+		panic!("Note a CanvasPalette");
 	};
 	let g2 = g1.patch(&patch).unwrap();
 
 	assert_eq!(Arc::strong_count(&rc1), 2);
 	assert_eq!(Arc::strong_count(&rc2), 3);
 
-	let c1 = if let LayerNode::CanvasI(node) = &**g2.children.get(0).unwrap() {
+	let c1 = if let LayerNode::CanvasPalette(node) = &**g2.children.get(0).unwrap() {
 		node
 	} else {
-		panic!("Note a CanvasI");
+		panic!("Note a CanvasPalette");
 	};
 
-	let c2 = if let LayerNode::CanvasI(node) = &**g2.children.get(1).unwrap() {
+	let c2 = if let LayerNode::CanvasPalette(node) = &**g2.children.get(1).unwrap() {
 		node
 	} else {
-		panic!("Note a CanvasI");
+		panic!("Note a CanvasPalette");
 	};
 
 	assert_eq!(*c1.name, "canvas_aa");
@@ -156,26 +162,26 @@ fn it_patchs_child() {
 
 	assert_eq!(*g2.size, Extent2::new(4, 1));
 
-	let c1 = if let LayerNode::CanvasI(node) = &**g2.children.get(0).unwrap() {
+	let c1 = if let LayerNode::CanvasPalette(node) = &**g2.children.get(0).unwrap() {
 		node
 	} else {
-		panic!("Note a CanvasI");
+		panic!("Note a CanvasPalette");
 	};
 
-	let c2 = if let LayerNode::CanvasI(node) = &**g2.children.get(1).unwrap() {
+	let c2 = if let LayerNode::CanvasPalette(node) = &**g2.children.get(1).unwrap() {
 		node
 	} else {
-		panic!("Note a CanvasI");
+		panic!("Note a CanvasPalette");
 	};
 
 	assert_eq!(*c1.size, Extent2::new(4, 1));
 	assert_eq!(*c2.size, Extent2::new(4, 1));
 	assert_eq!(
-		*c1.data,
-		vec![I::new(255), I::new(255), I::new(64), I::new(64)]
+		*c1.color,
+		vec![Palette::new(255), Palette::new(255), Palette::new(64), Palette::new(64)]
 	);
 	assert_eq!(
-		*c2.data,
-		vec![I::new(32), I::new(32), I::new(128), I::new(128)]
+		*c2.color,
+		vec![Palette::new(32), Palette::new(32), Palette::new(128), Palette::new(128)]
 	);
 }

@@ -7,7 +7,6 @@ use math::interpolation::*;
 use math::{Extent2, Mat2, Vec2};
 use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
-use std::ops::Index;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -25,8 +24,8 @@ macro_rules! define_canvas {
 			pub is_locked: bool,
 			pub name: Arc<String>,
 			pub size: Arc<Extent2<u32>>,
-			pub albedo: Arc<Vec<$color>>,
-			pub alpha: Arc<Vec<Alpha>>,
+			pub color: Arc<Vec<$color>>,
+			pub has_normal: bool,
 			pub normal: Arc<Vec<Normal>>,
 		}
 
@@ -35,20 +34,25 @@ macro_rules! define_canvas {
 				id: Option<Uuid>,
 				name: &str,
 				size: Extent2<u32>,
-				albedo: Vec<$color>,
-				alpha: Vec<Alpha>,
+				color: Vec<$color>,
 				normal: Vec<Normal>,
 			) -> $name {
+				assert_eq!(color.len(), (size.w * size.h) as usize);
+				assert_eq!(normal.len() == 0 || normal.len() == (size.w * size.h) as usize, true);
 				$name {
 					id: id.or(Some(Uuid::new_v4())).unwrap(),
 					is_visible: true,
 					is_locked: false,
 					name: Arc::new(name.to_owned()),
 					size: Arc::new(size),
-					albedo: Arc::new(albedo),
-					alpha: Arc::new(alpha),
+					color: Arc::new(color),
+					has_normal: normal.len() > 0,
 					normal: Arc::new(normal),
 				}
+			}
+
+			pub fn get_2d_index(&self, x: u32, y: u32) -> usize {
+				(y * self.size.w + x) as usize
 			}
 
 			pub fn apply_stencil(
@@ -70,34 +74,8 @@ macro_rules! define_canvas {
 						target: self.id,
 						name: (*self.name).to_owned(),
 						size: (*self.size).clone(),
-						albedo: (*self.albedo).to_owned(),
-						alpha: (*self.alpha).to_owned(),
-						normal: (*self.normal).to_owned(),
-					}),
-				)
-			}
-
-			pub fn apply_alpha_stencil(
-				&self,
-				offset: Vec2<u32>,
-				blend_mode: BlendMode,
-				stencil: StencilAlpha,
-			) -> (Patch, Patch) {
-				assert_eq!(stencil.size.w + offset.x <= self.size.w, true);
-				assert_eq!(stencil.size.h + offset.y <= self.size.h, true);
-				(
-					Patch::ApplyStencilAlpha(ApplyStencilPatch {
-						target: self.id,
-						offset: offset,
-						blend_mode: blend_mode,
-						stencil: stencil,
-					}),
-					Patch::$patchrestorepatch($restorepatch {
-						target: self.id,
-						name: (*self.name).to_owned(),
-						size: (*self.size).clone(),
-						albedo: (*self.albedo).to_owned(),
-						alpha: (*self.alpha).to_owned(),
+						color: (*self.color).to_owned(),
+						has_normal: self.has_normal,
 						normal: (*self.normal).to_owned(),
 					}),
 				)
@@ -122,8 +100,8 @@ macro_rules! define_canvas {
 						target: self.id,
 						name: (*self.name).to_owned(),
 						size: (*self.size).clone(),
-						albedo: (*self.albedo).to_owned(),
-						alpha: (*self.alpha).to_owned(),
+						color: (*self.color).to_owned(),
+						has_normal: self.has_normal,
 						normal: (*self.normal).to_owned(),
 					}),
 				)
@@ -134,15 +112,6 @@ macro_rules! define_canvas {
 			type Color = $color;
 			type Stencil = $stencil;
 		}
-
-		// impl Index<(u32, u32)> for $name {
-		// 	type Output = ($color, Option<Alpha>, Option<Normal>);
-
-		// 	fn index(&self, (x, y): (u32, u32)) -> (&$color, Option<&Alpha>, Option<&Normal>) {
-		// 		let i = (y * self.size.w + x) as usize;
-		// 		(&self.albedo[i], &self.alpha[i], &self.normal[i])
-		// 	}
-		// }
 
 		impl ILayer for $name {
 			fn crop(
@@ -165,8 +134,8 @@ macro_rules! define_canvas {
 							target: self.id,
 							name: (*self.name).to_owned(),
 							size: (*self.size).clone(),
-							albedo: (*self.albedo).to_owned(),
-							alpha: (*self.alpha).to_owned(),
+							color: (*self.color).to_owned(),
+							has_normal: self.has_normal,
 							normal: (*self.normal).to_owned(),
 						}),
 					))
@@ -191,8 +160,8 @@ macro_rules! define_canvas {
 							target: self.id,
 							name: (*self.name).to_owned(),
 							size: (*self.size).clone(),
-							albedo: (*self.albedo).to_owned(),
-							alpha: (*self.alpha).to_owned(),
+							color: (*self.color).to_owned(),
+							has_normal: self.has_normal,
 							normal: (*self.normal).to_owned(),
 						}),
 					))
@@ -275,8 +244,8 @@ macro_rules! define_canvas {
 							is_locked: self.is_locked,
 							name: Arc::new(patch.name.clone()),
 							size: self.size.clone(),
-							albedo: self.albedo.clone(),
-							alpha: self.alpha.clone(),
+							color: self.color.clone(),
+							has_normal: self.has_normal,
 							normal: self.normal.clone(),
 						})),
 						Patch::SetVisibility(patch) => Some(Box::new($name {
@@ -285,8 +254,8 @@ macro_rules! define_canvas {
 							is_locked: self.is_locked,
 							name: self.name.clone(),
 							size: self.size.clone(),
-							albedo: self.albedo.clone(),
-							alpha: self.alpha.clone(),
+							color: self.color.clone(),
+							has_normal: self.has_normal,
 							normal: self.normal.clone(),
 						})),
 						Patch::SetLock(patch) => Some(Box::new($name {
@@ -295,78 +264,127 @@ macro_rules! define_canvas {
 							is_locked: patch.lock,
 							name: self.name.clone(),
 							size: self.size.clone(),
-							albedo: self.albedo.clone(),
-							alpha: self.alpha.clone(),
+							color: self.color.clone(),
+							has_normal: self.has_normal,
 							normal: self.normal.clone(),
 						})),
-						// Patch::CropLayer(patch) => {
-						// 	assert_eq!(patch.size.w + patch.offset.x <= self.size.w, true);
-						// 	assert_eq!(patch.size.h + patch.offset.y <= self.size.h, true);
-						// 	let mut data =
-						// 		vec![Default::default(); (patch.size.w * patch.size.h) as usize];
-						// 	for i in 0..data.len() {
-						// 		let x = patch.offset.x + ((i as u32) % patch.size.w);
-						// 		let y = patch.offset.y + ((i as u32) / patch.size.w);
-						// 		data[i] = self[(x, y)];
-						// 	}
-						// 	Some(Box::new($name {
-						// 		id: self.id,
-						// 		is_visible: self.is_visible,
-						// 		is_locked: self.is_locked,
-						// 		name: self.name.clone(),
-						// 		size: Arc::new(patch.size),
-						// 		data: Arc::new(data),
-						// 	}))
-						// },
+						Patch::CropLayer(patch) => {
+							assert_eq!(patch.size.w + patch.offset.x <= self.size.w, true);
+							assert_eq!(patch.size.h + patch.offset.y <= self.size.h, true);
+							let mut color =
+								vec![Default::default(); (patch.size.w * patch.size.h) as usize];
+							let mut normal = if (self.has_normal) {
+								vec![Default::default(); (patch.size.w * patch.size.h) as usize]
+							} else {
+								Vec::new()
+							};
+							let len = color.len();
+							for i in 0..len {
+								let x = patch.offset.x + ((i as u32) % patch.size.w);
+								let y = patch.offset.y + ((i as u32) / patch.size.w);
+								let j = self.get_2d_index(x, y);
+								color[i] = self.color[j];
+								if (self.has_normal) {
+									normal[i] = self.normal[j];
+								}
+							}
+							Some(Box::new($name {
+								id: self.id,
+								is_visible: self.is_visible,
+								is_locked: self.is_locked,
+								name: self.name.clone(),
+								size: Arc::new(patch.size),
+								color: Arc::new(color),
+								has_normal: self.has_normal,
+								normal: Arc::new(normal),
+							}))
+						},
 						Patch::$patchrestorepatch(patch) => Some(Box::new($name {
 							id: self.id,
 							is_visible: self.is_visible,
 							is_locked: self.is_locked,
 							name: Arc::new(patch.name.to_owned()),
 							size: Arc::new(patch.size),
-							albedo: Arc::new(patch.albedo.to_owned()),
-							alpha: Arc::new(patch.alpha.to_owned()),
+							color: Arc::new(patch.color.to_owned()),
+							has_normal: self.has_normal,
 							normal: Arc::new(patch.normal.to_owned()),
 						})),
-						// Patch::ResizeLayer(patch) => {
-						// 	let mut data =
-						// 		vec![Default::default(); (patch.size.w * patch.size.h) as usize];
-						// 	patch.interpolation.interpolate(
-						// 		&self.size,
-						// 		&self.data,
-						// 		&patch.size,
-						// 		&mut data,
-						// 		Mat2::scaling_2d(Vec2::new(
-						// 			((self.size.w - 1) as f32) / (patch.size.w as f32),
-						// 			((self.size.h - 1) as f32) / (patch.size.h as f32),
-						// 		)),
-						// 	);
-						// 	Some(Box::new($name {
-						// 		id: self.id,
-						// 		is_visible: self.is_visible,
-						// 		is_locked: self.is_locked,
-						// 		name: self.name.clone(),
-						// 		size: Arc::new(patch.size),
-						// 		data: Arc::new(data),
-						// 	}))
-						// },
-						// Patch::$patchstencilpatch(patch) => {
-						// 	let mut data: Vec<$color> = Vec::from_iter(self.data.iter().cloned());
-						// 	for (x, y, d) in patch.stencil.iter() {
-						// 		let x = x + patch.offset.x;
-						// 		let y = y + patch.offset.y;
-						// 		let i = (x * self.size.h + y) as usize;
-						// 		data[i] = Blend::blend(&self.data[i], &d, &patch.blend_mode);
-						// 	}
-						// 	Some(Box::new($name {
-						// 		id: self.id,
-						// 		is_visible: self.is_visible,
-						// 		is_locked: self.is_locked,
-						// 		name: self.name.clone(),
-						// 		size: self.size.clone(),
-						// 		data: Arc::new(data),
-						// 	}))
-						// }
+						Patch::ResizeLayer(patch) => {
+							let mat = Mat2::scaling_2d(Vec2::new(
+								((self.size.w - 1) as f32) / (patch.size.w as f32),
+								((self.size.h - 1) as f32) / (patch.size.h as f32),
+							));
+							let mut color =
+								vec![Default::default(); (patch.size.w * patch.size.h) as usize];
+							patch.interpolation.interpolate(
+								&self.size,
+								&self.color,
+								&patch.size,
+								&mut color,
+								mat,
+							);
+							let normal = if (self.has_normal) {
+								let mut normal = vec![Default::default(); (patch.size.w * patch.size.h) as usize];
+								patch.interpolation.interpolate(
+									&self.size,
+									&self.normal,
+									&patch.size,
+									&mut normal,
+									mat,
+								);
+								normal
+							} else {
+								Vec::new()
+							};
+							Some(Box::new($name {
+								id: self.id,
+								is_visible: self.is_visible,
+								is_locked: self.is_locked,
+								name: self.name.clone(),
+								size: Arc::new(patch.size),
+								color: Arc::new(color),
+								has_normal: self.has_normal,
+								normal: Arc::new(normal),
+							}))
+						},
+						Patch::$patchstencilpatch(patch) => {
+							let mut color: Vec<$color> = Vec::from_iter(self.color.iter().cloned());
+							for (x, y, d) in patch.stencil.iter() {
+								let x = x + patch.offset.x;
+								let y = y + patch.offset.y;
+								let i = (x * self.size.h + y) as usize;
+								color[i] = Blend::blend(&self.color[i], &d, &patch.blend_mode);
+							}
+							Some(Box::new($name {
+								id: self.id,
+								is_visible: self.is_visible,
+								is_locked: self.is_locked,
+								name: self.name.clone(),
+								size: self.size.clone(),
+								color: Arc::new(color),
+								has_normal: self.has_normal,
+								normal: self.normal.clone(),
+							}))
+						},
+						Patch::ApplyStencilNormal(patch) => {
+							let mut normal: Vec<Normal> = Vec::from_iter(self.normal.iter().cloned());
+							for (x, y, d) in patch.stencil.iter() {
+								let x = x + patch.offset.x;
+								let y = y + patch.offset.y;
+								let i = (x * self.size.h + y) as usize;
+								normal[i] = Blend::blend(&self.normal[i], &d, &patch.blend_mode);
+							}
+							Some(Box::new($name {
+								id: self.id,
+								is_visible: self.is_visible,
+								is_locked: self.is_locked,
+								name: self.name.clone(),
+								size: self.size.clone(),
+								color: self.color.clone(),
+								has_normal: self.has_normal,
+								normal: Arc::new(normal),
+							}))
+						},
 						_ => None,
 					};
 				}
@@ -377,5 +395,5 @@ macro_rules! define_canvas {
 }
 
 define_canvas!(CanvasPalette, Palette, StencilPalette, ApplyStencilPatch, ApplyStencilPalette, RestoreLayerCanvasPatch, RestoreLayerCanvasPalette);
-define_canvas!(CanvasRGB, RGB, StencilRGB, ApplyStencilPatch, ApplyStencilRGB, RestoreLayerCanvasPatch, RestoreLayerCanvasRGB);
+define_canvas!(CanvasRGBA, RGBA, StencilRGBA, ApplyStencilPatch, ApplyStencilRGBA, RestoreLayerCanvasPatch, RestoreLayerCanvasRGBA);
 define_canvas!(CanvasUV, UV, StencilUV, ApplyStencilPatch, ApplyStencilUV, RestoreLayerCanvasPatch, RestoreLayerCanvasUV);

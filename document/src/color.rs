@@ -107,16 +107,15 @@ macro_rules! define_colors {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum AlbedoMode {
+pub enum ColorMode {
 	Palette,
-	RGB,
+	RGBA,
 	UV,
 }
 
 define_colors! {
 	Palette, (i:u8:le_u8);
-	RGB, (r:u8:le_u8, g:u8:le_u8, b:u8:le_u8);
-	Alpha, (a:f32:le_f32);
-	UV, (u:f32:le_f32, v:f32:le_f32);
+	RGBA, (r:u8:le_u8, g:u8:le_u8, b:u8:le_u8, a:u8:le_u8);
+	UV, (u:f32:le_f32, v:f32:le_f32, a:u8:le_u8);
 	Normal, (x:f32:le_f32, y:f32:le_f32, z:f32:le_f32);
 }

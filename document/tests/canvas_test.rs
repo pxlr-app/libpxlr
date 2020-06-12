@@ -1,48 +1,51 @@
 use collections::bitvec;
-use document::color::I;
+use document::color::*;
 use document::patch::IPatchable;
-use document::sprite::{CanvasI, ILayer, StencilI};
+use document::sprite::*;
 use math::blend::*;
 use math::interpolation::*;
 use math::{Extent2, Vec2};
 
 #[test]
 fn from_buffer() {
-	let c1 = CanvasI::new(
+	let c1 = CanvasPalette::new(
 		None,
 		"canvas",
 		Extent2::new(2u32, 2u32),
-		vec![I::new(255), I::new(128), I::new(64), I::new(32)],
+		vec![Palette::new(255), Palette::new(128), Palette::new(64), Palette::new(32)],
+		Vec::new(),
 	);
 
 	assert_eq!(
-		*c1.data,
-		vec![I::new(255), I::new(128), I::new(64), I::new(32)]
+		*c1.color,
+		vec![Palette::new(255), Palette::new(128), Palette::new(64), Palette::new(32)]
 	);
 }
 
 #[test]
 fn it_crops() {
-	let c1 = CanvasI::new(
+	let c1 = CanvasPalette::new(
 		None,
 		"canvas",
 		Extent2::new(2u32, 2u32),
-		vec![I::new(255), I::new(128), I::new(64), I::new(32)],
+		vec![Palette::new(255), Palette::new(128), Palette::new(64), Palette::new(32)],
+		Vec::new(),
 	);
 
 	let (patch, _) = c1.crop(Vec2::new(1, 0), Extent2::new(1, 2)).unwrap();
 	let c2 = c1.patch(&patch).unwrap();
 
-	assert_eq!(*c2.data, vec![I::new(128), I::new(32)]);
+	assert_eq!(*c2.color, vec![Palette::new(128), Palette::new(32)]);
 }
 
 #[test]
 fn it_resizes() {
-	let c1 = CanvasI::new(
+	let c1 = CanvasPalette::new(
 		None,
 		"canvas",
 		Extent2::new(2u32, 2u32),
-		vec![I::new(255), I::new(128), I::new(64), I::new(32)],
+		vec![Palette::new(255), Palette::new(128), Palette::new(64), Palette::new(32)],
+		Vec::new(),
 	);
 
 	let (patch, _) = c1
@@ -51,24 +54,24 @@ fn it_resizes() {
 	let c2 = c1.patch(&patch).unwrap();
 
 	assert_eq!(
-		*c2.data,
+		*c2.color,
 		vec![
-			I::new(255),
-			I::new(255),
-			I::new(128),
-			I::new(128),
-			I::new(255),
-			I::new(255),
-			I::new(128),
-			I::new(128),
-			I::new(64),
-			I::new(64),
-			I::new(32),
-			I::new(32),
-			I::new(64),
-			I::new(64),
-			I::new(32),
-			I::new(32)
+			Palette::new(255),
+			Palette::new(255),
+			Palette::new(128),
+			Palette::new(128),
+			Palette::new(255),
+			Palette::new(255),
+			Palette::new(128),
+			Palette::new(128),
+			Palette::new(64),
+			Palette::new(64),
+			Palette::new(32),
+			Palette::new(32),
+			Palette::new(64),
+			Palette::new(64),
+			Palette::new(32),
+			Palette::new(32)
 		]
 	);
 
@@ -77,24 +80,24 @@ fn it_resizes() {
 		.unwrap();
 	let c2 = c1.patch(&patch).unwrap();
 	assert_eq!(
-		*c2.data,
+		*c2.color,
 		vec![
-			I::new(255),
-			I::new(31),
-			I::new(63),
-			I::new(95),
-			I::new(15),
-			I::new(53),
-			I::new(91),
-			I::new(129),
-			I::new(31),
-			I::new(75),
-			I::new(119),
-			I::new(163),
-			I::new(47),
-			I::new(97),
-			I::new(147),
-			I::new(197)
+			Palette::new(255),
+			Palette::new(31),
+			Palette::new(63),
+			Palette::new(95),
+			Palette::new(15),
+			Palette::new(53),
+			Palette::new(91),
+			Palette::new(129),
+			Palette::new(31),
+			Palette::new(75),
+			Palette::new(119),
+			Palette::new(163),
+			Palette::new(47),
+			Palette::new(97),
+			Palette::new(147),
+			Palette::new(197)
 		]
 	);
 
@@ -103,44 +106,45 @@ fn it_resizes() {
 		.unwrap();
 	let c2 = c1.patch(&patch).unwrap();
 
-	assert_eq!(*c2.data, vec![I::new(255), I::new(64)]);
+	assert_eq!(*c2.color, vec![Palette::new(255), Palette::new(64)]);
 }
 
 #[test]
 fn it_apply_patch() {
-	let c1 = CanvasI::new(
+	let c1 = CanvasPalette::new(
 		None,
 		"canvas",
 		Extent2::new(2u32, 2u32),
-		vec![I::new(196), I::new(128), I::new(64), I::new(32)],
+		vec![Palette::new(196), Palette::new(128), Palette::new(64), Palette::new(32)],
+		Vec::new(),
 	);
 
 	let (patch, _) = c1.apply_stencil(
 		Vec2::new(0, 0),
 		BlendMode::Normal,
-		StencilI::from_buffer(
+		StencilPalette::from_buffer(
 			Extent2::new(2, 2),
-			&[I::new(255), I::new(255), I::new(255), I::new(255)],
+			&[Palette::new(255), Palette::new(255), Palette::new(255), Palette::new(255)],
 		),
 	);
 	let c2 = c1.patch(&patch).unwrap();
 	assert_eq!(
-		*c2.data,
-		vec![I::new(255), I::new(255), I::new(255), I::new(255)]
+		*c2.color,
+		vec![Palette::new(255), Palette::new(255), Palette::new(255), Palette::new(255)]
 	);
 
 	let (patch, _) = c1.apply_stencil(
 		Vec2::new(0, 0),
 		BlendMode::Normal,
-		StencilI {
+		StencilPalette {
 			size: Extent2::new(2, 2),
 			mask: bitvec![1, 0, 0, 1],
-			data: vec![I::new(255), I::new(255)],
+			data: vec![Palette::new(255), Palette::new(255)],
 		},
 	);
 	let c2 = c1.patch(&patch).unwrap();
 	assert_eq!(
-		*c2.data,
-		vec![I::new(255), I::new(128), I::new(64), I::new(255)]
+		*c2.color,
+		vec![Palette::new(255), Palette::new(128), Palette::new(64), Palette::new(255)]
 	);
 }

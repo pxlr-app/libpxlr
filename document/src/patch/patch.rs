@@ -1,6 +1,6 @@
+use crate::color::*;
 use crate::patch::*;
 use crate::sprite::*;
-use crate::color::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -25,9 +25,8 @@ pub enum Patch {
 	AddChild(AddChildPatch),
 	AddLayer(AddLayerPatch),
 	ApplyStencilPalette(ApplyStencilPatch<StencilPalette>),
-	ApplyStencilRGB(ApplyStencilPatch<StencilRGB>),
+	ApplyStencilRGBA(ApplyStencilPatch<StencilRGBA>),
 	ApplyStencilUV(ApplyStencilPatch<StencilUV>),
-	ApplyStencilAlpha(ApplyStencilPatch<StencilAlpha>),
 	ApplyStencilNormal(ApplyStencilPatch<StencilNormal>),
 	CropLayer(CropLayerPatch),
 	MoveChild(MoveChildPatch),
@@ -36,7 +35,7 @@ pub enum Patch {
 	RemoveLayer(RemoveLayerPatch),
 	ResizeLayer(ResizeLayerPatch),
 	RestoreLayerCanvasPalette(RestoreLayerCanvasPatch<Palette>),
-	RestoreLayerCanvasRGB(RestoreLayerCanvasPatch<RGB>),
+	RestoreLayerCanvasRGBA(RestoreLayerCanvasPatch<RGBA>),
 	RestoreLayerCanvasUV(RestoreLayerCanvasPatch<UV>),
 	RestoreLayerGroup(RestoreLayerGroupPatch),
 	Rename(RenamePatch),
@@ -52,9 +51,8 @@ impl Patch {
 			Patch::AddChild(patch) => patch.target,
 			Patch::AddLayer(patch) => patch.target,
 			Patch::ApplyStencilPalette(patch) => patch.target,
-			Patch::ApplyStencilRGB(patch) => patch.target,
+			Patch::ApplyStencilRGBA(patch) => patch.target,
 			Patch::ApplyStencilUV(patch) => patch.target,
-			Patch::ApplyStencilAlpha(patch) => patch.target,
 			Patch::ApplyStencilNormal(patch) => patch.target,
 			Patch::CropLayer(patch) => patch.target,
 			Patch::MoveChild(patch) => patch.target,
@@ -63,7 +61,7 @@ impl Patch {
 			Patch::RemoveLayer(patch) => patch.target,
 			Patch::ResizeLayer(patch) => patch.target,
 			Patch::RestoreLayerCanvasPalette(patch) => patch.target,
-			Patch::RestoreLayerCanvasRGB(patch) => patch.target,
+			Patch::RestoreLayerCanvasRGBA(patch) => patch.target,
 			Patch::RestoreLayerCanvasUV(patch) => patch.target,
 			Patch::RestoreLayerGroup(patch) => patch.target,
 			Patch::Rename(patch) => patch.target,
@@ -81,9 +79,8 @@ impl IPatch for Patch {
 			Patch::AddChild(patch) => patch.mode(),
 			Patch::AddLayer(patch) => patch.mode(),
 			Patch::ApplyStencilPalette(patch) => patch.mode(),
-			Patch::ApplyStencilRGB(patch) => patch.mode(),
+			Patch::ApplyStencilRGBA(patch) => patch.mode(),
 			Patch::ApplyStencilUV(patch) => patch.mode(),
-			Patch::ApplyStencilAlpha(patch) => patch.mode(),
 			Patch::ApplyStencilNormal(patch) => patch.mode(),
 			Patch::CropLayer(patch) => patch.mode(),
 			Patch::MoveChild(patch) => patch.mode(),
@@ -92,7 +89,7 @@ impl IPatch for Patch {
 			Patch::RemoveLayer(patch) => patch.mode(),
 			Patch::ResizeLayer(patch) => patch.mode(),
 			Patch::RestoreLayerCanvasPalette(patch) => patch.mode(),
-			Patch::RestoreLayerCanvasRGB(patch) => patch.mode(),
+			Patch::RestoreLayerCanvasRGBA(patch) => patch.mode(),
 			Patch::RestoreLayerCanvasUV(patch) => patch.mode(),
 			Patch::RestoreLayerGroup(patch) => patch.mode(),
 			Patch::Rename(patch) => patch.mode(),

@@ -164,7 +164,6 @@ macro_rules! define_stencil {
 }
 
 define_stencil!(StencilPalette Palette);
-define_stencil!(StencilRGB RGB);
+define_stencil!(StencilRGBA RGBA);
 define_stencil!(StencilUV UV);
-define_stencil!(StencilAlpha Alpha);
 define_stencil!(StencilNormal Normal);
