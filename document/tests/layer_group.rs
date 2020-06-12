@@ -1,4 +1,4 @@
-use document::color::{*};
+use document::color::*;
 use document::patch::{IPatchable, Renamable};
 use document::sprite::*;
 use math::interpolation::Interpolation;
@@ -19,7 +19,12 @@ fn it_adds_child() {
 		None,
 		"canvas",
 		Extent2::new(2u32, 2u32),
-		vec![Palette::new(255), Palette::new(128), Palette::new(64), Palette::new(32)],
+		vec![
+			Palette::new(255),
+			Palette::new(128),
+			Palette::new(64),
+			Palette::new(32),
+		],
 		Vec::new(),
 	)));
 
@@ -40,7 +45,12 @@ fn it_removes_child() {
 			None,
 			"canvas",
 			Extent2::new(2u32, 2u32),
-			vec![Palette::new(255), Palette::new(128), Palette::new(64), Palette::new(32)],
+			vec![
+				Palette::new(255),
+				Palette::new(128),
+				Palette::new(64),
+				Palette::new(32),
+			],
 			Vec::new(),
 		)))],
 		Vec2::new(0., 0.),
@@ -66,14 +76,24 @@ fn it_moves_child() {
 		None,
 		"canvas_a",
 		Extent2::new(2u32, 2u32),
-		vec![Palette::new(255), Palette::new(128), Palette::new(64), Palette::new(32)],
+		vec![
+			Palette::new(255),
+			Palette::new(128),
+			Palette::new(64),
+			Palette::new(32),
+		],
 		Vec::new(),
 	)));
 	let rc2 = Arc::new(LayerNode::CanvasPalette(CanvasPalette::new(
 		None,
 		"canvas_b",
 		Extent2::new(2u32, 2u32),
-		vec![Palette::new(255), Palette::new(128), Palette::new(64), Palette::new(32)],
+		vec![
+			Palette::new(255),
+			Palette::new(128),
+			Palette::new(64),
+			Palette::new(32),
+		],
 		Vec::new(),
 	)));
 	let g1 = LayerGroup::new(
@@ -111,14 +131,24 @@ fn it_patchs_child() {
 		None,
 		"canvas_a",
 		Extent2::new(2u32, 2u32),
-		vec![Palette::new(255), Palette::new(128), Palette::new(64), Palette::new(32)],
+		vec![
+			Palette::new(255),
+			Palette::new(128),
+			Palette::new(64),
+			Palette::new(32),
+		],
 		Vec::new(),
 	)));
 	let rc2 = Arc::new(LayerNode::CanvasPalette(CanvasPalette::new(
 		None,
 		"canvas_b",
 		Extent2::new(2u32, 2u32),
-		vec![Palette::new(32), Palette::new(64), Palette::new(128), Palette::new(255)],
+		vec![
+			Palette::new(32),
+			Palette::new(64),
+			Palette::new(128),
+			Palette::new(255),
+		],
 		Vec::new(),
 	)));
 	let g1 = LayerGroup::new(
@@ -178,10 +208,20 @@ fn it_patchs_child() {
 	assert_eq!(*c2.size, Extent2::new(4, 1));
 	assert_eq!(
 		*c1.color,
-		vec![Palette::new(255), Palette::new(255), Palette::new(64), Palette::new(64)]
+		vec![
+			Palette::new(255),
+			Palette::new(255),
+			Palette::new(64),
+			Palette::new(64)
+		]
 	);
 	assert_eq!(
 		*c2.color,
-		vec![Palette::new(32), Palette::new(32), Palette::new(128), Palette::new(128)]
+		vec![
+			Palette::new(32),
+			Palette::new(32),
+			Palette::new(128),
+			Palette::new(128)
+		]
 	);
 }

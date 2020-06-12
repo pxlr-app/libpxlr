@@ -394,6 +394,30 @@ macro_rules! define_canvas {
 	};
 }
 
-define_canvas!(CanvasPalette, Palette, StencilPalette, ApplyStencilPatch, ApplyStencilPalette, RestoreLayerCanvasPatch, RestoreLayerCanvasPalette);
-define_canvas!(CanvasRGBA, RGBA, StencilRGBA, ApplyStencilPatch, ApplyStencilRGBA, RestoreLayerCanvasPatch, RestoreLayerCanvasRGBA);
-define_canvas!(CanvasUV, UV, StencilUV, ApplyStencilPatch, ApplyStencilUV, RestoreLayerCanvasPatch, RestoreLayerCanvasUV);
+define_canvas!(
+	CanvasPalette,
+	Palette,
+	StencilPalette,
+	ApplyStencilPatch,
+	ApplyStencilPalette,
+	RestoreLayerCanvasPatch,
+	RestoreLayerCanvasPalette
+);
+define_canvas!(
+	CanvasRGBA,
+	RGBA,
+	StencilRGBA,
+	ApplyStencilPatch,
+	ApplyStencilRGBA,
+	RestoreLayerCanvasPatch,
+	RestoreLayerCanvasRGBA
+);
+define_canvas!(
+	CanvasUV,
+	UV,
+	StencilUV,
+	ApplyStencilPatch,
+	ApplyStencilUV,
+	RestoreLayerCanvasPatch,
+	RestoreLayerCanvasUV
+);

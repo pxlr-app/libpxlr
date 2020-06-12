@@ -1,5 +1,5 @@
 use crate::patch::{IPatchable, Patch};
-use crate::sprite::Sprite;
+use crate::sprite::LayerGroup;
 use crate::{Group, INode, Node, Note};
 use math::Vec2;
 use serde::{Deserialize, Serialize};
@@ -13,7 +13,7 @@ pub trait IDocument {
 pub enum DocumentNode {
 	Note(Note),
 	Group(Group),
-	Sprite(Sprite),
+	Sprite(LayerGroup),
 }
 
 impl DocumentNode {
@@ -67,7 +67,6 @@ impl std::convert::TryFrom<Node> for DocumentNode {
 		match node {
 			Node::Group(node) => Ok(DocumentNode::Group(node)),
 			Node::Note(node) => Ok(DocumentNode::Note(node)),
-			Node::Sprite(node) => Ok(DocumentNode::Sprite(node)),
 			Node::LayerGroup(node) => Ok(DocumentNode::Sprite(node)),
 			_ => Err("Node is not a valid DocumentNode."),
 		}

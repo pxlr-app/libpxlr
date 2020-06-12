@@ -7,10 +7,23 @@ use math::Extent2;
 fn it_from_buffer() {
 	let s = StencilPalette::from_buffer(
 		Extent2::new(2, 2),
-		&[Palette::new(1), Palette::new(2), Palette::new(3), Palette::new(4)],
+		&[
+			Palette::new(1),
+			Palette::new(2),
+			Palette::new(3),
+			Palette::new(4),
+		],
 	);
 	assert_eq!(*s.mask, bitvec![1, 1, 1, 1]);
-	assert_eq!(*s.data, [Palette::new(1), Palette::new(2), Palette::new(3), Palette::new(4)]);
+	assert_eq!(
+		*s.data,
+		[
+			Palette::new(1),
+			Palette::new(2),
+			Palette::new(3),
+			Palette::new(4)
+		]
+	);
 }
 
 #[test]
@@ -36,7 +49,12 @@ fn it_iter() {
 	let s = StencilPalette {
 		size: Extent2::new(2, 2),
 		mask: bitvec![1, 1, 1, 1],
-		data: vec![Palette::new(1), Palette::new(2), Palette::new(3), Palette::new(4)],
+		data: vec![
+			Palette::new(1),
+			Palette::new(2),
+			Palette::new(3),
+			Palette::new(4),
+		],
 	};
 	let mut i = s.iter();
 	assert_eq!(i.next(), Some((0, 0, &Palette::new(1))));
@@ -74,7 +92,15 @@ fn it_combines() {
 
 	let s3 = s1 + s2;
 	assert_eq!(*s3.mask, bitvec![1, 1, 1, 1]);
-	assert_eq!(*s3.data, [Palette::new(1), Palette::new(2), Palette::new(3), Palette::new(4)]);
+	assert_eq!(
+		*s3.data,
+		[
+			Palette::new(1),
+			Palette::new(2),
+			Palette::new(3),
+			Palette::new(4)
+		]
+	);
 	assert_eq!(format!("{:?}", s3), "StencilPalette { ⠛ }");
 
 	let s1 = StencilPalette {
@@ -93,6 +119,14 @@ fn it_combines() {
 
 	let s3 = s1 + s2;
 	assert_eq!(*s3.mask, bitvec![1, 1, 1, 1]);
-	assert_eq!(*s3.data, [Palette::new(1), Palette::new(2), Palette::new(3), Palette::new(4)]);
+	assert_eq!(
+		*s3.data,
+		[
+			Palette::new(1),
+			Palette::new(2),
+			Palette::new(3),
+			Palette::new(4)
+		]
+	);
 	assert_eq!(format!("{:?}", s3), "StencilPalette { ⠛ }");
 }

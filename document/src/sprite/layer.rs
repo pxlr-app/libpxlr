@@ -23,7 +23,6 @@ pub enum LayerNode {
 	CanvasRGBA(CanvasRGBA),
 	CanvasUV(CanvasUV),
 	Group(LayerGroup),
-	Sprite(Sprite),
 }
 
 impl LayerNode {
@@ -33,7 +32,6 @@ impl LayerNode {
 			LayerNode::CanvasRGBA(node) => node.id,
 			LayerNode::CanvasUV(node) => node.id,
 			LayerNode::Group(node) => node.id,
-			LayerNode::Sprite(node) => node.id,
 		}
 	}
 
@@ -43,7 +41,6 @@ impl LayerNode {
 			LayerNode::CanvasRGBA(_) => ColorMode::RGBA,
 			LayerNode::CanvasUV(_) => ColorMode::UV,
 			LayerNode::Group(node) => node.color_mode,
-			LayerNode::Sprite(node) => node.color_mode,
 		}
 	}
 
@@ -57,7 +54,6 @@ impl LayerNode {
 			}
 			LayerNode::CanvasUV(node) => node.patch(&patch).map(|node| LayerNode::CanvasUV(*node)),
 			LayerNode::Group(node) => node.patch(&patch).map(|node| LayerNode::Group(*node)),
-			LayerNode::Sprite(node) => node.patch(&patch).map(|node| LayerNode::Sprite(*node)),
 		}
 	}
 
@@ -71,7 +67,6 @@ impl LayerNode {
 			LayerNode::CanvasRGBA(node) => node.crop(offset, size),
 			LayerNode::CanvasUV(node) => node.crop(offset, size),
 			LayerNode::Group(node) => node.crop(offset, size),
-			LayerNode::Sprite(node) => node.crop(offset, size),
 		}
 	}
 
@@ -85,7 +80,6 @@ impl LayerNode {
 			LayerNode::CanvasRGBA(node) => node.resize(size, interpolation),
 			LayerNode::CanvasUV(node) => node.resize(size, interpolation),
 			LayerNode::Group(node) => node.resize(size, interpolation),
-			LayerNode::Sprite(node) => node.resize(size, interpolation),
 		}
 	}
 }
@@ -97,7 +91,6 @@ impl INode for LayerNode {
 			LayerNode::CanvasRGBA(node) => node.is_visible(),
 			LayerNode::CanvasUV(node) => node.is_visible(),
 			LayerNode::Group(node) => node.is_visible(),
-			LayerNode::Sprite(node) => node.is_visible(),
 		}
 	}
 	fn is_locked(&self) -> bool {
@@ -106,7 +99,6 @@ impl INode for LayerNode {
 			LayerNode::CanvasRGBA(node) => node.is_locked(),
 			LayerNode::CanvasUV(node) => node.is_locked(),
 			LayerNode::Group(node) => node.is_locked(),
-			LayerNode::Sprite(node) => node.is_locked(),
 		}
 	}
 	fn is_folded(&self) -> bool {
@@ -115,7 +107,6 @@ impl INode for LayerNode {
 			LayerNode::CanvasRGBA(node) => node.is_folded(),
 			LayerNode::CanvasUV(node) => node.is_folded(),
 			LayerNode::Group(node) => node.is_folded(),
-			LayerNode::Sprite(node) => node.is_folded(),
 		}
 	}
 }
@@ -128,7 +119,7 @@ impl std::convert::TryFrom<Node> for LayerNode {
 			Node::CanvasPalette(node) => Ok(LayerNode::CanvasPalette(node)),
 			Node::CanvasRGBA(node) => Ok(LayerNode::CanvasRGBA(node)),
 			Node::CanvasUV(node) => Ok(LayerNode::CanvasUV(node)),
-			Node::Sprite(node) => Ok(LayerNode::Sprite(node)),
+			Node::LayerGroup(node) => Ok(LayerNode::Group(node)),
 			_ => Err("Node is not a valid LayerNode."),
 		}
 	}

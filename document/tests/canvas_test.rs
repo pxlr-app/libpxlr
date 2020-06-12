@@ -12,13 +12,23 @@ fn from_buffer() {
 		None,
 		"canvas",
 		Extent2::new(2u32, 2u32),
-		vec![Palette::new(255), Palette::new(128), Palette::new(64), Palette::new(32)],
+		vec![
+			Palette::new(255),
+			Palette::new(128),
+			Palette::new(64),
+			Palette::new(32),
+		],
 		Vec::new(),
 	);
 
 	assert_eq!(
 		*c1.color,
-		vec![Palette::new(255), Palette::new(128), Palette::new(64), Palette::new(32)]
+		vec![
+			Palette::new(255),
+			Palette::new(128),
+			Palette::new(64),
+			Palette::new(32)
+		]
 	);
 }
 
@@ -28,7 +38,12 @@ fn it_crops() {
 		None,
 		"canvas",
 		Extent2::new(2u32, 2u32),
-		vec![Palette::new(255), Palette::new(128), Palette::new(64), Palette::new(32)],
+		vec![
+			Palette::new(255),
+			Palette::new(128),
+			Palette::new(64),
+			Palette::new(32),
+		],
 		Vec::new(),
 	);
 
@@ -44,7 +59,12 @@ fn it_resizes() {
 		None,
 		"canvas",
 		Extent2::new(2u32, 2u32),
-		vec![Palette::new(255), Palette::new(128), Palette::new(64), Palette::new(32)],
+		vec![
+			Palette::new(255),
+			Palette::new(128),
+			Palette::new(64),
+			Palette::new(32),
+		],
 		Vec::new(),
 	);
 
@@ -115,7 +135,12 @@ fn it_apply_patch() {
 		None,
 		"canvas",
 		Extent2::new(2u32, 2u32),
-		vec![Palette::new(196), Palette::new(128), Palette::new(64), Palette::new(32)],
+		vec![
+			Palette::new(196),
+			Palette::new(128),
+			Palette::new(64),
+			Palette::new(32),
+		],
 		Vec::new(),
 	);
 
@@ -124,13 +149,23 @@ fn it_apply_patch() {
 		BlendMode::Normal,
 		StencilPalette::from_buffer(
 			Extent2::new(2, 2),
-			&[Palette::new(255), Palette::new(255), Palette::new(255), Palette::new(255)],
+			&[
+				Palette::new(255),
+				Palette::new(255),
+				Palette::new(255),
+				Palette::new(255),
+			],
 		),
 	);
 	let c2 = c1.patch(&patch).unwrap();
 	assert_eq!(
 		*c2.color,
-		vec![Palette::new(255), Palette::new(255), Palette::new(255), Palette::new(255)]
+		vec![
+			Palette::new(255),
+			Palette::new(255),
+			Palette::new(255),
+			Palette::new(255)
+		]
 	);
 
 	let (patch, _) = c1.apply_stencil(
@@ -145,6 +180,11 @@ fn it_apply_patch() {
 	let c2 = c1.patch(&patch).unwrap();
 	assert_eq!(
 		*c2.color,
-		vec![Palette::new(255), Palette::new(128), Palette::new(64), Palette::new(255)]
+		vec![
+			Palette::new(255),
+			Palette::new(128),
+			Palette::new(64),
+			Palette::new(255)
+		]
 	);
 }

@@ -1,4 +1,4 @@
-use crate::sprite::{CanvasPalette, CanvasRGBA, CanvasUV, LayerGroup, Sprite};
+use crate::sprite::{CanvasPalette, CanvasRGBA, CanvasUV, LayerGroup};
 use crate::{Group, Note};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -20,7 +20,6 @@ pub enum Node {
 	Unknown,
 	Group(Group),
 	Note(Note),
-	Sprite(Sprite),
 	LayerGroup(LayerGroup),
 	CanvasPalette(CanvasPalette),
 	CanvasRGBA(CanvasRGBA),
@@ -33,7 +32,6 @@ impl Node {
 			Node::Unknown => Uuid::nil(),
 			Node::Note(node) => node.id,
 			Node::Group(node) => node.id,
-			Node::Sprite(node) => node.id,
 			Node::LayerGroup(node) => node.id,
 			Node::CanvasPalette(node) => node.id,
 			Node::CanvasRGBA(node) => node.id,
@@ -48,7 +46,6 @@ impl INode for Node {
 			Node::Unknown => false,
 			Node::Note(node) => node.is_visible(),
 			Node::Group(node) => node.is_visible(),
-			Node::Sprite(node) => node.is_visible(),
 			Node::LayerGroup(node) => node.is_visible(),
 			Node::CanvasPalette(node) => node.is_visible(),
 			Node::CanvasRGBA(node) => node.is_visible(),
@@ -60,7 +57,6 @@ impl INode for Node {
 			Node::Unknown => false,
 			Node::Note(node) => node.is_locked(),
 			Node::Group(node) => node.is_locked(),
-			Node::Sprite(node) => node.is_locked(),
 			Node::LayerGroup(node) => node.is_locked(),
 			Node::CanvasPalette(node) => node.is_locked(),
 			Node::CanvasRGBA(node) => node.is_locked(),
@@ -72,7 +68,6 @@ impl INode for Node {
 			Node::Unknown => false,
 			Node::Note(node) => node.is_folded(),
 			Node::Group(node) => node.is_folded(),
-			Node::Sprite(node) => node.is_folded(),
 			Node::LayerGroup(node) => node.is_folded(),
 			Node::CanvasPalette(node) => node.is_folded(),
 			Node::CanvasRGBA(node) => node.is_folded(),
