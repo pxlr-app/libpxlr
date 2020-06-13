@@ -395,13 +395,13 @@ macro_rules! define_canvas {
 }
 
 define_canvas!(
-	CanvasPalette,
-	Palette,
-	StencilPalette,
+	CanvasGrey,
+	Grey,
+	StencilGrey,
 	ApplyStencilPatch,
-	ApplyStencilPalette,
+	ApplyStencilGrey,
 	RestoreLayerCanvasPatch,
-	RestoreLayerCanvasPalette
+	RestoreLayerCanvasGrey
 );
 define_canvas!(
 	CanvasRGBA,

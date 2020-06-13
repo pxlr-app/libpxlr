@@ -163,7 +163,7 @@ macro_rules! define_stencil {
 	};
 }
 
-define_stencil!(StencilPalette Palette);
+define_stencil!(StencilGrey Grey);
 define_stencil!(StencilRGBA RGBA);
 define_stencil!(StencilUV UV);
 define_stencil!(StencilNormal Normal);

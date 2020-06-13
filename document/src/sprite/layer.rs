@@ -19,7 +19,7 @@ pub trait ILayer: INode {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum LayerNode {
-	CanvasPalette(CanvasPalette),
+	CanvasGrey(CanvasGrey),
 	CanvasRGBA(CanvasRGBA),
 	CanvasUV(CanvasUV),
 	Group(LayerGroup),
@@ -28,7 +28,7 @@ pub enum LayerNode {
 impl LayerNode {
 	pub fn id(&self) -> Uuid {
 		match self {
-			LayerNode::CanvasPalette(node) => node.id,
+			LayerNode::CanvasGrey(node) => node.id,
 			LayerNode::CanvasRGBA(node) => node.id,
 			LayerNode::CanvasUV(node) => node.id,
 			LayerNode::Group(node) => node.id,
@@ -37,7 +37,7 @@ impl LayerNode {
 
 	pub fn color_mode(&self) -> ColorMode {
 		match self {
-			LayerNode::CanvasPalette(_) => ColorMode::Palette,
+			LayerNode::CanvasGrey(_) => ColorMode::Grey,
 			LayerNode::CanvasRGBA(_) => ColorMode::RGBA,
 			LayerNode::CanvasUV(_) => ColorMode::UV,
 			LayerNode::Group(node) => node.color_mode,
@@ -46,9 +46,9 @@ impl LayerNode {
 
 	pub fn patch(&self, patch: &Patch) -> Option<LayerNode> {
 		match self {
-			LayerNode::CanvasPalette(node) => node
-				.patch(&patch)
-				.map(|node| LayerNode::CanvasPalette(*node)),
+			LayerNode::CanvasGrey(node) => {
+				node.patch(&patch).map(|node| LayerNode::CanvasGrey(*node))
+			}
 			LayerNode::CanvasRGBA(node) => {
 				node.patch(&patch).map(|node| LayerNode::CanvasRGBA(*node))
 			}
@@ -63,7 +63,7 @@ impl LayerNode {
 		size: Extent2<u32>,
 	) -> Result<(Patch, Patch), CropLayerError> {
 		match self {
-			LayerNode::CanvasPalette(node) => node.crop(offset, size),
+			LayerNode::CanvasGrey(node) => node.crop(offset, size),
 			LayerNode::CanvasRGBA(node) => node.crop(offset, size),
 			LayerNode::CanvasUV(node) => node.crop(offset, size),
 			LayerNode::Group(node) => node.crop(offset, size),
@@ -76,7 +76,7 @@ impl LayerNode {
 		interpolation: Interpolation,
 	) -> Result<(Patch, Patch), ResizeLayerError> {
 		match self {
-			LayerNode::CanvasPalette(node) => node.resize(size, interpolation),
+			LayerNode::CanvasGrey(node) => node.resize(size, interpolation),
 			LayerNode::CanvasRGBA(node) => node.resize(size, interpolation),
 			LayerNode::CanvasUV(node) => node.resize(size, interpolation),
 			LayerNode::Group(node) => node.resize(size, interpolation),
@@ -87,7 +87,7 @@ impl LayerNode {
 impl INode for LayerNode {
 	fn is_visible(&self) -> bool {
 		match self {
-			LayerNode::CanvasPalette(node) => node.is_visible(),
+			LayerNode::CanvasGrey(node) => node.is_visible(),
 			LayerNode::CanvasRGBA(node) => node.is_visible(),
 			LayerNode::CanvasUV(node) => node.is_visible(),
 			LayerNode::Group(node) => node.is_visible(),
@@ -95,7 +95,7 @@ impl INode for LayerNode {
 	}
 	fn is_locked(&self) -> bool {
 		match self {
-			LayerNode::CanvasPalette(node) => node.is_locked(),
+			LayerNode::CanvasGrey(node) => node.is_locked(),
 			LayerNode::CanvasRGBA(node) => node.is_locked(),
 			LayerNode::CanvasUV(node) => node.is_locked(),
 			LayerNode::Group(node) => node.is_locked(),
@@ -103,7 +103,7 @@ impl INode for LayerNode {
 	}
 	fn is_folded(&self) -> bool {
 		match self {
-			LayerNode::CanvasPalette(node) => node.is_folded(),
+			LayerNode::CanvasGrey(node) => node.is_folded(),
 			LayerNode::CanvasRGBA(node) => node.is_folded(),
 			LayerNode::CanvasUV(node) => node.is_folded(),
 			LayerNode::Group(node) => node.is_folded(),
@@ -116,7 +116,7 @@ impl std::convert::TryFrom<Node> for LayerNode {
 
 	fn try_from(node: Node) -> Result<Self, Self::Error> {
 		match node {
-			Node::CanvasPalette(node) => Ok(LayerNode::CanvasPalette(node)),
+			Node::CanvasGrey(node) => Ok(LayerNode::CanvasGrey(node)),
 			Node::CanvasRGBA(node) => Ok(LayerNode::CanvasRGBA(node)),
 			Node::CanvasUV(node) => Ok(LayerNode::CanvasUV(node)),
 			Node::LayerGroup(node) => Ok(LayerNode::Group(node)),

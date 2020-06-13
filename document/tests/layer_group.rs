@@ -10,21 +10,16 @@ fn it_adds_child() {
 	let g1 = LayerGroup::new(
 		None,
 		"group",
-		ColorMode::Palette,
+		ColorMode::Grey,
 		vec![],
 		Vec2::new(0., 0.),
 		Extent2::new(4u32, 4u32),
 	);
-	let c1 = Arc::new(LayerNode::CanvasPalette(CanvasPalette::new(
+	let c1 = Arc::new(LayerNode::CanvasGrey(CanvasGrey::new(
 		None,
 		"canvas",
 		Extent2::new(2u32, 2u32),
-		vec![
-			Palette::new(255),
-			Palette::new(128),
-			Palette::new(64),
-			Palette::new(32),
-		],
+		vec![Grey::new(255), Grey::new(128), Grey::new(64), Grey::new(32)],
 		Vec::new(),
 	)));
 
@@ -40,27 +35,22 @@ fn it_removes_child() {
 	let g1 = LayerGroup::new(
 		None,
 		"group",
-		ColorMode::Palette,
-		vec![Arc::new(LayerNode::CanvasPalette(CanvasPalette::new(
+		ColorMode::Grey,
+		vec![Arc::new(LayerNode::CanvasGrey(CanvasGrey::new(
 			None,
 			"canvas",
 			Extent2::new(2u32, 2u32),
-			vec![
-				Palette::new(255),
-				Palette::new(128),
-				Palette::new(64),
-				Palette::new(32),
-			],
+			vec![Grey::new(255), Grey::new(128), Grey::new(64), Grey::new(32)],
 			Vec::new(),
 		)))],
 		Vec2::new(0., 0.),
 		Extent2::new(4u32, 4u32),
 	);
 
-	let c1 = if let LayerNode::CanvasPalette(node) = &**g1.children.get(0).unwrap() {
+	let c1 = if let LayerNode::CanvasGrey(node) = &**g1.children.get(0).unwrap() {
 		node
 	} else {
-		panic!("Note a CanvasPalette");
+		panic!("Note a CanvasGrey");
 	};
 
 	let (patch, _) = g1.remove_layer(c1.id).unwrap();
@@ -72,49 +62,39 @@ fn it_removes_child() {
 
 #[test]
 fn it_moves_child() {
-	let rc1 = Arc::new(LayerNode::CanvasPalette(CanvasPalette::new(
+	let rc1 = Arc::new(LayerNode::CanvasGrey(CanvasGrey::new(
 		None,
 		"canvas_a",
 		Extent2::new(2u32, 2u32),
-		vec![
-			Palette::new(255),
-			Palette::new(128),
-			Palette::new(64),
-			Palette::new(32),
-		],
+		vec![Grey::new(255), Grey::new(128), Grey::new(64), Grey::new(32)],
 		Vec::new(),
 	)));
-	let rc2 = Arc::new(LayerNode::CanvasPalette(CanvasPalette::new(
+	let rc2 = Arc::new(LayerNode::CanvasGrey(CanvasGrey::new(
 		None,
 		"canvas_b",
 		Extent2::new(2u32, 2u32),
-		vec![
-			Palette::new(255),
-			Palette::new(128),
-			Palette::new(64),
-			Palette::new(32),
-		],
+		vec![Grey::new(255), Grey::new(128), Grey::new(64), Grey::new(32)],
 		Vec::new(),
 	)));
 	let g1 = LayerGroup::new(
 		None,
 		"group",
-		ColorMode::Palette,
+		ColorMode::Grey,
 		vec![rc1.clone(), rc2.clone()],
 		Vec2::new(0., 0.),
 		Extent2::new(4u32, 4u32),
 	);
 
-	let c1 = if let LayerNode::CanvasPalette(node) = &**g1.children.get(0).unwrap() {
+	let c1 = if let LayerNode::CanvasGrey(node) = &**g1.children.get(0).unwrap() {
 		node
 	} else {
-		panic!("Note a CanvasPalette");
+		panic!("Note a CanvasGrey");
 	};
 
-	let c2 = if let LayerNode::CanvasPalette(node) = &**g1.children.get(1).unwrap() {
+	let c2 = if let LayerNode::CanvasGrey(node) = &**g1.children.get(1).unwrap() {
 		node
 	} else {
-		panic!("Note a CanvasPalette");
+		panic!("Note a CanvasGrey");
 	};
 
 	let (patch, _) = g1.move_layer(c2.id, 0).unwrap();
@@ -127,59 +107,49 @@ fn it_moves_child() {
 
 #[test]
 fn it_patchs_child() {
-	let rc1 = Arc::new(LayerNode::CanvasPalette(CanvasPalette::new(
+	let rc1 = Arc::new(LayerNode::CanvasGrey(CanvasGrey::new(
 		None,
 		"canvas_a",
 		Extent2::new(2u32, 2u32),
-		vec![
-			Palette::new(255),
-			Palette::new(128),
-			Palette::new(64),
-			Palette::new(32),
-		],
+		vec![Grey::new(255), Grey::new(128), Grey::new(64), Grey::new(32)],
 		Vec::new(),
 	)));
-	let rc2 = Arc::new(LayerNode::CanvasPalette(CanvasPalette::new(
+	let rc2 = Arc::new(LayerNode::CanvasGrey(CanvasGrey::new(
 		None,
 		"canvas_b",
 		Extent2::new(2u32, 2u32),
-		vec![
-			Palette::new(32),
-			Palette::new(64),
-			Palette::new(128),
-			Palette::new(255),
-		],
+		vec![Grey::new(32), Grey::new(64), Grey::new(128), Grey::new(255)],
 		Vec::new(),
 	)));
 	let g1 = LayerGroup::new(
 		None,
 		"group",
-		ColorMode::Palette,
+		ColorMode::Grey,
 		vec![rc1.clone(), rc2.clone()],
 		Vec2::new(0., 0.),
 		Extent2::new(4u32, 4u32),
 	);
 
-	let (patch, _) = if let LayerNode::CanvasPalette(node) = &**g1.children.get(0).unwrap() {
+	let (patch, _) = if let LayerNode::CanvasGrey(node) = &**g1.children.get(0).unwrap() {
 		node.rename("canvas_aa").unwrap()
 	} else {
-		panic!("Note a CanvasPalette");
+		panic!("Note a CanvasGrey");
 	};
 	let g2 = g1.patch(&patch).unwrap();
 
 	assert_eq!(Arc::strong_count(&rc1), 2);
 	assert_eq!(Arc::strong_count(&rc2), 3);
 
-	let c1 = if let LayerNode::CanvasPalette(node) = &**g2.children.get(0).unwrap() {
+	let c1 = if let LayerNode::CanvasGrey(node) = &**g2.children.get(0).unwrap() {
 		node
 	} else {
-		panic!("Note a CanvasPalette");
+		panic!("Note a CanvasGrey");
 	};
 
-	let c2 = if let LayerNode::CanvasPalette(node) = &**g2.children.get(1).unwrap() {
+	let c2 = if let LayerNode::CanvasGrey(node) = &**g2.children.get(1).unwrap() {
 		node
 	} else {
-		panic!("Note a CanvasPalette");
+		panic!("Note a CanvasGrey");
 	};
 
 	assert_eq!(*c1.name, "canvas_aa");
@@ -192,36 +162,26 @@ fn it_patchs_child() {
 
 	assert_eq!(*g2.size, Extent2::new(4, 1));
 
-	let c1 = if let LayerNode::CanvasPalette(node) = &**g2.children.get(0).unwrap() {
+	let c1 = if let LayerNode::CanvasGrey(node) = &**g2.children.get(0).unwrap() {
 		node
 	} else {
-		panic!("Note a CanvasPalette");
+		panic!("Note a CanvasGrey");
 	};
 
-	let c2 = if let LayerNode::CanvasPalette(node) = &**g2.children.get(1).unwrap() {
+	let c2 = if let LayerNode::CanvasGrey(node) = &**g2.children.get(1).unwrap() {
 		node
 	} else {
-		panic!("Note a CanvasPalette");
+		panic!("Note a CanvasGrey");
 	};
 
 	assert_eq!(*c1.size, Extent2::new(4, 1));
 	assert_eq!(*c2.size, Extent2::new(4, 1));
 	assert_eq!(
 		*c1.color,
-		vec![
-			Palette::new(255),
-			Palette::new(255),
-			Palette::new(64),
-			Palette::new(64)
-		]
+		vec![Grey::new(255), Grey::new(255), Grey::new(64), Grey::new(64)]
 	);
 	assert_eq!(
 		*c2.color,
-		vec![
-			Palette::new(32),
-			Palette::new(32),
-			Palette::new(128),
-			Palette::new(128)
-		]
+		vec![Grey::new(32), Grey::new(32), Grey::new(128), Grey::new(128)]
 	);
 }

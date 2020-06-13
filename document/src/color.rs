@@ -108,13 +108,13 @@ macro_rules! define_colors {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum ColorMode {
-	Palette,
+	Grey,
 	RGBA,
 	UV,
 }
 
 define_colors! {
-	Palette, (i:u8:le_u8);
+	Grey, (i:u8:le_u8);
 	RGBA, (r:u8:le_u8, g:u8:le_u8, b:u8:le_u8, a:u8:le_u8);
 	UV, (u:f32:le_f32, v:f32:le_f32, a:u8:le_u8);
 	Normal, (x:f32:le_f32, y:f32:le_f32, z:f32:le_f32);
