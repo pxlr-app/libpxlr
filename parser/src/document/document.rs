@@ -1,6 +1,6 @@
 use crate::parser;
 use async_trait::async_trait;
-use document::{sprite::Sprite, DocumentNode, Group, Node, Note};
+use document::{sprite::LayerGroup, DocumentNode, Group, Node, Note};
 use futures::io;
 use nom::IResult;
 
@@ -20,11 +20,9 @@ impl parser::v0::IParser for DocumentNode {
 			parser::v0::ChunkType::Note => Note::parse(row, children, bytes)
 				.await
 				.map(|(bytes, node)| (bytes, DocumentNode::Note(node))),
-			parser::v0::ChunkType::Sprite | parser::v0::ChunkType::LayerGroup => {
-				Sprite::parse(row, children, bytes)
-					.await
-					.map(|(bytes, node)| (bytes, DocumentNode::Sprite(node)))
-			}
+			parser::v0::ChunkType::LayerGroup => LayerGroup::parse(row, children, bytes)
+				.await
+				.map(|(bytes, node)| (bytes, DocumentNode::Sprite(node))),
 			_ => unimplemented!(),
 		}
 	}

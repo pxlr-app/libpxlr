@@ -186,14 +186,10 @@ pub mod v0 {
 	pub enum ChunkType {
 		Group,
 		Note,
-		Sprite,
 		LayerGroup,
-		CanvasI,
-		CanvasIXYZ,
-		CanvasUV,
-		CanvasRGB,
+		CanvasGrey,
 		CanvasRGBA,
-		CanvasRGBAXYZ,
+		CanvasUV,
 	}
 
 	#[async_trait]
@@ -203,14 +199,10 @@ pub mod v0 {
 			let value = match index {
 				0 => ChunkType::Group,
 				1 => ChunkType::Note,
-				2 => ChunkType::Sprite,
-				3 => ChunkType::LayerGroup,
-				4 => ChunkType::CanvasI,
-				5 => ChunkType::CanvasIXYZ,
-				6 => ChunkType::CanvasUV,
-				7 => ChunkType::CanvasRGB,
-				8 => ChunkType::CanvasRGBA,
-				9 => ChunkType::CanvasRGBAXYZ,
+				2 => ChunkType::LayerGroup,
+				3 => ChunkType::CanvasGrey,
+				4 => ChunkType::CanvasRGBA,
+				5 => ChunkType::CanvasUV,
 				_ => panic!("Unknown chunk type"),
 			};
 			Ok((bytes, value))
@@ -223,14 +215,10 @@ pub mod v0 {
 			let index: u16 = match self {
 				ChunkType::Group => 0,
 				ChunkType::Note => 1,
-				ChunkType::Sprite => 2,
-				ChunkType::LayerGroup => 3,
-				ChunkType::CanvasI => 4,
-				ChunkType::CanvasIXYZ => 5,
-				ChunkType::CanvasUV => 6,
-				ChunkType::CanvasRGB => 7,
-				ChunkType::CanvasRGBA => 8,
-				ChunkType::CanvasRGBAXYZ => 9,
+				ChunkType::LayerGroup => 2,
+				ChunkType::CanvasGrey => 3,
+				ChunkType::CanvasRGBA => 4,
+				ChunkType::CanvasUV => 5,
 			};
 			storage.write_all(&index.to_le_bytes()).await?;
 			Ok(2)

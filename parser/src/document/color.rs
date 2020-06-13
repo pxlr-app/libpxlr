@@ -1,5 +1,5 @@
 use crate::parser;
-use document::color::{ColorMode, I, IXYZ, RGB, RGBA, RGBAXYZ, UV};
+use document::color::*;
 use futures::io;
 use nom::number::complete::{le_f32, le_u16, le_u8};
 use nom::IResult;
@@ -114,10 +114,8 @@ macro_rules! define_colors {
 }
 
 define_colors! {
-	0, I, (i:u8:le_u8);
-	1, IXYZ, (i:u8:le_u8, x:f32:le_f32, y:f32:le_f32, z:f32:le_f32);
-	2, UV, (u:f32:le_f32, v:f32:le_f32);
-	3, RGB, (r:u8:le_u8, g:u8:le_u8, b:u8:le_u8);
-	4, RGBA, (r:u8:le_u8, g:u8:le_u8, b:u8:le_u8, a:u8:le_u8);
-	5, RGBAXYZ, (r:u8:le_u8, g:u8:le_u8, b:u8:le_u8, a:u8:le_u8, x:f32:le_f32, y:f32:le_f32, z:f32:le_f32);
+	0, Grey, (i:u8:le_u8);
+	1, RGBA, (r:u8:le_u8, g:u8:le_u8, b:u8:le_u8, a:u8:le_u8);
+	2, UV, (u:f32:le_f32, v:f32:le_f32, a:u8:le_u8);
+	3, Normal, (x:f32:le_f32, y:f32:le_f32, z:f32:le_f32);
 }

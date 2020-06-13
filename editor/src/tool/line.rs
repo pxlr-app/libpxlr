@@ -1,11 +1,11 @@
 use collections::bitvec;
-use document::sprite::Stencil;
+use document::sprite::IStencil;
 use math::interpolation::Interpolation;
 use math::{Extent2, Lerp, Vec2};
 
 pub struct Line<S>
 where
-	S: Stencil,
+	S: IStencil,
 {
 	pub from: Vec2<u32>,
 	pub to: Vec2<u32>,
@@ -16,7 +16,7 @@ where
 
 impl<S> Line<S>
 where
-	S: Stencil,
+	S: IStencil,
 {
 	pub fn get_stencil(&self) -> S {
 		let size = Extent2::new(

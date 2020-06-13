@@ -321,7 +321,7 @@ mod tests {
 	// use crate::parser;
 	use async_std::fs;
 	use document::color::ColorMode;
-	use document::{sprite::Sprite, DocumentNode, Group, Node, Note};
+	use document::{sprite::*, DocumentNode, Group, Node, Note};
 	use futures::{executor::block_on, io};
 	use math::{Extent2, Vec2};
 	use std::sync::Arc;
@@ -594,13 +594,13 @@ mod tests {
 						Vec2::new(0., 0.),
 						// vec![],
 						vec![
-							Arc::new(DocumentNode::Sprite(Sprite::new(
+							Arc::new(DocumentNode::Sprite(LayerGroup::new(
 								Some(
 									Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9392")
 										.unwrap(),
 								),
 								"SpriteB",
-								ColorMode::RGB,
+								ColorMode::RGBA,
 								vec![],
 								Vec2::new(0., 0.),
 								Extent2::new(2, 2),
@@ -632,7 +632,7 @@ mod tests {
 				.await
 			{
 				assert_eq!(*sprite.name, "SpriteB");
-				assert_eq!(sprite.color_mode, ColorMode::RGB);
+				assert_eq!(sprite.color_mode, ColorMode::RGBA);
 			} else {
 				panic!("Could not get sprite.");
 			}

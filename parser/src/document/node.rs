@@ -1,11 +1,6 @@
 use crate::parser;
 use async_trait::async_trait;
-use document::{
-	sprite::{
-		CanvasI, CanvasIXYZ, CanvasRGB, CanvasRGBA, CanvasRGBAXYZ, CanvasUV, LayerGroup, Sprite,
-	},
-	Group, Node, Note,
-};
+use document::{sprite::*, Group, Node, Note};
 use futures::io;
 use nom::IResult;
 
@@ -28,27 +23,15 @@ impl parser::v0::IParser for Node {
 			parser::v0::ChunkType::LayerGroup => LayerGroup::parse(row, children, bytes)
 				.await
 				.map(|(bytes, node)| (bytes, Node::LayerGroup(node))),
-			parser::v0::ChunkType::Sprite => Sprite::parse(row, children, bytes)
+			parser::v0::ChunkType::CanvasGrey => CanvasGrey::parse(row, children, bytes)
 				.await
-				.map(|(bytes, node)| (bytes, Node::Sprite(node))),
-			parser::v0::ChunkType::CanvasI => CanvasI::parse(row, children, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, Node::CanvasI(node))),
-			parser::v0::ChunkType::CanvasIXYZ => CanvasIXYZ::parse(row, children, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, Node::CanvasIXYZ(node))),
-			parser::v0::ChunkType::CanvasUV => CanvasUV::parse(row, children, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, Node::CanvasUV(node))),
-			parser::v0::ChunkType::CanvasRGB => CanvasRGB::parse(row, children, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, Node::CanvasRGB(node))),
+				.map(|(bytes, node)| (bytes, Node::CanvasGrey(node))),
 			parser::v0::ChunkType::CanvasRGBA => CanvasRGBA::parse(row, children, bytes)
 				.await
 				.map(|(bytes, node)| (bytes, Node::CanvasRGBA(node))),
-			parser::v0::ChunkType::CanvasRGBAXYZ => CanvasRGBAXYZ::parse(row, children, bytes)
+			parser::v0::ChunkType::CanvasUV => CanvasUV::parse(row, children, bytes)
 				.await
-				.map(|(bytes, node)| (bytes, Node::CanvasRGBAXYZ(node))),
+				.map(|(bytes, node)| (bytes, Node::CanvasUV(node))),
 		}
 	}
 
@@ -64,14 +47,10 @@ impl parser::v0::IParser for Node {
 		match self {
 			Node::Group(node) => node.write(index, storage, offset).await,
 			Node::Note(node) => node.write(index, storage, offset).await,
-			Node::Sprite(node) => node.write(index, storage, offset).await,
 			Node::LayerGroup(node) => node.write(index, storage, offset).await,
-			Node::CanvasI(node) => node.write(index, storage, offset).await,
-			Node::CanvasIXYZ(node) => node.write(index, storage, offset).await,
-			Node::CanvasUV(node) => node.write(index, storage, offset).await,
-			Node::CanvasRGB(node) => node.write(index, storage, offset).await,
+			Node::CanvasGrey(node) => node.write(index, storage, offset).await,
 			Node::CanvasRGBA(node) => node.write(index, storage, offset).await,
-			Node::CanvasRGBAXYZ(node) => node.write(index, storage, offset).await,
+			Node::CanvasUV(node) => node.write(index, storage, offset).await,
 			_ => unimplemented!(),
 		}
 	}

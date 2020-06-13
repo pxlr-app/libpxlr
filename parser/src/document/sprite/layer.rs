@@ -1,12 +1,6 @@
 use crate::parser;
 use async_trait::async_trait;
-use document::{
-	sprite::{
-		CanvasI, CanvasIXYZ, CanvasRGB, CanvasRGBA, CanvasRGBAXYZ, CanvasUV, LayerGroup, LayerNode,
-		Sprite,
-	},
-	Node,
-};
+use document::{sprite::*, Node};
 use futures::io;
 use nom::IResult;
 
@@ -20,27 +14,15 @@ impl parser::v0::IParser for LayerNode {
 		bytes: &'b [u8],
 	) -> IResult<&'b [u8], Self::Output> {
 		match row.chunk_type {
-			parser::v0::ChunkType::CanvasI => CanvasI::parse(row, children, bytes)
+			parser::v0::ChunkType::CanvasGrey => CanvasGrey::parse(row, children, bytes)
 				.await
-				.map(|(bytes, node)| (bytes, LayerNode::CanvasI(node))),
-			parser::v0::ChunkType::CanvasIXYZ => CanvasIXYZ::parse(row, children, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, LayerNode::CanvasIXYZ(node))),
-			parser::v0::ChunkType::CanvasUV => CanvasUV::parse(row, children, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, LayerNode::CanvasUV(node))),
-			parser::v0::ChunkType::CanvasRGB => CanvasRGB::parse(row, children, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, LayerNode::CanvasRGB(node))),
+				.map(|(bytes, node)| (bytes, LayerNode::CanvasGrey(node))),
 			parser::v0::ChunkType::CanvasRGBA => CanvasRGBA::parse(row, children, bytes)
 				.await
 				.map(|(bytes, node)| (bytes, LayerNode::CanvasRGBA(node))),
-			parser::v0::ChunkType::CanvasRGBAXYZ => CanvasRGBAXYZ::parse(row, children, bytes)
+			parser::v0::ChunkType::CanvasUV => CanvasUV::parse(row, children, bytes)
 				.await
-				.map(|(bytes, node)| (bytes, LayerNode::CanvasRGBAXYZ(node))),
-			parser::v0::ChunkType::Sprite => Sprite::parse(row, children, bytes)
-				.await
-				.map(|(bytes, node)| (bytes, LayerNode::Sprite(node))),
+				.map(|(bytes, node)| (bytes, LayerNode::CanvasUV(node))),
 			parser::v0::ChunkType::LayerGroup => LayerGroup::parse(row, children, bytes)
 				.await
 				.map(|(bytes, node)| (bytes, LayerNode::Group(node))),
@@ -58,13 +40,9 @@ impl parser::v0::IParser for LayerNode {
 		S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
 	{
 		match self {
-			LayerNode::CanvasI(node) => node.write(index, storage, offset).await,
-			LayerNode::CanvasIXYZ(node) => node.write(index, storage, offset).await,
-			LayerNode::CanvasUV(node) => node.write(index, storage, offset).await,
-			LayerNode::CanvasRGB(node) => node.write(index, storage, offset).await,
+			LayerNode::CanvasGrey(node) => node.write(index, storage, offset).await,
 			LayerNode::CanvasRGBA(node) => node.write(index, storage, offset).await,
-			LayerNode::CanvasRGBAXYZ(node) => node.write(index, storage, offset).await,
-			LayerNode::Sprite(node) => node.write(index, storage, offset).await,
+			LayerNode::CanvasUV(node) => node.write(index, storage, offset).await,
 			LayerNode::Group(node) => node.write(index, storage, offset).await,
 		}
 	}

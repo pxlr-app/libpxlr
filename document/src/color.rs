@@ -111,6 +111,7 @@ pub enum ColorMode {
 	Grey,
 	RGBA,
 	UV,
+	Normal,
 }
 
 define_colors! {
