@@ -124,3 +124,16 @@ impl std::convert::TryFrom<Node> for LayerNode {
 		}
 	}
 }
+
+impl std::convert::TryFrom<LayerNode> for Node {
+	type Error = &'static str;
+
+	fn try_from(node: LayerNode) -> Result<Self, Self::Error> {
+		match node {
+			LayerNode::CanvasGrey(node) => Ok(Node::CanvasGrey(node)),
+			LayerNode::CanvasRGBA(node) => Ok(Node::CanvasRGBA(node)),
+			LayerNode::CanvasUV(node) => Ok(Node::CanvasUV(node)),
+			LayerNode::Group(node) => Ok(Node::LayerGroup(node)),
+		}
+	}
+}

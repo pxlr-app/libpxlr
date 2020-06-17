@@ -72,3 +72,15 @@ impl std::convert::TryFrom<Node> for DocumentNode {
 		}
 	}
 }
+
+impl std::convert::TryFrom<DocumentNode> for Node {
+	type Error = &'static str;
+
+	fn try_from(node: DocumentNode) -> Result<Self, Self::Error> {
+		match node {
+			DocumentNode::Group(node) => Ok(Node::Group(node)),
+			DocumentNode::Note(node) => Ok(Node::Note(node)),
+			DocumentNode::Sprite(node) => Ok(Node::LayerGroup(node)),
+		}
+	}
+}
