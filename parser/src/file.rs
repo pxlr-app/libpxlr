@@ -1,7 +1,7 @@
 use super::range::{map_range_within_merged_ranges, MergeOverlapping};
 use super::range_bounds::RangeBounds;
 use crate::parser;
-use crate::parser::IParser;
+use crate::parser::{IParser, IWriter};
 use crate::ReadRanges;
 use collections::bitvec;
 use document::Node;
@@ -112,7 +112,7 @@ impl File {
 	where
 		S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
 	{
-		let size = parser::v0::IParser::write(node, &mut self.index, storage, offset).await?;
+		let size = parser::v0::IWriter::write(node, &mut self.index, storage, offset).await?;
 		Ok(size)
 	}
 

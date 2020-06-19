@@ -1,5 +1,5 @@
 use crate::parser;
-use crate::parser::IParser;
+use crate::parser::{IParser, IWriter};
 use document::{color::*, sprite::*, Node};
 use futures::io;
 use math::Extent2;
@@ -63,7 +63,9 @@ macro_rules! define_canvas {
 				}
 				Box::pin(run(row, bytes))
 			}
+		}
 
+		impl parser::v0::IWriter for $name {
 			// TODO Due to https://github.com/dtolnay/async-trait/issues/46
 			//		had to expand the macro manually
 			fn write<'a, 'b, 'c, 'async_trait, S>(

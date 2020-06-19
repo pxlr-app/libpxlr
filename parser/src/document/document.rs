@@ -26,7 +26,10 @@ impl parser::v0::IParser for DocumentNode {
 			_ => unimplemented!(),
 		}
 	}
+}
 
+#[async_trait]
+impl parser::v0::IWriter for DocumentNode {
 	async fn write<S>(
 		&self,
 		index: &mut parser::v0::PartitionIndex,

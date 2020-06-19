@@ -33,7 +33,10 @@ impl parser::v0::IParser for Group {
 			},
 		))
 	}
+}
 
+#[async_trait]
+impl parser::v0::IWriter for Group {
 	async fn write<S>(
 		&self,
 		index: &mut parser::v0::PartitionIndex,

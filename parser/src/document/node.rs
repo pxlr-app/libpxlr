@@ -34,7 +34,10 @@ impl parser::v0::IParser for Node {
 				.map(|(bytes, node)| (bytes, Node::CanvasUV(node))),
 		}
 	}
+}
 
+#[async_trait]
+impl parser::v0::IWriter for Node {
 	async fn write<S>(
 		&self,
 		index: &mut parser::v0::PartitionIndex,

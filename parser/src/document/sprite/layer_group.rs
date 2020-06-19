@@ -1,5 +1,5 @@
 use crate::parser;
-use crate::parser::IParser;
+use crate::parser::IWriter;
 use async_trait::async_trait;
 use document::{
 	color::ColorMode,
@@ -41,7 +41,10 @@ impl parser::v0::IParser for LayerGroup {
 			},
 		))
 	}
+}
 
+#[async_trait]
+impl parser::v0::IWriter for LayerGroup {
 	async fn write<S>(
 		&self,
 		index: &mut parser::v0::PartitionIndex,

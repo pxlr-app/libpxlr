@@ -20,17 +20,11 @@ macro_rules! define_colors {
 				};
 				Ok((bytes, value))
 			}
+		}
 
+		impl parser::IWriter for ColorMode {
 			// TODO Due to https://github.com/dtolnay/async-trait/issues/46
 			//		had to expand the macro manually
-			//
-			// fn write<S>(&self, storage: &mut S) -> io::Result<usize> where S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin {
-			// 	let index: u16 = match self {
-			// 		$(ColorMode::$color => $idx),+
-			// 	};
-			// 	storage.write_all(&index.to_le_bytes())?;
-			// 	Ok(2)
-			// }
 			fn write<'a, 'b, 'async_trait, S>(
 				&'a self,
 				storage: &'b mut S,
@@ -68,17 +62,11 @@ macro_rules! define_colors {
 					)+
 					Ok((bytes, $color { $($name),+ }))
 				}
+			}
 
+			impl parser::IWriter for $color {
 				// TODO Due to https://github.com/dtolnay/async-trait/issues/46
 				//		had to expand the macro manually
-				//
-				// fn write<S>(&self, storage: &mut S) -> io::Result<usize> where S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin {
-				// 	let mut b: usize = 0;
-				// 	$(
-				// 		b += storage.write_all(&self.$name.to_le_bytes())?;
-				// 	)+
-				// 	Ok(b)
-				// }
 				fn write<'a, 'b, 'async_trait, S>(
 					&'a self,
 					storage: &'b mut S,

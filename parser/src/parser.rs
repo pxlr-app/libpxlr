@@ -13,7 +13,10 @@ pub trait IParser {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], Self>
 	where
 		Self: Sized;
+}
 
+#[async_trait]
+pub trait IWriter {
 	async fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 	where
 		S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin;
@@ -31,7 +34,10 @@ impl IParser for Header {
 		let (bytes, version) = le_u8(bytes)?;
 		Ok((bytes, Header { version }))
 	}
+}
 
+#[async_trait]
+impl IWriter for Header {
 	async fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 	where
 		S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
@@ -94,7 +100,10 @@ pub mod v0 {
 		) -> IResult<&'b [u8], Self::Output>
 		where
 			Self::Output: Sized;
+	}
 
+	#[async_trait]
+	pub trait IWriter {
 		async fn write<S>(
 			&self,
 			index: &mut PartitionIndex,
@@ -105,48 +114,51 @@ pub mod v0 {
 			S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin;
 	}
 
-	#[async_trait]
-	impl<T> IParser for Vec<T>
-	where
-		T: IParser + std::marker::Sync,
-	{
-		type Output = Vec<T::Output>;
+	// #[async_trait]
+	// impl<T> IParser for Vec<T>
+	// where
+	// 	T: IParser + std::marker::Sync,
+	// {
+	// 	type Output = Vec<T::Output>;
 
-		async fn parse<'b>(
-			row: &PartitionTableRow,
-			_children: &mut Vec<Node>,
-			bytes: &'b [u8],
-		) -> IResult<&'b [u8], Self::Output> {
-			let mut items: Vec<T::Output> = Vec::new();
-			let mut children: Vec<Node> = Vec::new();
-			let mut remainder: &'b [u8] = bytes;
-			loop {
-				if let Ok((b, item)) = <T as IParser>::parse(row, &mut children, remainder).await {
-					remainder = b;
-					items.push(item);
-				} else {
-					break;
-				}
-			}
-			Ok((remainder, items))
-		}
+	// 	async fn parse<'b>(
+	// 		row: &PartitionTableRow,
+	// 		_children: &mut Vec<Node>,
+	// 		bytes: &'b [u8],
+	// 	) -> IResult<&'b [u8], Self::Output> {
+	// 		let mut items: Vec<T::Output> = Vec::new();
+	// 		let mut children: Vec<Node> = Vec::new();
+	// 		let mut remainder: &'b [u8] = bytes;
+	// 		loop {
+	// 			if let Ok((b, item)) = <T as IParser>::parse(row, &mut children, remainder).await {
+	// 				remainder = b;
+	// 				items.push(item);
+	// 			} else {
+	// 				break;
+	// 			}
+	// 		}
+	// 		Ok((remainder, items))
+	// 	}
 
-		async fn write<S>(
-			&self,
-			index: &mut PartitionIndex,
-			storage: &mut S,
-			offset: u64,
-		) -> io::Result<usize>
-		where
-			S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
-		{
-			let mut b: usize = 0;
-			for item in self.iter() {
-				b += item.write(index, storage, offset + (b as u64)).await?;
-			}
-			Ok(b)
-		}
-	}
+	// 	async fn write<S>(
+	// 		&self,
+	// 		row: &mut PartitionTableRow,
+	// 		storage: &mut S,
+	// 		write_node: &dyn FnMut(&Node) -> io::Result<usize>,
+	// 		offset: u64,
+	// 	) -> io::Result<usize>
+	// 	where
+	// 		S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
+	// 	{
+	// 		let mut b: usize = 0;
+	// 		for item in self.iter() {
+	// 			b += item
+	// 				.write(row, storage, write_node, offset + (b as u64))
+	// 				.await?;
+	// 		}
+	// 		Ok(b)
+	// 	}
+	// }
 
 	#[derive(Debug, Clone, PartialEq)]
 	pub struct PartitionTable {
@@ -170,7 +182,10 @@ pub mod v0 {
 				},
 			))
 		}
+	}
 
+	#[async_trait]
+	impl super::IWriter for PartitionTable {
 		async fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 		where
 			S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
@@ -207,7 +222,10 @@ pub mod v0 {
 			};
 			Ok((bytes, value))
 		}
+	}
 
+	#[async_trait]
+	impl super::IWriter for ChunkType {
 		async fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 		where
 			S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
@@ -278,7 +296,10 @@ pub mod v0 {
 				},
 			))
 		}
+	}
 
+	#[async_trait]
+	impl super::IWriter for PartitionTableRow {
 		async fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 		where
 			S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
@@ -320,7 +341,10 @@ impl IParser for String {
 		let (bytes, buffer) = take(len as usize)(bytes)?;
 		Ok((bytes, std::str::from_utf8(buffer).unwrap().to_owned()))
 	}
+}
 
+#[async_trait]
+impl IWriter for String {
 	async fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 	where
 		S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
@@ -342,7 +366,10 @@ impl IParser for Uuid {
 		let (bytes, buffer) = take(16usize)(bytes)?;
 		Ok((bytes, Uuid::from_slice(buffer).unwrap()))
 	}
+}
 
+#[async_trait]
+impl IWriter for Uuid {
 	async fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 	where
 		S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
@@ -359,7 +386,10 @@ impl IParser for Vec2<f32> {
 		let (bytes, y) = le_f32(bytes)?;
 		Ok((bytes, Vec2::new(x, y)))
 	}
+}
 
+#[async_trait]
+impl IWriter for Vec2<f32> {
 	async fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 	where
 		S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
@@ -377,7 +407,10 @@ impl IParser for Extent2<u32> {
 		let (bytes, h) = le_u32(bytes)?;
 		Ok((bytes, Extent2::new(w, h)))
 	}
+}
 
+#[async_trait]
+impl IWriter for Extent2<u32> {
 	async fn write<S>(&self, storage: &mut S) -> io::Result<usize>
 	where
 		S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,

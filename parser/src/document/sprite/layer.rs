@@ -29,7 +29,10 @@ impl parser::v0::IParser for LayerNode {
 			_ => unimplemented!(),
 		}
 	}
+}
 
+#[async_trait]
+impl parser::v0::IWriter for LayerNode {
 	async fn write<S>(
 		&self,
 		index: &mut parser::v0::PartitionIndex,
