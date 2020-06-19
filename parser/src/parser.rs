@@ -114,52 +114,6 @@ pub mod v0 {
 			S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin;
 	}
 
-	// #[async_trait]
-	// impl<T> IParser for Vec<T>
-	// where
-	// 	T: IParser + std::marker::Sync,
-	// {
-	// 	type Output = Vec<T::Output>;
-
-	// 	async fn parse<'b>(
-	// 		row: &PartitionTableRow,
-	// 		_children: &mut Vec<Node>,
-	// 		bytes: &'b [u8],
-	// 	) -> IResult<&'b [u8], Self::Output> {
-	// 		let mut items: Vec<T::Output> = Vec::new();
-	// 		let mut children: Vec<Node> = Vec::new();
-	// 		let mut remainder: &'b [u8] = bytes;
-	// 		loop {
-	// 			if let Ok((b, item)) = <T as IParser>::parse(row, &mut children, remainder).await {
-	// 				remainder = b;
-	// 				items.push(item);
-	// 			} else {
-	// 				break;
-	// 			}
-	// 		}
-	// 		Ok((remainder, items))
-	// 	}
-
-	// 	async fn write<S>(
-	// 		&self,
-	// 		row: &mut PartitionTableRow,
-	// 		storage: &mut S,
-	// 		write_node: &dyn FnMut(&Node) -> io::Result<usize>,
-	// 		offset: u64,
-	// 	) -> io::Result<usize>
-	// 	where
-	// 		S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
-	// 	{
-	// 		let mut b: usize = 0;
-	// 		for item in self.iter() {
-	// 			b += item
-	// 				.write(row, storage, write_node, offset + (b as u64))
-	// 				.await?;
-	// 		}
-	// 		Ok(b)
-	// 	}
-	// }
-
 	#[derive(Debug, Clone, PartialEq)]
 	pub struct PartitionTable {
 		pub hash: Uuid,
@@ -199,6 +153,7 @@ pub mod v0 {
 
 	#[derive(Debug, Clone, PartialEq)]
 	pub enum ChunkType {
+		Unknown,
 		Group,
 		Note,
 		LayerGroup,
@@ -212,12 +167,13 @@ pub mod v0 {
 		fn parse(bytes: &[u8]) -> IResult<&[u8], Self> {
 			let (bytes, index) = le_u16(bytes)?;
 			let value = match index {
-				0 => ChunkType::Group,
-				1 => ChunkType::Note,
-				2 => ChunkType::LayerGroup,
-				3 => ChunkType::CanvasGrey,
-				4 => ChunkType::CanvasRGBA,
-				5 => ChunkType::CanvasUV,
+				0 => ChunkType::Unknown,
+				1 => ChunkType::Group,
+				2 => ChunkType::Note,
+				3 => ChunkType::LayerGroup,
+				4 => ChunkType::CanvasGrey,
+				5 => ChunkType::CanvasRGBA,
+				6 => ChunkType::CanvasUV,
 				_ => panic!("Unknown chunk type"),
 			};
 			Ok((bytes, value))
@@ -231,12 +187,13 @@ pub mod v0 {
 			S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
 		{
 			let index: u16 = match self {
-				ChunkType::Group => 0,
-				ChunkType::Note => 1,
-				ChunkType::LayerGroup => 2,
-				ChunkType::CanvasGrey => 3,
-				ChunkType::CanvasRGBA => 4,
-				ChunkType::CanvasUV => 5,
+				ChunkType::Unknown => 0,
+				ChunkType::Group => 1,
+				ChunkType::Note => 2,
+				ChunkType::LayerGroup => 3,
+				ChunkType::CanvasGrey => 4,
+				ChunkType::CanvasRGBA => 5,
+				ChunkType::CanvasUV => 6,
 			};
 			storage.write_all(&index.to_le_bytes()).await?;
 			Ok(2)

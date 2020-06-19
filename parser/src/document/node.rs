@@ -14,6 +14,7 @@ impl parser::v0::IParser for Node {
 		bytes: &'b [u8],
 	) -> IResult<&'b [u8], Self::Output> {
 		match row.chunk_type {
+			parser::v0::ChunkType::Unknown => Ok((bytes, Node::Unknown)),
 			parser::v0::ChunkType::Group => Group::parse(row, children, bytes)
 				.await
 				.map(|(bytes, node)| (bytes, Node::Group(node))),
@@ -48,13 +49,13 @@ impl parser::v0::IWriter for Node {
 		S: io::AsyncWriteExt + std::marker::Send + std::marker::Unpin,
 	{
 		match self {
+			Node::Unknown => Ok(0),
 			Node::Group(node) => node.write(index, storage, offset).await,
 			Node::Note(node) => node.write(index, storage, offset).await,
 			Node::LayerGroup(node) => node.write(index, storage, offset).await,
 			Node::CanvasGrey(node) => node.write(index, storage, offset).await,
 			Node::CanvasRGBA(node) => node.write(index, storage, offset).await,
 			Node::CanvasUV(node) => node.write(index, storage, offset).await,
-			_ => unimplemented!(),
 		}
 	}
 }
