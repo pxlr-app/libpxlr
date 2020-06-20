@@ -1,5 +1,4 @@
 use chrono::{DateTime, Utc};
-use document::patch::Patch;
 use sha2::{Digest, Sha512};
 use std::collections::VecDeque;
 use uuid::Uuid;
@@ -14,20 +13,20 @@ fn hash_uuid_pair(a: &Uuid, b: &Uuid) -> Uuid {
 	Uuid::from_bytes(bytes)
 }
 
-pub struct Event {
+pub struct Event<T> {
 	pub hash: Uuid,
 	pub display: String,
 	pub timestamp: DateTime<Utc>,
-	pub redo: Patch,
-	pub undo: Patch,
+	pub redo: T,
+	pub undo: T,
 }
 
-pub struct History {
-	events: VecDeque<Event>,
+pub struct History<T> {
+	events: VecDeque<Event<T>>,
 	index: usize,
 }
 
-impl History {
+impl<T> History<T> {
 	pub fn new() -> Self {
 		History {
 			events: VecDeque::new(),
@@ -35,7 +34,7 @@ impl History {
 		}
 	}
 
-	pub fn add(&mut self, event: Event) {
+	pub fn add(&mut self, event: Event<T>) {
 		if self.index < self.events.len() {
 			self.forget();
 		}
@@ -46,7 +45,7 @@ impl History {
 		self.events.drain(self.index..);
 	}
 
-	pub fn travel_forward(&mut self) -> Option<&Event> {
+	pub fn travel_forward(&mut self) -> Option<&Event<T>> {
 		if self.index >= self.events.len() {
 			None
 		} else {
@@ -56,7 +55,7 @@ impl History {
 		}
 	}
 
-	pub fn travel_backward(&mut self) -> Option<&Event> {
+	pub fn travel_backward(&mut self) -> Option<&Event<T>> {
 		if self.index == 0 {
 			None
 		} else {

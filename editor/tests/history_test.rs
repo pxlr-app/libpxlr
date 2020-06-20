@@ -1,5 +1,5 @@
 use chrono::{TimeZone, Utc};
-use document::patch::{IPatchable, Renamable};
+use document::patch::{IPatchable, Patch, Renamable};
 use document::Note;
 use editor::history::{Event, History};
 use math::Vec2;
@@ -10,7 +10,7 @@ use uuid::Uuid;
 fn it_moves_forward_and_backward() {
 	// Init note with A
 	let doc = Rc::new(Note::new(None, "A", Vec2::new(0., 0.)));
-	let mut his = History::new();
+	let mut his: History<Patch> = History::new();
 
 	// Push rename to A->B
 	let (redo, undo) = doc.rename("B").unwrap();
@@ -70,7 +70,7 @@ fn it_moves_forward_and_backward() {
 fn it_reorder_events() {
 	// Init note with A
 	let doc = Rc::new(Note::new(None, "A", Vec2::new(0., 0.)));
-	let mut his = History::new();
+	let mut his: History<Patch> = History::new();
 
 	// Push rename A->B at T2
 	let (redo, undo) = doc.rename("B").unwrap();
