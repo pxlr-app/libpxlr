@@ -1,5 +1,5 @@
-use crate::patch::Patch;
 use chrono::{DateTime, Utc};
+use document::patch::Patch;
 use sha2::{Digest, Sha512};
 use std::collections::VecDeque;
 use uuid::Uuid;
@@ -18,8 +18,8 @@ pub struct Event {
 	pub hash: Uuid,
 	pub display: String,
 	pub timestamp: DateTime<Utc>,
-	pub redo: Box<Patch>,
-	pub undo: Box<Patch>,
+	pub redo: Patch,
+	pub undo: Patch,
 }
 
 pub struct History {

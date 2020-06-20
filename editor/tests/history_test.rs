@@ -1,7 +1,7 @@
 use chrono::{TimeZone, Utc};
 use document::patch::{IPatchable, Renamable};
 use document::Note;
-use document::{Event, History};
+use editor::history::{Event, History};
 use math::Vec2;
 use std::rc::Rc;
 use uuid::Uuid;
@@ -18,13 +18,13 @@ fn it_moves_forward_and_backward() {
 		hash: Uuid::new_v4(),
 		display: "Rename to B".into(),
 		timestamp: Utc.ymd(2020, 4, 19).and_hms_milli(2, 0, 0, 0),
-		redo: Box::new(redo),
-		undo: Box::new(undo),
+		redo: redo,
+		undo: undo,
 	});
 
 	// Move forward A->B
 	let event = his.travel_forward().unwrap();
-	let doc_a = doc.patch(&*event.redo).unwrap();
+	let doc_a = doc.patch(&event.redo).unwrap();
 	assert_eq!(*doc_a.note, "B");
 
 	// Push rename to B->C
@@ -33,13 +33,13 @@ fn it_moves_forward_and_backward() {
 		hash: Uuid::new_v4(),
 		display: "Rename to C".into(),
 		timestamp: Utc.ymd(2020, 4, 19).and_hms_milli(2, 0, 1, 0),
-		redo: Box::new(redo),
-		undo: Box::new(undo),
+		redo: redo,
+		undo: undo,
 	});
 
 	// Move forward B->C
 	let event = his.travel_forward().unwrap();
-	let doc_b = doc_a.patch(&*event.redo).unwrap();
+	let doc_b = doc_a.patch(&event.redo).unwrap();
 	assert_eq!(*doc_b.note, "C");
 
 	// At the end of time
@@ -47,12 +47,12 @@ fn it_moves_forward_and_backward() {
 
 	// Move backward C->B
 	let event = his.travel_backward().unwrap();
-	let doc_c = doc_b.patch(&*event.undo).unwrap();
+	let doc_c = doc_b.patch(&event.undo).unwrap();
 	assert_eq!(*doc_c.note, "B");
 
 	// Move backward B->A
 	let event = his.travel_backward().unwrap();
-	let doc_d = doc_c.patch(&*event.undo).unwrap();
+	let doc_d = doc_c.patch(&event.undo).unwrap();
 	assert_eq!(*doc_d.note, "A");
 
 	// At the beginning of time
@@ -78,13 +78,13 @@ fn it_reorder_events() {
 		hash: Uuid::new_v4(),
 		display: "Rename to B".into(),
 		timestamp: Utc.ymd(2020, 4, 19).and_hms_milli(2, 0, 1, 0),
-		redo: Box::new(redo),
-		undo: Box::new(undo),
+		redo: redo,
+		undo: undo,
 	});
 
 	// Move forward A->B
 	let event = his.travel_forward().unwrap();
-	let doc_a = doc.patch(&*event.redo).unwrap();
+	let doc_a = doc.patch(&event.redo).unwrap();
 	assert_eq!(*doc_a.note, "B");
 
 	// Push rename B->C at T1
@@ -93,13 +93,13 @@ fn it_reorder_events() {
 		hash: Uuid::new_v4(),
 		display: "Rename to C".into(),
 		timestamp: Utc.ymd(2020, 4, 19).and_hms_milli(2, 0, 0, 0),
-		redo: Box::new(redo),
-		undo: Box::new(undo),
+		redo: redo,
+		undo: undo,
 	});
 
 	// Move forward B->C
 	let event = his.travel_forward().unwrap();
-	let doc_b = doc_a.patch(&*event.redo).unwrap();
+	let doc_b = doc_a.patch(&event.redo).unwrap();
 	assert_eq!(*doc_b.note, "C");
 
 	// At the end of time
@@ -110,12 +110,12 @@ fn it_reorder_events() {
 
 	// Move forward A->C
 	let event = his.travel_forward().unwrap();
-	let doc_a = doc.patch(&*event.redo).unwrap();
+	let doc_a = doc.patch(&event.redo).unwrap();
 	assert_eq!(*doc_a.note, "C");
 
 	// Move forward C->B
 	let event = his.travel_forward().unwrap();
-	let doc_b = doc_a.patch(&*event.redo).unwrap();
+	let doc_b = doc_a.patch(&event.redo).unwrap();
 	assert_eq!(*doc_b.note, "B");
 
 	// At the end of time
