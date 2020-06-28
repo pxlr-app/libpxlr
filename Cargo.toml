@@ -4,6 +4,7 @@ members = [
 	"collections",
 	"document",
 	"editor",
+	"freeimage-sys",
 	"math",
 	"parser"
 ]
