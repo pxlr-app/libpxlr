@@ -1,1 +1,1 @@
-#include "FreeImage/Dist/FreeImage.h"
+#include "FreeImage/Source/FreeImage.h"

@@ -17,4 +17,3 @@ cc = "1"
 [build-dependencies]
 bindgen = "0.54.0"
 fs_extra = "1"
-regex = "1.3.9"
