@@ -150,7 +150,7 @@ impl Write for IndexRow {
 pub trait ParseNode {
 	fn parse_node<'bytes>(
 		row: &IndexRow,
-		items: Vec<Box<dyn Node>>,
+		items: Vec<NodeRef>,
 		dependencies: NodeList,
 		bytes: &'bytes [u8],
 	) -> Result<&'bytes [u8], Self>

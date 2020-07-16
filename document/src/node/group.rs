@@ -1,21 +1,20 @@
 use crate as document;
 use crate::prelude::*;
-use std::{cell::RefCell, io};
 
 #[derive(DocumentNode, Debug, Clone, Serialize, Deserialize)]
 pub struct Group {
 	pub id: Uuid,
-	pub position: Vec2<u32>,
+	pub position: Arc<Vec2<u32>>,
 	pub visible: bool,
 	pub locked: bool,
 	pub folded: bool,
-	pub name: String,
-	pub items: NodeList,
+	pub name: Arc<String>,
+	pub items: Arc<NodeList>,
 }
 
 impl Name for Group {
 	fn name(&self) -> String {
-		self.name.clone()
+		(*self.name).clone()
 	}
 	fn rename(&self, name: String) -> Option<(patch::Rename, patch::Rename)> {
 		Some((
@@ -25,7 +24,7 @@ impl Name for Group {
 			},
 			patch::Rename {
 				target: self.id,
-				name: self.name.clone(),
+				name: (*self.name).clone(),
 			},
 		))
 	}
@@ -33,7 +32,7 @@ impl Name for Group {
 
 impl Position for Group {
 	fn position(&self) -> Vec2<u32> {
-		self.position
+		*self.position
 	}
 	fn translate(&self, position: Vec2<u32>) -> Option<(patch::Translate, patch::Translate)> {
 		Some((
@@ -43,7 +42,7 @@ impl Position for Group {
 			},
 			patch::Translate {
 				target: self.id,
-				position: self.position,
+				position: *self.position,
 			},
 		))
 	}
@@ -106,31 +105,60 @@ impl Folded for Group {
 }
 
 impl Patchable for Group {
-	fn patch(&mut self, patch: &dyn Patch) {
+	fn patch(&self, patch: &dyn Patch) -> Option<Box<dyn Node>> {
+		let mut cloned = Box::new(Group {
+			id: self.id,
+			position: self.position.clone(),
+			visible: self.visible,
+			locked: self.locked,
+			folded: self.folded,
+			name: self.name.clone(),
+			items: self.items.clone(),
+		});
 		if patch.target() == self.id {
 			if let Some(patch) = patch.downcast::<patch::Rename>() {
-				self.name = patch.name.clone();
+				cloned.name = Arc::new(patch.name.clone());
+				return Some(cloned);
 			} else if let Some(patch) = patch.downcast::<patch::Translate>() {
-				self.position = patch.position;
+				cloned.position = Arc::new(patch.position);
+				return Some(cloned);
 			} else if let Some(patch) = patch.downcast::<patch::SetVisible>() {
-				self.visible = patch.visibility;
+				cloned.visible = patch.visibility;
+				return Some(cloned);
 			} else if let Some(patch) = patch.downcast::<patch::SetLock>() {
-				self.locked = patch.locked;
+				cloned.locked = patch.locked;
+				return Some(cloned);
 			} else if let Some(patch) = patch.downcast::<patch::SetFold>() {
-				self.folded = patch.folded;
+				cloned.folded = patch.folded;
+				return Some(cloned);
 			}
 		} else {
-			for item in self.items.iter() {
-				item.borrow_mut().patch(patch);
+			let mut mutated = false;
+			cloned.items = Arc::new(
+				cloned
+					.items
+					.iter()
+					.map(|item| match item.patch(patch) {
+						Some(item) => {
+							mutated = true;
+							<dyn Node>::from(item)
+						}
+						None => item.clone(),
+					})
+					.collect(),
+			);
+			if mutated {
+				return Some(cloned);
 			}
 		}
+		None
 	}
 }
 
 impl parser::v0::ParseNode for Group {
 	fn parse_node<'bytes>(
 		row: &parser::v0::IndexRow,
-		items: Vec<Box<dyn Node>>,
+		items: Vec<NodeRef>,
 		_dependencies: NodeList,
 		bytes: &'bytes [u8],
 	) -> parser::Result<&'bytes [u8], Self> {
@@ -139,15 +167,12 @@ impl parser::v0::ParseNode for Group {
 			bytes,
 			Group {
 				id: row.id,
-				position: row.position,
+				position: Arc::new(row.position),
 				visible: row.visible,
 				locked: row.locked,
 				folded: row.folded,
-				name: row.name.clone(),
-				items: items
-					.drain(..)
-					.map(|item| Rc::new(RefCell::new(item)))
-					.collect(),
+				name: Arc::new(row.name.clone()),
+				items: Arc::new(items.drain(..).map(|item| item.clone()).collect()),
 			},
 		))
 	}
@@ -165,11 +190,11 @@ impl parser::v0::WriteNode for Group {
 		row.visible = self.visible;
 		row.locked = self.locked;
 		row.folded = self.folded;
-		row.position = self.position;
-		row.name = self.name.clone();
+		row.position = *self.position;
+		row.name = (*self.name).clone();
 		for item in self.items.iter() {
 			dependencies.push(item.clone());
-			row.items.push(item.borrow().id());
+			row.items.push(item.id());
 		}
 		rows.push(row);
 		Ok(0)

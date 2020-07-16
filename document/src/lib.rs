@@ -10,7 +10,10 @@ pub mod prelude {
 	pub use document_derive::*;
 	pub use math::{Extent2, Vec2};
 	pub use serde::{Deserialize, Serialize};
-	pub use std::rc::Rc;
+	pub use std::{
+		io,
+		sync::{Arc, RwLock},
+	};
 	pub use uuid::Uuid;
 }
 
@@ -23,97 +26,78 @@ pub use lazy_static;
 #[cfg(test)]
 mod tests {
 	use super::prelude::*;
-	use crate as document;
-
-	#[derive(Debug, DocumentNode, Serialize, Deserialize)]
-	struct Empty {
-		pub id: Uuid,
-		pub name: String,
-	}
-
-	impl Name for Empty {
-		fn name(&self) -> String {
-			self.name.clone()
-		}
-		fn rename(&self, name: String) -> Option<(patch::Rename, patch::Rename)> {
-			Some((
-				patch::Rename {
-					target: self.id,
-					name,
-				},
-				patch::Rename {
-					target: self.id,
-					name: self.name.clone(),
-				},
-			))
-		}
-	}
-	impl Position for Empty {}
-	impl Size for Empty {}
-	impl Visible for Empty {}
-	impl Locked for Empty {}
-	impl Folded for Empty {}
-
-	impl Patchable for Empty {
-		fn patch(&mut self, patch: &dyn Patch) {
-			if let Some(patch) = patch.downcast::<patch::Rename>() {
-				self.name = patch.name.clone();
-			}
-		}
-	}
 
 	#[test]
 	fn test_cast() {
-		let empty = Empty {
+		let note = Note {
 			id: Uuid::new_v4(),
-			name: "Foo".into(),
+			position: Arc::new(Vec2::new(0, 0)),
+			visible: true,
+			locked: false,
+			name: Arc::new("Foo".into()),
 		};
-		let node: &dyn Node = &empty;
+		let node: &dyn Node = &note;
 		let documentnode = node.as_documentnode();
 		assert_eq!(documentnode.is_some(), true);
-		let note2 = documentnode.unwrap().downcast::<Empty>();
+		let note2 = documentnode.unwrap().downcast::<Note>();
 		assert_eq!(note2.is_some(), true);
 	}
 
 	#[test]
 	fn test_patch() {
-		let mut empty = Empty {
+		let note = Note {
 			id: Uuid::new_v4(),
-			name: "Foo".into(),
+			position: Arc::new(Vec2::new(0, 0)),
+			visible: true,
+			locked: false,
+			name: Arc::new("Foo".into()),
 		};
-		let (patch, _) = empty.rename("Bar".into()).unwrap();
-		let node: &mut dyn Node = &mut empty;
-		node.patch(&patch);
-		assert_eq!(empty.name, "Bar");
+		let (patch, _) = note.rename("Bar".into()).unwrap();
+		let node = note.patch(&patch).unwrap();
+		let note2 = node.downcast::<Note>().unwrap();
+		assert_eq!(*note.name, "Foo");
+		assert_eq!(*note2.name, "Bar");
 
-		let mut group = Group {
+		let group = Group {
 			id: Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap(),
-			position: Vec2::new(0, 0),
+			position: Arc::new(Vec2::new(0, 0)),
 			visible: true,
 			locked: false,
 			folded: false,
-			name: "Foo".into(),
-			items: vec![<dyn Node>::from(Box::new(Empty {
+			name: Arc::new("Foo".into()),
+			items: Arc::new(vec![<dyn Node>::from(Box::new(Note {
 				id: Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap(),
-				name: "Foo".into(),
-			}))],
+				position: Arc::new(Vec2::new(0, 0)),
+				visible: true,
+				locked: false,
+				name: Arc::new("Foo".into()),
+			}))]),
 		};
 		let (patch, _) = group
 			.items
 			.get(0)
 			.unwrap()
-			.borrow()
 			.as_documentnode()
 			.unwrap()
 			.rename("Bar".into())
 			.unwrap();
-		group.patch(&patch);
+		let node = group.patch(&patch).unwrap();
+		let group2 = node.downcast::<Group>().unwrap();
 		assert_eq!(
 			group
 				.items
 				.get(0)
 				.unwrap()
-				.borrow()
+				.as_documentnode()
+				.unwrap()
+				.name(),
+			"Foo"
+		);
+		assert_eq!(
+			group2
+				.items
+				.get(0)
+				.unwrap()
 				.as_documentnode()
 				.unwrap()
 				.name(),
@@ -125,17 +109,20 @@ mod tests {
 	fn test_json() {
 		let group = Group {
 			id: Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap(),
-			position: Vec2::new(0, 0),
+			position: Arc::new(Vec2::new(0, 0)),
 			visible: true,
 			locked: false,
 			folded: false,
-			name: "Foo".into(),
-			items: vec![<dyn Node>::from(Box::new(Empty {
+			name: Arc::new("Foo".into()),
+			items: Arc::new(vec![<dyn Node>::from(Box::new(Note {
 				id: Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap(),
-				name: "Foo".into(),
-			}))],
+				position: Arc::new(Vec2::new(0, 0)),
+				visible: true,
+				locked: false,
+				name: Arc::new("Foo".into()),
+			}))]),
 		};
 		let json = serde_json::to_string(&group).unwrap();
-		assert_eq!(json, "{\"id\":\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",\"position\":{\"x\":0,\"y\":0},\"visible\":true,\"locked\":false,\"folded\":false,\"name\":\"Foo\",\"items\":[{\"node\":\"Empty\",\"props\":{\"id\":\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",\"name\":\"Foo\"}}]}");
+		assert_eq!(json, "{\"id\":\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",\"position\":{\"x\":0,\"y\":0},\"visible\":true,\"locked\":false,\"folded\":false,\"name\":\"Foo\",\"items\":[{\"node\":\"Note\",\"props\":{\"id\":\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",\"position\":{\"x\":0,\"y\":0},\"visible\":true,\"locked\":false,\"name\":\"Foo\"}}]}");
 	}
 }
