@@ -1,18 +1,19 @@
 use crate as document;
 use crate::prelude::*;
+use std::io;
 
 #[derive(DocumentNode, Debug, Clone, Serialize, Deserialize)]
 pub struct Note {
 	pub id: Uuid,
-	pub position: Rc<Vec2<u32>>,
+	pub position: Vec2<u32>,
 	pub visible: bool,
 	pub locked: bool,
-	pub name: Rc<String>,
+	pub name: String,
 }
 
 impl Name for Note {
 	fn name(&self) -> String {
-		(*self.name).clone()
+		self.name.clone()
 	}
 	fn rename(&self, name: String) -> Option<(patch::Rename, patch::Rename)> {
 		Some((
@@ -22,7 +23,7 @@ impl Name for Note {
 			},
 			patch::Rename {
 				target: self.id,
-				name: (*self.name).to_owned(),
+				name: self.name.clone(),
 			},
 		))
 	}
@@ -30,7 +31,7 @@ impl Name for Note {
 
 impl Position for Note {
 	fn position(&self) -> Vec2<u32> {
-		*self.position
+		self.position
 	}
 	fn translate(&self, position: Vec2<u32>) -> Option<(patch::Translate, patch::Translate)> {
 		Some((
@@ -40,7 +41,7 @@ impl Position for Note {
 			},
 			patch::Translate {
 				target: self.id,
-				position: *self.position,
+				position: self.position,
 			},
 		))
 	}
@@ -87,25 +88,55 @@ impl Locked for Note {
 impl Folded for Note {}
 
 impl Patchable for Note {
-	fn patch(&mut self, patch: &dyn Patch) -> bool {
+	fn patch(&mut self, patch: &dyn Patch) {
 		if patch.target() == self.id {
 			if let Some(patch) = patch.downcast::<patch::Rename>() {
-				self.name = Rc::new(patch.name.clone());
-				true
+				self.name = patch.name.clone();
 			} else if let Some(patch) = patch.downcast::<patch::Translate>() {
-				self.position = Rc::new(patch.position);
-				true
+				self.position = patch.position;
 			} else if let Some(patch) = patch.downcast::<patch::SetVisible>() {
 				self.visible = patch.visibility;
-				true
 			} else if let Some(patch) = patch.downcast::<patch::SetLock>() {
 				self.locked = patch.locked;
-				true
-			} else {
-				false
 			}
-		} else {
-			false
 		}
+	}
+}
+
+impl parser::v0::ParseNode for Note {
+	fn parse_node<'bytes>(
+		row: &parser::v0::IndexRow,
+		_items: Vec<Box<dyn Node>>,
+		_dependencies: NodeList,
+		bytes: &'bytes [u8],
+	) -> parser::Result<&'bytes [u8], Self> {
+		Ok((
+			bytes,
+			Note {
+				id: row.id,
+				position: row.position,
+				visible: row.visible,
+				locked: row.locked,
+				name: row.name.clone(),
+			},
+		))
+	}
+}
+
+impl parser::v0::WriteNode for Note {
+	fn write_node<W: io::Write + io::Seek>(
+		&self,
+		writer: &mut W,
+		rows: &mut Vec<parser::v0::IndexRow>,
+		_dependencies: &mut Vec<NodeRef>,
+	) -> io::Result<usize> {
+		let mut row = parser::v0::IndexRow::new(self.id);
+		row.chunk_offset = writer.seek(io::SeekFrom::Current(0))?;
+		row.visible = self.visible;
+		row.locked = self.locked;
+		row.position = self.position;
+		row.name = self.name.clone();
+		rows.push(row);
+		Ok(0)
 	}
 }

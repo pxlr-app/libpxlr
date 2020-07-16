@@ -1,22 +1,21 @@
 use crate as document;
 use crate::prelude::*;
-use std::cell::RefCell;
+use std::{cell::RefCell, io};
 
 #[derive(DocumentNode, Debug, Clone, Serialize, Deserialize)]
 pub struct Group {
 	pub id: Uuid,
-	pub position: Rc<Vec2<u32>>,
-	pub size: Rc<Extent2<u32>>,
+	pub position: Vec2<u32>,
 	pub visible: bool,
 	pub locked: bool,
 	pub folded: bool,
-	pub name: Rc<String>,
-	pub items: Rc<Vec<Rc<RefCell<Box<dyn Node>>>>>,
+	pub name: String,
+	pub items: NodeList,
 }
 
 impl Name for Group {
 	fn name(&self) -> String {
-		(*self.name).clone()
+		self.name.clone()
 	}
 	fn rename(&self, name: String) -> Option<(patch::Rename, patch::Rename)> {
 		Some((
@@ -26,7 +25,7 @@ impl Name for Group {
 			},
 			patch::Rename {
 				target: self.id,
-				name: (*self.name).to_owned(),
+				name: self.name.clone(),
 			},
 		))
 	}
@@ -34,7 +33,7 @@ impl Name for Group {
 
 impl Position for Group {
 	fn position(&self) -> Vec2<u32> {
-		*self.position
+		self.position
 	}
 	fn translate(&self, position: Vec2<u32>) -> Option<(patch::Translate, patch::Translate)> {
 		Some((
@@ -44,7 +43,7 @@ impl Position for Group {
 			},
 			patch::Translate {
 				target: self.id,
-				position: *self.position,
+				position: self.position,
 			},
 		))
 	}
@@ -107,42 +106,72 @@ impl Folded for Group {
 }
 
 impl Patchable for Group {
-	fn patch(&mut self, patch: &dyn Patch) -> bool {
+	fn patch(&mut self, patch: &dyn Patch) {
 		if patch.target() == self.id {
 			if let Some(patch) = patch.downcast::<patch::Rename>() {
-				self.name = Rc::new(patch.name.clone());
-				true
+				self.name = patch.name.clone();
 			} else if let Some(patch) = patch.downcast::<patch::Translate>() {
-				self.position = Rc::new(patch.position);
-				true
+				self.position = patch.position;
 			} else if let Some(patch) = patch.downcast::<patch::SetVisible>() {
 				self.visible = patch.visibility;
-				true
 			} else if let Some(patch) = patch.downcast::<patch::SetLock>() {
 				self.locked = patch.locked;
-				true
 			} else if let Some(patch) = patch.downcast::<patch::SetFold>() {
 				self.folded = patch.folded;
-				true
-			} else {
-				false
 			}
 		} else {
-			let mut patched = false;
-			let items = self
-				.items
-				.iter()
-				.map(|item| {
-					patched |= item.borrow_mut().patch(patch);
-					item.clone()
-				})
-				.collect::<Vec<_>>();
-			if patched {
-				self.items = Rc::new(items);
-				true
-			} else {
-				false
+			for item in self.items.iter() {
+				item.borrow_mut().patch(patch);
 			}
 		}
+	}
+}
+
+impl parser::v0::ParseNode for Group {
+	fn parse_node<'bytes>(
+		row: &parser::v0::IndexRow,
+		items: Vec<Box<dyn Node>>,
+		_dependencies: NodeList,
+		bytes: &'bytes [u8],
+	) -> parser::Result<&'bytes [u8], Self> {
+		let mut items = items;
+		Ok((
+			bytes,
+			Group {
+				id: row.id,
+				position: row.position,
+				visible: row.visible,
+				locked: row.locked,
+				folded: row.folded,
+				name: row.name.clone(),
+				items: items
+					.drain(..)
+					.map(|item| Rc::new(RefCell::new(item)))
+					.collect(),
+			},
+		))
+	}
+}
+
+impl parser::v0::WriteNode for Group {
+	fn write_node<W: io::Write + io::Seek>(
+		&self,
+		writer: &mut W,
+		rows: &mut Vec<parser::v0::IndexRow>,
+		dependencies: &mut Vec<NodeRef>,
+	) -> io::Result<usize> {
+		let mut row = parser::v0::IndexRow::new(self.id);
+		row.chunk_offset = writer.seek(io::SeekFrom::Current(0))?;
+		row.visible = self.visible;
+		row.locked = self.locked;
+		row.folded = self.folded;
+		row.position = self.position;
+		row.name = self.name.clone();
+		for item in self.items.iter() {
+			dependencies.push(item.clone());
+			row.items.push(item.borrow().id());
+		}
+		rows.push(row);
+		Ok(0)
 	}
 }

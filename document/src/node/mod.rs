@@ -3,7 +3,7 @@ use crate::{
 	patch,
 };
 use math::{Extent2, Vec2};
-use std::fmt::Debug;
+use std::{cell::RefCell, fmt::Debug, rc::Rc};
 use uuid::Uuid;
 
 #[typetag::serde(tag = "patch", content = "props")]
@@ -13,7 +13,7 @@ pub trait Patch: Any + Debug {
 impl Downcast for dyn Patch {}
 
 pub trait Patchable {
-	fn patch(&mut self, patch: &dyn Patch) -> bool;
+	fn patch(&mut self, patch: &dyn Patch);
 }
 
 #[typetag::serde(tag = "node", content = "props")]
@@ -24,6 +24,15 @@ pub trait Node: Any + Debug + Patchable {
 	}
 }
 impl Downcast for dyn Node {}
+
+pub type NodeRef = Rc<RefCell<Box<dyn Node>>>;
+pub type NodeList = Vec<NodeRef>;
+
+impl dyn Node {
+	pub fn from(node: Box<dyn Node>) -> Rc<RefCell<Box<dyn Node>>> {
+		Rc::new(RefCell::new(node))
+	}
+}
 
 pub trait Name {
 	fn name(&self) -> String {
