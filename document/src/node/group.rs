@@ -1,7 +1,7 @@
 use crate as document;
 use crate::prelude::*;
 
-#[derive(DocumentNode, Debug, Clone, Serialize, Deserialize)]
+#[derive(DocumentNode, Debug, Clone)]
 pub struct Group {
 	pub id: Uuid,
 	pub position: Arc<Vec2<u32>>,
@@ -104,8 +104,8 @@ impl Folded for Group {
 	}
 }
 
-impl Patchable for Group {
-	fn patch(&self, patch: &dyn Patch) -> Option<Box<dyn Node>> {
+impl patch::Patchable for Group {
+	fn patch(&self, patch: &dyn patch::Patch) -> Option<Box<dyn Node>> {
 		let mut cloned = Box::new(Group {
 			id: self.id,
 			position: self.position.clone(),
@@ -158,7 +158,7 @@ impl Patchable for Group {
 impl parser::v0::ParseNode for Group {
 	fn parse_node<'bytes>(
 		row: &parser::v0::IndexRow,
-		items: Vec<NodeRef>,
+		items: NodeList,
 		_dependencies: NodeList,
 		bytes: &'bytes [u8],
 	) -> parser::Result<&'bytes [u8], Self> {

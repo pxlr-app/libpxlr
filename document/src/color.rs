@@ -2,7 +2,6 @@ use crate as document;
 use crate::prelude::*;
 use std::fmt::Debug;
 
-#[typetag::serde(tag = "color", content = "props")]
 pub trait Color: Any + Debug {}
 impl Downcast for dyn Color {}
 

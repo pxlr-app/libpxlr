@@ -1,23 +1,12 @@
 use crate::{
 	any::{Any, Downcast},
-	patch,
+	parser, patch,
 };
 use math::{Extent2, Vec2};
 use std::{fmt::Debug, sync::Arc};
 use uuid::Uuid;
 
-#[typetag::serde(tag = "patch", content = "props")]
-pub trait Patch: Any + Debug {
-	fn target(&self) -> Uuid;
-}
-impl Downcast for dyn Patch {}
-
-pub trait Patchable {
-	fn patch(&self, patch: &dyn Patch) -> Option<Box<dyn Node>>;
-}
-
-#[typetag::serde(tag = "node", content = "props")]
-pub trait Node: Any + Debug + Patchable {
+pub trait Node: Any + Debug + patch::Patchable {
 	fn id(&self) -> Uuid;
 	fn as_documentnode(&self) -> Option<&dyn DocumentNode> {
 		None

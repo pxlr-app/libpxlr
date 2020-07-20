@@ -7,7 +7,7 @@ use nom::{
 	multi::many_m_n,
 	number::complete::{le_u32, le_u64, le_u8},
 };
-use std::io;
+use std::{collections::BTreeMap, io};
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
@@ -150,13 +150,15 @@ impl Write for IndexRow {
 pub trait ParseNode {
 	fn parse_node<'bytes>(
 		row: &IndexRow,
-		items: Vec<NodeRef>,
+		items: NodeList,
 		dependencies: NodeList,
 		bytes: &'bytes [u8],
 	) -> Result<&'bytes [u8], Self>
 	where
 		Self: Sized;
 }
+
+pub type ParseFn<'b> = fn(&IndexRow, NodeList, NodeList, &'b [u8]) -> Result<&'b [u8], NodeRef>;
 
 pub trait WriteNode {
 	fn write_node<W: io::Write + io::Seek>(
@@ -165,4 +167,26 @@ pub trait WriteNode {
 		rows: &mut Vec<IndexRow>,
 		dependencies: &mut Vec<NodeRef>,
 	) -> io::Result<usize>;
+}
+
+pub type NodeRegistry<'b> = BTreeMap<&'static str, ParseFn<'b>>;
+
+static mut NODES: Option<NodeRegistry> = None;
+
+pub trait Registry {
+	fn registry<'b>() -> &'static Option<NodeRegistry<'b>>;
+	fn init_registry<'b>(map: NodeRegistry<'b>);
+}
+
+impl Registry for dyn Node {
+	fn registry<'b>() -> &'static Option<NodeRegistry<'b>> {
+		unsafe {
+			std::mem::transmute::<&Option<NodeRegistry<'static>>, &Option<NodeRegistry<'b>>>(&NODES)
+		}
+	}
+	fn init_registry<'b>(map: NodeRegistry<'b>) {
+		unsafe {
+			NODES = Some(std::mem::transmute::<NodeRegistry<'b>, NodeRegistry<'static>>(map));
+		}
+	}
 }

@@ -9,12 +9,9 @@ bitflags = "1.2.1"
 chrono = { version = "0.4", features = ["serde"] }
 collections = { path = "../collections" }
 document_derive = { path = "../document_derive" }
-inventory = "0.1.7"
-lazy_static = "1.4.0"
 math = { path = "../math" }
 nom = "5"
 serde = { version = "1.0.106", features = ["rc"] }
-typetag = "0.1.5"
 uuid = { version = "0.8", features = ["serde", "stdweb", "v4"] }
 
 [dev-dependencies]

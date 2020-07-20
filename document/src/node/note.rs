@@ -1,7 +1,7 @@
 use crate as document;
 use crate::prelude::*;
 
-#[derive(DocumentNode, Debug, Clone, Serialize, Deserialize)]
+#[derive(DocumentNode, Debug, Clone)]
 pub struct Note {
 	pub id: Uuid,
 	pub position: Arc<Vec2<u32>>,
@@ -86,8 +86,8 @@ impl Locked for Note {
 
 impl Folded for Note {}
 
-impl Patchable for Note {
-	fn patch(&self, patch: &dyn Patch) -> Option<Box<dyn Node>> {
+impl patch::Patchable for Note {
+	fn patch(&self, patch: &dyn patch::Patch) -> Option<Box<dyn Node>> {
 		if patch.target() == self.id {
 			let mut cloned = Box::new(Note {
 				id: self.id,
@@ -117,7 +117,7 @@ impl Patchable for Note {
 impl parser::v0::ParseNode for Note {
 	fn parse_node<'bytes>(
 		row: &parser::v0::IndexRow,
-		_items: Vec<NodeRef>,
+		_items: NodeList,
 		_dependencies: NodeList,
 		bytes: &'bytes [u8],
 	) -> parser::Result<&'bytes [u8], Self> {

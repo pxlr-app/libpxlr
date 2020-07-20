@@ -14,7 +14,6 @@ fn impl_documentnode_macro(ast: &syn::DeriveInput) -> TokenStream {
 	let name = &ast.ident;
 
 	let gen = quote! {
-		#[document::typetag::serde]
 		impl document::prelude::Node for #name {
 			fn id(&self) -> document::prelude::Uuid {
 				self.id
@@ -44,8 +43,7 @@ fn impl_patch_macro(ast: &syn::DeriveInput) -> TokenStream {
 	let name = &ast.ident;
 
 	let gen = quote! {
-		#[document::typetag::serde]
-		impl document::prelude::Patch for #name {
+		impl document::prelude::patch::Patch for #name {
 			fn target(&self) -> document::prelude::Uuid {
 				self.target
 			}
@@ -65,7 +63,6 @@ fn impl_color_macro(ast: &syn::DeriveInput) -> TokenStream {
 	let name = &ast.ident;
 
 	let gen = quote! {
-		#[document::typetag::serde]
 		impl document::prelude::Color for #name {}
 	};
 
