@@ -3,11 +3,17 @@ use crate::{
 	parser, patch,
 };
 use math::{Extent2, Vec2};
-use std::{fmt::Debug, sync::Arc};
+use serde::ser::{Serialize, SerializeMap, Serializer};
+use std::{collections::BTreeMap, fmt::Debug, sync::Arc};
 use uuid::Uuid;
+mod group;
+mod note;
+pub use group::*;
+pub use note::*;
 
-pub trait Node: Any + Debug + patch::Patchable {
+pub trait Node: Any + Debug + patch::Patchable + erased_serde::Serialize {
 	fn id(&self) -> Uuid;
+	fn node_type(&self) -> &'static str;
 	fn as_documentnode(&self) -> Option<&dyn DocumentNode> {
 		None
 	}
@@ -16,12 +22,6 @@ impl Downcast for dyn Node {}
 
 pub type NodeRef = Arc<Box<dyn Node>>;
 pub type NodeList = Vec<NodeRef>;
-
-impl dyn Node {
-	pub fn from(node: Box<dyn Node>) -> NodeRef {
-		Arc::new(node)
-	}
-}
 
 pub trait Name {
 	fn name(&self) -> String {
@@ -77,7 +77,49 @@ pub trait DocumentNode: Node + Name + Position + Size + Visible + Locked + Folde
 }
 impl Downcast for dyn DocumentNode {}
 
-mod group;
-mod note;
-pub use group::*;
-pub use note::*;
+pub type DeserializeFn<T> = fn(&mut dyn erased_serde::Deserializer) -> erased_serde::Result<Box<T>>;
+
+pub struct NodeRegistryEntry<'b, T: ?Sized> {
+	pub v0_parse: parser::v0::ParseFn<'b>,
+	pub deserialize: DeserializeFn<T>,
+}
+
+pub type NodeRegistry<'b, T: ?Sized> = BTreeMap<&'static str, NodeRegistryEntry<'b, T>>;
+
+static mut NODES: Option<NodeRegistry<dyn Node>> = None;
+
+impl dyn Node {
+	pub fn from(node: Box<dyn Node>) -> NodeRef {
+		Arc::new(node)
+	}
+
+	pub(crate) fn registry<'b>() -> &'static Option<NodeRegistry<'b, dyn Node>> {
+		unsafe {
+			std::mem::transmute::<
+				&Option<NodeRegistry<'static, dyn Node>>,
+				&Option<NodeRegistry<'b, dyn Node>>,
+			>(&NODES)
+		}
+	}
+	pub(crate) fn init_registry<'b>(map: NodeRegistry<'b, dyn Node>) {
+		unsafe {
+			NODES = Some(std::mem::transmute::<
+				NodeRegistry<'b, dyn Node>,
+				NodeRegistry<'static, dyn Node>,
+			>(map));
+		}
+	}
+}
+
+impl Serialize for dyn Node {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: Serializer,
+	{
+		let node_name = self.node_type();
+		let mut map = serializer.serialize_map(Some(2))?;
+		map.serialize_entry("node", node_name)?;
+		//map.serialize_entry("props", self)?;
+		map.end()
+	}
+}

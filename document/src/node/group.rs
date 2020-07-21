@@ -1,7 +1,7 @@
 use crate as document;
 use crate::prelude::*;
 
-#[derive(DocumentNode, Debug, Clone)]
+#[derive(DocumentNode, Debug, Clone, Serialize, Deserialize)]
 pub struct Group {
 	pub id: Uuid,
 	pub position: Arc<Vec2<u32>>,
@@ -161,11 +161,11 @@ impl parser::v0::ParseNode for Group {
 		items: NodeList,
 		_dependencies: NodeList,
 		bytes: &'bytes [u8],
-	) -> parser::Result<&'bytes [u8], Self> {
+	) -> parser::Result<&'bytes [u8], NodeRef> {
 		let mut items = items;
 		Ok((
 			bytes,
-			Group {
+			<dyn Node>::from(Box::new(Group {
 				id: row.id,
 				position: Arc::new(row.position),
 				visible: row.visible,
@@ -173,7 +173,7 @@ impl parser::v0::ParseNode for Group {
 				folded: row.folded,
 				name: Arc::new(row.name.clone()),
 				items: Arc::new(items.drain(..).map(|item| item.clone()).collect()),
-			},
+			})),
 		))
 	}
 }

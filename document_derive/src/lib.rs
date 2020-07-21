@@ -18,6 +18,9 @@ fn impl_documentnode_macro(ast: &syn::DeriveInput) -> TokenStream {
 			fn id(&self) -> document::prelude::Uuid {
 				self.id
 			}
+			fn node_type(&self) -> &'static str {
+				stringify!(#name)
+			}
 			fn as_documentnode(&self) -> Option<&dyn document::prelude::DocumentNode> {
 				Some(self)
 			}

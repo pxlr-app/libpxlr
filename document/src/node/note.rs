@@ -1,7 +1,7 @@
 use crate as document;
 use crate::prelude::*;
 
-#[derive(DocumentNode, Debug, Clone)]
+#[derive(DocumentNode, Debug, Clone, Serialize, Deserialize)]
 pub struct Note {
 	pub id: Uuid,
 	pub position: Arc<Vec2<u32>>,
@@ -120,16 +120,16 @@ impl parser::v0::ParseNode for Note {
 		_items: NodeList,
 		_dependencies: NodeList,
 		bytes: &'bytes [u8],
-	) -> parser::Result<&'bytes [u8], Self> {
+	) -> parser::Result<&'bytes [u8], NodeRef> {
 		Ok((
 			bytes,
-			Note {
+			<dyn Node>::from(Box::new(Note {
 				id: row.id,
 				position: Arc::new(row.position),
 				visible: row.visible,
 				locked: row.locked,
 				name: Arc::new(row.name.clone()),
-			},
+			})),
 		))
 	}
 }

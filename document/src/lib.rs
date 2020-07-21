@@ -20,26 +20,27 @@ pub mod prelude {
 	pub use uuid::Uuid;
 }
 
-macro_rules! map_v0_parse_node {
-	($type:ty) => {
-		|index: &parser::v0::IndexRow, items: node::NodeList, deps: node::NodeList, bytes: &[u8]| {
-			<$type as parser::v0::ParseNode>::parse_node(index, items, deps, bytes)
-				.map(|(bytes, note)| (bytes, <dyn node::Node>::from(Box::new(note))))
-			}
-	};
-}
-
-pub fn setup_nodes<'b>(v0: Option<parser::v0::NodeRegistry<'b>>) {
+pub fn init_nodes<'b>(v0: Option<node::NodeRegistry<'b, dyn node::Node>>) {
 	let mut registry = match v0 {
 		Some(map) => map,
-		None => parser::v0::NodeRegistry::new(),
+		None => node::NodeRegistry::new(),
 	};
-	registry.insert("Note", map_v0_parse_node!(node::Note));
-	registry.insert("Group", map_v0_parse_node!(node::Group));
-	<dyn node::Node as parser::v0::Registry>::init_registry(registry);
+	registry.insert(
+		"Note",
+		node::NodeRegistryEntry {
+			v0_parse: <node::Note as parser::v0::ParseNode>::parse_node,
+		},
+	);
+	registry.insert(
+		"Group",
+		node::NodeRegistryEntry {
+			v0_parse: <node::Group as parser::v0::ParseNode>::parse_node,
+		},
+	);
+	<dyn node::Node>::init_registry(registry);
 }
 
-pub fn setup_patches<'b>(patches: Option<patch::PatchRegistry>) {
+pub fn init_patches<'b>(patches: Option<patch::PatchRegistry>) {
 	let mut registry = match patches {
 		Some(map) => map,
 		None => patch::PatchRegistry::new(),
@@ -154,5 +155,6 @@ mod tests {
 	// 	};
 	// 	let json = serde_json::to_string(&group).unwrap();
 	// 	assert_eq!(json, "{\"id\":\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",\"position\":{\"x\":0,\"y\":0},\"visible\":true,\"locked\":false,\"folded\":false,\"name\":\"Foo\",\"items\":[{\"node\":\"Note\",\"props\":{\"id\":\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",\"position\":{\"x\":0,\"y\":0},\"visible\":true,\"locked\":false,\"name\":\"Foo\"}}]}");
+	// 	// https://serde.rs/impl-serialize.html
 	// }
 }
