@@ -9,7 +9,6 @@ bitflags = "1.2.1"
 chrono = { version = "0.4", features = ["serde"] }
 collections = { path = "../collections" }
 document_derive = { path = "../document_derive" }
-erased-serde = "0.3.12"
 math = { path = "../math" }
 nom = "5"
 serde = { version = "1.0.106", features = ["rc"] }

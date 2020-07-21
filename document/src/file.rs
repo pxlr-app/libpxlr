@@ -157,11 +157,25 @@ impl File {
 								.filter_map(|idx| Some(self.cache_node.get(&idx).unwrap().clone()))
 								.collect();
 
-							// TODO row.chunk_type => reader
+							if let Ok((_, node)) = match self.header.version {
+								0 => <NodeType as parser::v0::ParseNode>::parse_node(
+									dep,
+									items,
+									dependencies,
+									&buffer,
+								),
+								v => return Err(FileError::VersionNotSupported(v)),
+							} {
+								self.cache_node.insert(dep.id, node);
+							}
 						}
 					}
 
-					Ok(self.cache_node.get(&row.id).unwrap().clone())
+					if let Some(node) = self.cache_node.get(&row.id) {
+						Ok(node.clone())
+					} else {
+						Err(FileError::NodeNotFound(id))
+					}
 				}
 			}
 		}

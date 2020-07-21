@@ -14,16 +14,16 @@ impl Name for Note {
 	fn name(&self) -> String {
 		(*self.name).clone()
 	}
-	fn rename(&self, name: String) -> Option<(patch::Rename, patch::Rename)> {
+	fn rename(&self, name: String) -> Option<(patch::PatchType, patch::PatchType)> {
 		Some((
-			patch::Rename {
+			patch::PatchType::Rename(patch::Rename {
 				target: self.id,
 				name,
-			},
-			patch::Rename {
+			}),
+			patch::PatchType::Rename(patch::Rename {
 				target: self.id,
 				name: (*self.name).clone(),
-			},
+			}),
 		))
 	}
 }
@@ -32,16 +32,16 @@ impl Position for Note {
 	fn position(&self) -> Vec2<u32> {
 		*self.position
 	}
-	fn translate(&self, position: Vec2<u32>) -> Option<(patch::Translate, patch::Translate)> {
+	fn translate(&self, position: Vec2<u32>) -> Option<(patch::PatchType, patch::PatchType)> {
 		Some((
-			patch::Translate {
+			patch::PatchType::Translate(patch::Translate {
 				target: self.id,
 				position,
-			},
-			patch::Translate {
+			}),
+			patch::PatchType::Translate(patch::Translate {
 				target: self.id,
 				position: *self.position,
-			},
+			}),
 		))
 	}
 }
@@ -52,16 +52,16 @@ impl Visible for Note {
 	fn visible(&self) -> bool {
 		self.visible
 	}
-	fn set_visibility(&self, visibility: bool) -> Option<(patch::SetVisible, patch::SetVisible)> {
+	fn set_visibility(&self, visibility: bool) -> Option<(patch::PatchType, patch::PatchType)> {
 		Some((
-			patch::SetVisible {
+			patch::PatchType::SetVisible(patch::SetVisible {
 				target: self.id,
 				visibility,
-			},
-			patch::SetVisible {
+			}),
+			patch::PatchType::SetVisible(patch::SetVisible {
 				target: self.id,
 				visibility: self.visible,
-			},
+			}),
 		))
 	}
 }
@@ -70,16 +70,16 @@ impl Locked for Note {
 	fn locked(&self) -> bool {
 		self.locked
 	}
-	fn set_lock(&self, locked: bool) -> Option<(patch::SetLock, patch::SetLock)> {
+	fn set_lock(&self, locked: bool) -> Option<(patch::PatchType, patch::PatchType)> {
 		Some((
-			patch::SetLock {
+			patch::PatchType::SetLock(patch::SetLock {
 				target: self.id,
 				locked,
-			},
-			patch::SetLock {
+			}),
+			patch::PatchType::SetLock(patch::SetLock {
 				target: self.id,
 				locked: self.locked,
-			},
+			}),
 		))
 	}
 }
@@ -87,30 +87,34 @@ impl Locked for Note {
 impl Folded for Note {}
 
 impl patch::Patchable for Note {
-	fn patch(&self, patch: &dyn patch::Patch) -> Option<Box<dyn Node>> {
-		if patch.target() == self.id {
-			let mut cloned = Box::new(Note {
+	fn patch(&self, patch: &patch::PatchType) -> Option<NodeType> {
+		if patch.as_patch().target() == self.id {
+			let mut cloned = Note {
 				id: self.id,
 				position: self.position.clone(),
 				visible: self.visible,
 				locked: self.locked,
 				name: self.name.clone(),
-			});
-			if let Some(patch) = patch.downcast::<patch::Rename>() {
-				cloned.name = Arc::new(patch.name.clone());
-				return Some(cloned);
-			} else if let Some(patch) = patch.downcast::<patch::Translate>() {
-				cloned.position = Arc::new(patch.position);
-				return Some(cloned);
-			} else if let Some(patch) = patch.downcast::<patch::SetVisible>() {
-				cloned.visible = patch.visibility;
-				return Some(cloned);
-			} else if let Some(patch) = patch.downcast::<patch::SetLock>() {
-				cloned.locked = patch.locked;
-				return Some(cloned);
-			}
+			};
+			match patch {
+				patch::PatchType::Rename(patch) => {
+					cloned.name = Arc::new(patch.name.clone());
+				}
+				patch::PatchType::Translate(patch) => {
+					cloned.position = Arc::new(patch.position);
+				}
+				patch::PatchType::SetVisible(patch) => {
+					cloned.visible = patch.visibility;
+				}
+				patch::PatchType::SetLock(patch) => {
+					cloned.locked = patch.locked;
+				}
+				_ => return None,
+			};
+			Some(NodeType::Note(cloned))
+		} else {
+			None
 		}
-		None
 	}
 }
 
@@ -123,7 +127,7 @@ impl parser::v0::ParseNode for Note {
 	) -> parser::Result<&'bytes [u8], NodeRef> {
 		Ok((
 			bytes,
-			<dyn Node>::from(Box::new(Note {
+			Arc::new(NodeType::Note(Note {
 				id: row.id,
 				position: Arc::new(row.position),
 				visible: row.visible,

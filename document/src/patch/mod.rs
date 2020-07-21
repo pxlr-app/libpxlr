@@ -1,7 +1,8 @@
 use crate::{
 	any::{Any, Downcast},
-	node::Node,
+	node::NodeType,
 };
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use uuid::Uuid;
 
@@ -14,32 +15,28 @@ pub trait Patch: Any + Debug {
 impl Downcast for dyn Patch {}
 
 pub trait Patchable {
-	fn patch(&self, patch: &dyn Patch) -> Option<Box<dyn Node>>;
+	fn patch(&self, patch: &PatchType) -> Option<NodeType>;
 }
 
-pub type PatchRegistry<'b> = Vec<&'static str>;
-
-static mut PATCHES: Option<PatchRegistry> = None;
-
-pub trait Registry {
-	fn registry<'b>() -> &'static Option<PatchRegistry<'b>>;
-	fn init_registry<'b>(map: PatchRegistry<'b>);
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum PatchType {
+	Translate(Translate),
+	Resize(Resize),
+	SetVisible(SetVisible),
+	SetLock(SetLock),
+	SetFold(SetFold),
+	Rename(Rename),
 }
 
-impl Registry for dyn Patch {
-	fn registry<'b>() -> &'static Option<PatchRegistry<'b>> {
-		unsafe {
-			std::mem::transmute::<&Option<PatchRegistry<'static>>, &Option<PatchRegistry<'b>>>(
-				&PATCHES,
-			)
-		}
-	}
-	fn init_registry<'b>(map: PatchRegistry<'b>) {
-		unsafe {
-			PATCHES = Some(std::mem::transmute::<
-				PatchRegistry<'b>,
-				PatchRegistry<'static>,
-			>(map));
+impl PatchType {
+	pub fn as_patch(&self) -> &dyn Patch {
+		match self {
+			PatchType::Translate(patch) => patch,
+			PatchType::Resize(patch) => patch,
+			PatchType::SetVisible(patch) => patch,
+			PatchType::SetLock(patch) => patch,
+			PatchType::SetFold(patch) => patch,
+			PatchType::Rename(patch) => patch,
 		}
 	}
 }

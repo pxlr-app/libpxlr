@@ -20,59 +20,9 @@ pub mod prelude {
 	pub use uuid::Uuid;
 }
 
-pub fn init_nodes<'b>(v0: Option<node::NodeRegistry<'b, dyn node::Node>>) {
-	let mut registry = match v0 {
-		Some(map) => map,
-		None => node::NodeRegistry::new(),
-	};
-	registry.insert(
-		"Note",
-		node::NodeRegistryEntry {
-			v0_parse: <node::Note as parser::v0::ParseNode>::parse_node,
-		},
-	);
-	registry.insert(
-		"Group",
-		node::NodeRegistryEntry {
-			v0_parse: <node::Group as parser::v0::ParseNode>::parse_node,
-		},
-	);
-	<dyn node::Node>::init_registry(registry);
-}
-
-pub fn init_patches<'b>(patches: Option<patch::PatchRegistry>) {
-	let mut registry = match patches {
-		Some(map) => map,
-		None => patch::PatchRegistry::new(),
-	};
-	registry.push("Translate");
-	registry.push("Resize");
-	registry.push("SetVisible");
-	registry.push("SetLock");
-	registry.push("SetFold");
-	registry.push("Rename");
-	<dyn patch::Patch as patch::Registry>::init_registry(registry);
-}
-
 #[cfg(test)]
 mod tests {
 	use super::prelude::*;
-
-	#[test]
-	fn test_cast() {
-		let note = Note {
-			id: Uuid::new_v4(),
-			position: Arc::new(Vec2::new(0, 0)),
-			visible: true,
-			locked: false,
-			name: Arc::new("Foo".into()),
-		};
-		let node: &dyn Node = &note;
-		let documentnode = node.as_documentnode();
-		assert_eq!(documentnode.is_some(), true);
-		let note2 = documentnode.unwrap().downcast::<Note>();
-		assert_eq!(note2.is_some(), true);
-	}
 
 	#[test]
 	fn test_patch() {
@@ -85,7 +35,10 @@ mod tests {
 		};
 		let (patch, _) = note.rename("Bar".into()).unwrap();
 		let node = note.patch(&patch).unwrap();
-		let note2 = node.downcast::<Note>().unwrap();
+		let note2 = match node {
+			NodeType::Note(n) => n,
+			_ => panic!("Not a node"),
+		};
 		assert_eq!(*note.name, "Foo");
 		assert_eq!(*note2.name, "Bar");
 
@@ -96,7 +49,7 @@ mod tests {
 			locked: false,
 			folded: false,
 			name: Arc::new("Foo".into()),
-			items: Arc::new(vec![<dyn Node>::from(Box::new(Note {
+			items: Arc::new(vec![Arc::new(NodeType::Note(Note {
 				id: Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap(),
 				position: Arc::new(Vec2::new(0, 0)),
 				visible: true,
@@ -113,7 +66,10 @@ mod tests {
 			.rename("Bar".into())
 			.unwrap();
 		let node = group.patch(&patch).unwrap();
-		let group2 = node.downcast::<Group>().unwrap();
+		let group2 = match node {
+			NodeType::Group(n) => n,
+			_ => panic!("Not a Group"),
+		};
 		assert_eq!(
 			group
 				.items

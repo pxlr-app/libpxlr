@@ -1,5 +1,5 @@
 use crate::{
-	node::{Node, NodeList, NodeRef},
+	node::{NodeList, NodeRef},
 	parser::{Parse, Result, Write},
 };
 use math::{Extent2, Vec2};
