@@ -9,7 +9,7 @@ pub struct Group {
 	pub locked: bool,
 	pub folded: bool,
 	pub name: Arc<String>,
-	pub items: Arc<NodeList>,
+	pub children: Arc<NodeList>,
 }
 
 impl Name for Group {
@@ -113,7 +113,7 @@ impl patch::Patchable for Group {
 			locked: self.locked,
 			folded: self.folded,
 			name: self.name.clone(),
-			items: self.items.clone(),
+			children: self.children.clone(),
 		};
 		if patch.as_patch().target() == self.id {
 			match patch {
@@ -137,16 +137,16 @@ impl patch::Patchable for Group {
 			Some(NodeType::Group(cloned))
 		} else {
 			let mut mutated = false;
-			cloned.items = Arc::new(
+			cloned.children = Arc::new(
 				cloned
-					.items
+					.children
 					.iter()
-					.map(|item| match item.as_node().patch(patch) {
-						Some(item) => {
+					.map(|child| match child.as_node().patch(patch) {
+						Some(child) => {
 							mutated = true;
-							Arc::new(item)
+							Arc::new(child)
 						}
-						None => item.clone(),
+						None => child.clone(),
 					})
 					.collect(),
 			);
@@ -162,11 +162,11 @@ impl patch::Patchable for Group {
 impl parser::v0::ParseNode for Group {
 	fn parse_node<'bytes>(
 		row: &parser::v0::IndexRow,
-		items: NodeList,
+		children: NodeList,
 		_dependencies: NodeList,
 		bytes: &'bytes [u8],
 	) -> parser::Result<&'bytes [u8], NodeRef> {
-		let mut items = items;
+		let mut children = children;
 		Ok((
 			bytes,
 			Arc::new(NodeType::Group(Group {
@@ -176,7 +176,7 @@ impl parser::v0::ParseNode for Group {
 				locked: row.locked,
 				folded: row.folded,
 				name: Arc::new(row.name.clone()),
-				items: Arc::new(items.drain(..).map(|item| item.clone()).collect()),
+				children: Arc::new(children.drain(..).map(|child| child.clone()).collect()),
 			})),
 		))
 	}
@@ -196,9 +196,9 @@ impl parser::v0::WriteNode for Group {
 		row.folded = self.folded;
 		row.position = *self.position;
 		row.name = (*self.name).clone();
-		for item in self.items.iter() {
+		for item in self.children.iter() {
 			dependencies.push(item.clone());
-			row.items.push(item.as_node().id());
+			row.children.push(item.as_node().id());
 		}
 		rows.push(row);
 		Ok(0)

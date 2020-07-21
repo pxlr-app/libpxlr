@@ -135,7 +135,7 @@ impl File {
 							let row = self.rows.get(*idx).unwrap();
 							dependencies.push(row);
 							queue.extend_from_slice(&row.dependencies);
-							queue.extend_from_slice(&row.items);
+							queue.extend_from_slice(&row.children);
 						}
 					}
 					dependencies.reverse();
@@ -146,8 +146,8 @@ impl File {
 							reader.seek(io::SeekFrom::Start(dep.chunk_offset))?;
 							reader.read_exact(&mut buffer)?;
 
-							let items: NodeList = dep
-								.items
+							let children: NodeList = dep
+								.children
 								.iter()
 								.filter_map(|idx| Some(self.cache_node.get(&idx).unwrap().clone()))
 								.collect();
@@ -160,7 +160,7 @@ impl File {
 							if let Ok((_, node)) = match self.header.version {
 								0 => <NodeType as parser::v0::ParseNode>::parse_node(
 									dep,
-									items,
+									children,
 									dependencies,
 									&buffer,
 								),

@@ -54,7 +54,7 @@ pub struct IndexRow {
 	pub position: Vec2<u32>,
 	pub size: Extent2<u32>,
 	pub name: String,
-	pub items: Vec<Uuid>,
+	pub children: Vec<Uuid>,
 	pub dependencies: Vec<Uuid>,
 	pub preview: Vec<u8>,
 }
@@ -72,7 +72,7 @@ impl IndexRow {
 			position: Vec2::new(0, 0),
 			size: Extent2::new(0, 0),
 			name: String::new(),
-			items: Vec::new(),
+			children: Vec::new(),
 			dependencies: Vec::new(),
 			preview: Vec::new(),
 		}
@@ -92,7 +92,7 @@ impl Parse for IndexRow {
 		let (bytes, dep_count) = le_u32(bytes)?;
 		let (bytes, preview_size) = le_u32(bytes)?;
 		let (bytes, name) = String::parse(bytes)?;
-		let (bytes, items) =
+		let (bytes, children) =
 			many_m_n(item_count as usize, item_count as usize, Uuid::parse)(bytes)?;
 		let (bytes, dependencies) =
 			many_m_n(dep_count as usize, dep_count as usize, Uuid::parse)(bytes)?;
@@ -111,7 +111,7 @@ impl Parse for IndexRow {
 				position,
 				size,
 				name,
-				items,
+				children,
 				dependencies,
 				preview,
 			},
@@ -131,11 +131,11 @@ impl Write for IndexRow {
 		writer.write_all(&flag.to_le_bytes())?; // 31
 		self.position.write(writer)?; // 39
 		self.size.write(writer)?; // 47
-		writer.write_all(&(self.items.len() as u32).to_le_bytes())?; // 51
+		writer.write_all(&(self.children.len() as u32).to_le_bytes())?; // 51
 		writer.write_all(&(self.dependencies.len() as u32).to_le_bytes())?; // 55
 		writer.write_all(&(self.preview.len() as u32).to_le_bytes())?; // 59
 		b += self.name.write(writer)?;
-		for item in self.items.iter() {
+		for item in self.children.iter() {
 			b += item.write(writer)?;
 		}
 		for dep in self.dependencies.iter() {
@@ -150,7 +150,7 @@ impl Write for IndexRow {
 pub trait ParseNode {
 	fn parse_node<'bytes>(
 		row: &IndexRow,
-		items: NodeList,
+		children: NodeList,
 		dependencies: NodeList,
 		bytes: &'bytes [u8],
 	) -> Result<&'bytes [u8], NodeRef>

@@ -49,7 +49,7 @@ mod tests {
 			locked: false,
 			folded: false,
 			name: Arc::new("Foo".into()),
-			items: Arc::new(vec![Arc::new(NodeType::Note(Note {
+			children: Arc::new(vec![Arc::new(NodeType::Note(Note {
 				id: Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap(),
 				position: Arc::new(Vec2::new(0, 0)),
 				visible: true,
@@ -58,7 +58,7 @@ mod tests {
 			}))]),
 		};
 		let (patch, _) = group
-			.items
+			.children
 			.get(0)
 			.unwrap()
 			.as_documentnode()
@@ -72,7 +72,7 @@ mod tests {
 		};
 		assert_eq!(
 			group
-				.items
+				.children
 				.get(0)
 				.unwrap()
 				.as_documentnode()
@@ -82,7 +82,7 @@ mod tests {
 		);
 		assert_eq!(
 			group2
-				.items
+				.children
 				.get(0)
 				.unwrap()
 				.as_documentnode()
@@ -101,7 +101,7 @@ mod tests {
 			locked: false,
 			folded: false,
 			name: Arc::new("Foo".into()),
-			items: Arc::new(vec![Arc::new(NodeType::Note(Note {
+			children: Arc::new(vec![Arc::new(NodeType::Note(Note {
 				id: Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap(),
 				position: Arc::new(Vec2::new(0, 0)),
 				visible: true,
@@ -110,8 +110,8 @@ mod tests {
 			}))]),
 		};
 		let json = serde_json::to_string(&group).unwrap();
-		assert_eq!(json, "{\"id\":\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",\"position\":{\"x\":0,\"y\":0},\"visible\":true,\"locked\":false,\"folded\":false,\"name\":\"Foo\",\"items\":[{\"Note\":{\"id\":\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",\"position\":{\"x\":0,\"y\":0},\"visible\":true,\"locked\":false,\"name\":\"Foo\"}}]}");
+		assert_eq!(json, "{\"id\":\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",\"position\":{\"x\":0,\"y\":0},\"visible\":true,\"locked\":false,\"folded\":false,\"name\":\"Foo\",\"children\":[{\"Note\":{\"id\":\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",\"position\":{\"x\":0,\"y\":0},\"visible\":true,\"locked\":false,\"name\":\"Foo\"}}]}");
 		let ron = ron::to_string(&group).unwrap();
-		assert_eq!(ron, "(id:\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",position:(x:0,y:0),visible:true,locked:false,folded:false,name:\"Foo\",items:[Note((id:\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",position:(x:0,y:0),visible:true,locked:false,name:\"Foo\"))])");
+		assert_eq!(ron, "(id:\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",position:(x:0,y:0),visible:true,locked:false,folded:false,name:\"Foo\",children:[Note((id:\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",position:(x:0,y:0),visible:true,locked:false,name:\"Foo\"))])");
 	}
 }
