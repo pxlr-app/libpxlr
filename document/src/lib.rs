@@ -92,25 +92,26 @@ mod tests {
 		);
 	}
 
-	// #[test]
-	// fn test_json() {
-	// 	let group = Group {
-	// 		id: Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap(),
-	// 		position: Arc::new(Vec2::new(0, 0)),
-	// 		visible: true,
-	// 		locked: false,
-	// 		folded: false,
-	// 		name: Arc::new("Foo".into()),
-	// 		items: Arc::new(vec![<dyn Node>::from(Box::new(Note {
-	// 			id: Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap(),
-	// 			position: Arc::new(Vec2::new(0, 0)),
-	// 			visible: true,
-	// 			locked: false,
-	// 			name: Arc::new("Foo".into()),
-	// 		}))]),
-	// 	};
-	// 	let json = serde_json::to_string(&group).unwrap();
-	// 	assert_eq!(json, "{\"id\":\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",\"position\":{\"x\":0,\"y\":0},\"visible\":true,\"locked\":false,\"folded\":false,\"name\":\"Foo\",\"items\":[{\"node\":\"Note\",\"props\":{\"id\":\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",\"position\":{\"x\":0,\"y\":0},\"visible\":true,\"locked\":false,\"name\":\"Foo\"}}]}");
-	// 	// https://serde.rs/impl-serialize.html
-	// }
+	#[test]
+	fn test_serialize() {
+		let group = Group {
+			id: Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap(),
+			position: Arc::new(Vec2::new(0, 0)),
+			visible: true,
+			locked: false,
+			folded: false,
+			name: Arc::new("Foo".into()),
+			items: Arc::new(vec![Arc::new(NodeType::Note(Note {
+				id: Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap(),
+				position: Arc::new(Vec2::new(0, 0)),
+				visible: true,
+				locked: false,
+				name: Arc::new("Foo".into()),
+			}))]),
+		};
+		let json = serde_json::to_string(&group).unwrap();
+		assert_eq!(json, "{\"id\":\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",\"position\":{\"x\":0,\"y\":0},\"visible\":true,\"locked\":false,\"folded\":false,\"name\":\"Foo\",\"items\":[{\"Note\":{\"id\":\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",\"position\":{\"x\":0,\"y\":0},\"visible\":true,\"locked\":false,\"name\":\"Foo\"}}]}");
+		let ron = ron::to_string(&group).unwrap();
+		assert_eq!(ron, "(id:\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",position:(x:0,y:0),visible:true,locked:false,folded:false,name:\"Foo\",items:[Note((id:\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",position:(x:0,y:0),visible:true,locked:false,name:\"Foo\"))])");
+	}
 }

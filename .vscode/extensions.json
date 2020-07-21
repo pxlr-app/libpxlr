@@ -2,6 +2,7 @@
 	"recommendations": [
 		"bungcip.better-toml",
 		"vadimcn.vscode-lldb",
-		"rust-lang.rust"
+		"rust-lang.rust",
+		"a5huynh.vscode-ron"
 	]
 }
