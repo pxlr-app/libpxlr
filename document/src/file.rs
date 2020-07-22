@@ -8,6 +8,7 @@ pub enum FileError {
 	Parse(nom::Err<((), nom::error::ErrorKind)>),
 	VersionNotSupported(u8),
 	NodeNotFound(Uuid),
+	NoPreviousVersionFound,
 }
 
 impl Error for FileError {}
@@ -19,6 +20,7 @@ impl fmt::Display for FileError {
 			FileError::Parse(_) => write!(f, "Could not parse the file."),
 			FileError::VersionNotSupported(ver) => write!(f, "Version {} not supported.", ver),
 			FileError::NodeNotFound(id) => write!(f, "Node {} not found.", id),
+			FileError::NoPreviousVersionFound => write!(f, "No previous version found."),
 		}
 	}
 }
@@ -41,6 +43,7 @@ impl From<nom::Err<(&[u8], nom::error::ErrorKind)>> for FileError {
 	}
 }
 
+#[derive(Debug, Clone)]
 pub struct File {
 	pub(crate) header: parser::Header,
 	pub(crate) index: parser::v0::Index,
@@ -55,6 +58,7 @@ impl File {
 			parser::Header { version: 0 },
 			parser::v0::Index {
 				hash: Uuid::new_v4(),
+				root: Uuid::default(),
 				size: 0,
 				prev_offset: 0,
 			},
@@ -81,6 +85,22 @@ impl File {
 	}
 
 	pub fn read<R: io::Read + io::Seek>(reader: &mut R) -> Result<Self, FileError> {
+		let end = reader.seek(io::SeekFrom::End(0))?;
+		File::read_at(reader, end)
+	}
+
+	pub fn read_previous<R: io::Read + io::Seek>(&self, reader: &mut R) -> Result<Self, FileError> {
+		if self.index.prev_offset == 0 {
+			Err(FileError::NoPreviousVersionFound)
+		} else {
+			File::read_at(reader, self.index.prev_offset)
+		}
+	}
+
+	pub fn read_at<R: io::Read + io::Seek>(
+		reader: &mut R,
+		position: u64,
+	) -> Result<Self, FileError> {
 		use crate::parser::Parse;
 
 		let mut buffer = [0u8; 5];
@@ -89,8 +109,8 @@ impl File {
 
 		let (_, header) = parser::Header::parse(&buffer)?;
 
-		let mut buffer = [0u8; 28];
-		reader.seek(io::SeekFrom::End(-28))?;
+		let mut buffer = [0u8; 44];
+		reader.seek(io::SeekFrom::Start(position - 44))?;
 		reader.read_exact(&mut buffer)?;
 
 		let (_, index) = match header.version {
@@ -102,7 +122,7 @@ impl File {
 			Vec::new()
 		} else {
 			let mut buffer = vec![0u8; index.size as usize];
-			reader.seek(io::SeekFrom::End(-28i64 - index.size as i64))?;
+			reader.seek(io::SeekFrom::Start(position - 44 - index.size as u64))?;
 			reader.read_exact(&mut buffer)?;
 
 			let (_, rows) = match header.version {
@@ -189,9 +209,11 @@ impl File {
 		use parser::Write;
 		writer.seek(io::SeekFrom::Start(0))?;
 		let mut size = self.header.write(writer)?;
-		self.rows = Vec::new();
+		let mut rows: Vec<parser::v0::IndexRow> = Vec::new();
+		size += self.write_node(writer, &mut rows, node)?;
+		self.rows = rows;
+		self.index.root = node.as_node().id();
 		self.index.prev_offset = 0;
-		size += self.write_node(writer, node)?;
 		size += self.write_index(writer)?;
 		Ok(size)
 	}
@@ -199,13 +221,14 @@ impl File {
 	fn write_node<W: io::Write + io::Seek>(
 		&mut self,
 		writer: &mut W,
+		rows: &mut Vec<parser::v0::IndexRow>,
 		node: &NodeType,
 	) -> io::Result<usize> {
 		use parser::v0::WriteNode;
 		let mut dependencies: Vec<NodeRef> = Vec::new();
-		let mut size = node.write_node(writer, &mut self.rows, &mut dependencies)?;
+		let mut size = node.write_node(writer, rows, &mut dependencies)?;
 		while let Some(dep) = dependencies.pop() {
-			size += dep.write_node(writer, &mut self.rows, &mut dependencies)?;
+			size += dep.write_node(writer, rows, &mut dependencies)?;
 		}
 		Ok(size)
 	}
@@ -228,6 +251,17 @@ impl File {
 		writer: &mut W,
 		node: &NodeType,
 	) -> io::Result<usize> {
-		Ok(0)
+		self.index.prev_offset = writer.seek(io::SeekFrom::End(0))?;
+		let mut rows: Vec<parser::v0::IndexRow> = Vec::new();
+		let mut size = self.write_node(writer, &mut rows, node)?;
+		for row in rows.drain(..) {
+			if let Some(old_row) = self.rows.iter_mut().find(|r| r.id == row.id) {
+				*old_row = row;
+			} else {
+				self.rows.push(row);
+			}
+		}
+		size += self.write_index(writer)?;
+		Ok(size)
 	}
 }

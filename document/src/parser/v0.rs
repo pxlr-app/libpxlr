@@ -13,6 +13,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone)]
 pub struct Index {
 	pub hash: Uuid,
+	pub root: Uuid,
 	pub size: u32,
 	pub prev_offset: u64,
 }
@@ -21,11 +22,13 @@ impl Parse for Index {
 	fn parse(bytes: &[u8]) -> Result<&[u8], Index> {
 		let (bytes, prev_offset) = le_u64(bytes)?;
 		let (bytes, size) = le_u32(bytes)?;
+		let (bytes, root) = Uuid::parse(bytes)?;
 		let (bytes, hash) = Uuid::parse(bytes)?;
 		Ok((
 			bytes,
 			Index {
 				hash,
+				root,
 				size,
 				prev_offset,
 			},
@@ -36,9 +39,10 @@ impl Parse for Index {
 impl Write for Index {
 	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
 		writer.write_all(&self.prev_offset.to_le_bytes())?; // 8
-		writer.write_all(&self.size.to_le_bytes())?; // 12
-		self.hash.write(writer)?; // 28
-		Ok(28)
+		writer.write_all(&self.size.to_le_bytes())?; // 4
+		self.root.write(writer)?; // 16
+		self.hash.write(writer)?; // 16
+		Ok(44)
 	}
 }
 

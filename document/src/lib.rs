@@ -128,7 +128,8 @@ mod tests {
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 		let mut file = File::new();
 		let size = file.write(&mut buffer, &note).expect("Could not write");
-		assert_eq!(size, 99);
+		assert_eq!(size, 115);
+		// std::fs::write("test_file_write_1.pxlr", buffer.get_ref()).expect("Could not dump");
 
 		let group = NodeType::Group(Group {
 			id: Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap(),
@@ -148,7 +149,8 @@ mod tests {
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 		let mut file = File::new();
 		let size = file.write(&mut buffer, &group).expect("Could not write");
-		assert_eq!(size, 181);
+		assert_eq!(size, 197);
+		// std::fs::write("test_file_write_2.pxlr", buffer.get_ref()).expect("Could not dump");
 	}
 
 	#[test]
@@ -174,7 +176,8 @@ mod tests {
 		let mut file = File::new();
 		let file_hash = file.index.hash;
 		let size = file.write(&mut buffer, &group).expect("Could not write");
-		assert_eq!(size, 181);
+		assert_eq!(size, 197);
+		// std::fs::write("test_file_read.pxlr", buffer.get_ref()).expect("Could not dump");
 
 		let mut file = File::read(&mut buffer).expect("Could not read");
 		assert_eq!(file.header.version, 0);
@@ -205,5 +208,53 @@ mod tests {
 		assert_eq!(group.folded, false);
 		assert_eq!(group.children.len(), 1);
 		assert_eq!(file.cache_node.len(), 2);
+	}
+
+	#[test]
+	fn test_file_update() {
+		let group_id = Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap();
+		let note_id = Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap();
+		let group = NodeType::Group(Group {
+			id: group_id,
+			position: Arc::new(Vec2::new(0, 0)),
+			visible: true,
+			locked: false,
+			folded: false,
+			name: Arc::new("Foo".into()),
+			children: Arc::new(vec![]),
+		});
+		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
+		let mut file = File::new();
+		let size = file.write(&mut buffer, &group).expect("Could not write");
+		assert_eq!(size, 115);
+		assert_eq!(file.rows.len(), 1);
+		// std::fs::write("test_file_update_1.pxlr", buffer.get_ref()).expect("Could not dump");
+
+		let group = NodeType::Group(Group {
+			id: group_id,
+			position: Arc::new(Vec2::new(0, 0)),
+			visible: true,
+			locked: false,
+			folded: false,
+			name: Arc::new("Bar".into()),
+			children: Arc::new(vec![Arc::new(NodeType::Note(Note {
+				id: note_id,
+				position: Arc::new(Vec2::new(0, 0)),
+				visible: true,
+				locked: false,
+				name: Arc::new("Baz".into()),
+			}))]),
+		});
+
+		let size = file.update(&mut buffer, &group).expect("Could not write");
+		assert_eq!(size, 192);
+		assert_eq!(file.rows.len(), 2);
+		// std::fs::write("test_file_update_2.pxlr", buffer.get_ref()).expect("Could not dump");
+
+		let latest = File::read(&mut buffer).expect("Could not read latest version");
+		latest
+			.read_previous(&mut buffer)
+			.expect("Could not read previous version");
+		File::read_at(&mut buffer, 115).expect("Could not read version at offset 115");
 	}
 }
