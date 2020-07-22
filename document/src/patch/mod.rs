@@ -26,6 +26,9 @@ pub enum PatchType {
 	SetLock(SetLock),
 	SetFold(SetFold),
 	Rename(Rename),
+	AddChild(AddChild),
+	RemoveChild(RemoveChild),
+	MoveChild(MoveChild),
 }
 
 impl PatchType {
@@ -37,6 +40,11 @@ impl PatchType {
 			PatchType::SetLock(patch) => patch,
 			PatchType::SetFold(patch) => patch,
 			PatchType::Rename(patch) => patch,
+			PatchType::AddChild(patch) => patch,
+			PatchType::RemoveChild(patch) => patch,
+			PatchType::MoveChild(patch) => patch,
 		}
 	}
 }
+
+pub type PatchPair = (PatchType, PatchType);

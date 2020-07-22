@@ -14,7 +14,7 @@ impl Name for Note {
 	fn name(&self) -> String {
 		(*self.name).clone()
 	}
-	fn rename(&self, name: String) -> Option<(patch::PatchType, patch::PatchType)> {
+	fn rename(&self, name: String) -> Option<patch::PatchPair> {
 		Some((
 			patch::PatchType::Rename(patch::Rename {
 				target: self.id,
@@ -32,7 +32,7 @@ impl Position for Note {
 	fn position(&self) -> Vec2<u32> {
 		*self.position
 	}
-	fn translate(&self, position: Vec2<u32>) -> Option<(patch::PatchType, patch::PatchType)> {
+	fn translate(&self, position: Vec2<u32>) -> Option<patch::PatchPair> {
 		Some((
 			patch::PatchType::Translate(patch::Translate {
 				target: self.id,
@@ -52,7 +52,7 @@ impl Visible for Note {
 	fn visible(&self) -> bool {
 		self.visible
 	}
-	fn set_visibility(&self, visibility: bool) -> Option<(patch::PatchType, patch::PatchType)> {
+	fn set_visibility(&self, visibility: bool) -> Option<patch::PatchPair> {
 		Some((
 			patch::PatchType::SetVisible(patch::SetVisible {
 				target: self.id,
@@ -70,7 +70,7 @@ impl Locked for Note {
 	fn locked(&self) -> bool {
 		self.locked
 	}
-	fn set_lock(&self, locked: bool) -> Option<(patch::PatchType, patch::PatchType)> {
+	fn set_lock(&self, locked: bool) -> Option<patch::PatchPair> {
 		Some((
 			patch::PatchType::SetLock(patch::SetLock {
 				target: self.id,
@@ -89,7 +89,7 @@ impl Folded for Note {}
 impl patch::Patchable for Note {
 	fn patch(&self, patch: &patch::PatchType) -> Option<NodeType> {
 		if patch.as_patch().target() == self.id {
-			let mut cloned = Note {
+			let mut patched = Note {
 				id: self.id,
 				position: self.position.clone(),
 				visible: self.visible,
@@ -98,20 +98,20 @@ impl patch::Patchable for Note {
 			};
 			match patch {
 				patch::PatchType::Rename(patch) => {
-					cloned.name = Arc::new(patch.name.clone());
+					patched.name = Arc::new(patch.name.clone());
 				}
 				patch::PatchType::Translate(patch) => {
-					cloned.position = Arc::new(patch.position);
+					patched.position = Arc::new(patch.position);
 				}
 				patch::PatchType::SetVisible(patch) => {
-					cloned.visible = patch.visibility;
+					patched.visible = patch.visibility;
 				}
 				patch::PatchType::SetLock(patch) => {
-					cloned.locked = patch.locked;
+					patched.locked = patch.locked;
 				}
 				_ => return None,
 			};
-			Some(NodeType::Note(cloned))
+			Some(NodeType::Note(patched))
 		} else {
 			None
 		}

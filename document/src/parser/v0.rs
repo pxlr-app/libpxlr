@@ -1,5 +1,5 @@
 use crate::{
-	node::{NodeList, NodeRef},
+	node::{NodeKind, NodeList, NodeRef},
 	parser::{Parse, Result, Write},
 };
 use math::{Extent2, Vec2};
@@ -45,7 +45,7 @@ impl Write for Index {
 #[derive(Debug, Clone)]
 pub struct IndexRow {
 	pub id: Uuid,
-	pub chunk_type: String,
+	pub chunk_type: NodeKind,
 	pub chunk_offset: u64,
 	pub chunk_size: u32,
 	pub visible: bool,
@@ -63,7 +63,7 @@ impl IndexRow {
 	pub fn new(id: Uuid) -> IndexRow {
 		IndexRow {
 			id,
-			chunk_type: "".into(),
+			chunk_type: NodeKind::Group,
 			chunk_offset: 0,
 			chunk_size: 0,
 			visible: false,
@@ -82,7 +82,7 @@ impl IndexRow {
 impl Parse for IndexRow {
 	fn parse(bytes: &[u8]) -> Result<&[u8], IndexRow> {
 		let (bytes, id) = Uuid::parse(bytes)?;
-		let (bytes, chunk_type) = String::parse(bytes)?;
+		let (bytes, chunk_type) = NodeKind::parse(bytes)?;
 		let (bytes, chunk_offset) = le_u64(bytes)?;
 		let (bytes, chunk_size) = le_u32(bytes)?;
 		let (bytes, flag) = le_u8(bytes)?;

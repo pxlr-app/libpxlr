@@ -36,3 +36,22 @@ pub struct Rename {
 	pub target: Uuid,
 	pub name: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, Patch)]
+pub struct AddChild {
+	pub target: Uuid,
+	pub child: NodeRef,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Patch)]
+pub struct RemoveChild {
+	pub target: Uuid,
+	pub child_id: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Patch)]
+pub struct MoveChild {
+	pub target: Uuid,
+	pub child_id: Uuid,
+	pub position: usize,
+}

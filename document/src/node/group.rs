@@ -16,7 +16,7 @@ impl Name for Group {
 	fn name(&self) -> String {
 		(*self.name).clone()
 	}
-	fn rename(&self, name: String) -> Option<(patch::PatchType, patch::PatchType)> {
+	fn rename(&self, name: String) -> Option<patch::PatchPair> {
 		Some((
 			patch::PatchType::Rename(patch::Rename {
 				target: self.id,
@@ -34,7 +34,7 @@ impl Position for Group {
 	fn position(&self) -> Vec2<u32> {
 		*self.position
 	}
-	fn translate(&self, position: Vec2<u32>) -> Option<(patch::PatchType, patch::PatchType)> {
+	fn translate(&self, position: Vec2<u32>) -> Option<patch::PatchPair> {
 		Some((
 			patch::PatchType::Translate(patch::Translate {
 				target: self.id,
@@ -54,7 +54,7 @@ impl Visible for Group {
 	fn visible(&self) -> bool {
 		self.visible
 	}
-	fn set_visibility(&self, visibility: bool) -> Option<(patch::PatchType, patch::PatchType)> {
+	fn set_visibility(&self, visibility: bool) -> Option<patch::PatchPair> {
 		Some((
 			patch::PatchType::SetVisible(patch::SetVisible {
 				target: self.id,
@@ -72,7 +72,7 @@ impl Locked for Group {
 	fn locked(&self) -> bool {
 		self.locked
 	}
-	fn set_lock(&self, locked: bool) -> Option<(patch::PatchType, patch::PatchType)> {
+	fn set_lock(&self, locked: bool) -> Option<patch::PatchPair> {
 		Some((
 			patch::PatchType::SetLock(patch::SetLock {
 				target: self.id,
@@ -90,7 +90,7 @@ impl Folded for Group {
 	fn folded(&self) -> bool {
 		self.folded
 	}
-	fn set_fold(&self, folded: bool) -> Option<(patch::PatchType, patch::PatchType)> {
+	fn set_fold(&self, folded: bool) -> Option<patch::PatchPair> {
 		Some((
 			patch::PatchType::SetFold(patch::SetFold {
 				target: self.id,
@@ -104,9 +104,73 @@ impl Folded for Group {
 	}
 }
 
+impl Group {
+	pub fn add_child(&self, child: NodeRef) -> Option<patch::PatchPair> {
+		if self
+			.children
+			.iter()
+			.find(|child| child.as_node().id() == child.as_node().id())
+			.is_some()
+		{
+			None
+		} else {
+			Some((
+				patch::PatchType::AddChild(patch::AddChild {
+					target: self.id,
+					child: child.clone(),
+				}),
+				patch::PatchType::RemoveChild(patch::RemoveChild {
+					target: self.id,
+					child_id: child.as_node().id(),
+				}),
+			))
+		}
+	}
+	pub fn remove_child(&self, child_id: Uuid) -> Option<patch::PatchPair> {
+		let child = self
+			.children
+			.iter()
+			.find(|child| child.as_node().id() == child.as_node().id());
+		match child {
+			Some(child) => Some((
+				patch::PatchType::RemoveChild(patch::RemoveChild {
+					target: self.id,
+					child_id: child_id,
+				}),
+				patch::PatchType::AddChild(patch::AddChild {
+					target: self.id,
+					child: child.clone(),
+				}),
+			)),
+			None => None,
+		}
+	}
+	pub fn move_child(&self, child_id: Uuid, position: usize) -> Option<patch::PatchPair> {
+		let old_position = self
+			.children
+			.iter()
+			.position(|child| child.as_node().id() == child_id);
+		match old_position {
+			Some(old_position) => Some((
+				patch::PatchType::MoveChild(patch::MoveChild {
+					target: self.id,
+					child_id,
+					position,
+				}),
+				patch::PatchType::MoveChild(patch::MoveChild {
+					target: self.id,
+					child_id,
+					position: old_position,
+				}),
+			)),
+			None => None,
+		}
+	}
+}
+
 impl patch::Patchable for Group {
 	fn patch(&self, patch: &patch::PatchType) -> Option<NodeType> {
-		let mut cloned = Group {
+		let mut patched = Group {
 			id: self.id,
 			position: self.position.clone(),
 			visible: self.visible,
@@ -118,27 +182,58 @@ impl patch::Patchable for Group {
 		if patch.as_patch().target() == self.id {
 			match patch {
 				patch::PatchType::Rename(patch) => {
-					cloned.name = Arc::new(patch.name.clone());
+					patched.name = Arc::new(patch.name.clone());
 				}
 				patch::PatchType::Translate(patch) => {
-					cloned.position = Arc::new(patch.position);
+					patched.position = Arc::new(patch.position);
 				}
 				patch::PatchType::SetVisible(patch) => {
-					cloned.visible = patch.visibility;
+					patched.visible = patch.visibility;
 				}
 				patch::PatchType::SetLock(patch) => {
-					cloned.locked = patch.locked;
+					patched.locked = patch.locked;
 				}
 				patch::PatchType::SetFold(patch) => {
-					cloned.folded = patch.folded;
+					patched.folded = patch.folded;
+				}
+				patch::PatchType::AddChild(patch) => {
+					let mut children: NodeList =
+						patched.children.iter().map(|child| child.clone()).collect();
+					children.push(patch.child.clone());
+					patched.children = Arc::new(children);
+				}
+				patch::PatchType::RemoveChild(patch) => {
+					let children: NodeList = patched
+						.children
+						.iter()
+						.filter_map(|child| {
+							if child.as_node().id() == patch.child_id {
+								None
+							} else {
+								Some(child.clone())
+							}
+						})
+						.collect();
+					patched.children = Arc::new(children);
+				}
+				patch::PatchType::MoveChild(patch) => {
+					let mut children: NodeList =
+						patched.children.iter().map(|child| child.clone()).collect();
+					let child = children.remove(patch.position);
+					if patch.position > children.len() {
+						children.push(child);
+					} else {
+						children.insert(patch.position, child);
+					}
+					patched.children = Arc::new(children);
 				}
 				_ => return None,
 			};
-			Some(NodeType::Group(cloned))
+			Some(NodeType::Group(patched))
 		} else {
 			let mut mutated = false;
-			cloned.children = Arc::new(
-				cloned
+			patched.children = Arc::new(
+				patched
 					.children
 					.iter()
 					.map(|child| match child.as_node().patch(patch) {
@@ -151,7 +246,7 @@ impl patch::Patchable for Group {
 					.collect(),
 			);
 			if mutated {
-				Some(NodeType::Group(cloned))
+				Some(NodeType::Group(patched))
 			} else {
 				None
 			}
