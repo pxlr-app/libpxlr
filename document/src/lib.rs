@@ -9,7 +9,7 @@ pub mod parser;
 pub mod patch;
 
 pub mod prelude {
-	pub use super::{any::*, color::*, node::*, parser, patch, patch::Patchable};
+	pub use super::{any::*, color::*, file::*, node::*, parser, patch, patch::Patchable};
 	pub use document_derive::*;
 	pub use math::{Extent2, Vec2};
 	pub use serde::{Deserialize, Serialize};
@@ -23,6 +23,7 @@ pub mod prelude {
 #[cfg(test)]
 mod tests {
 	use super::prelude::*;
+	use std::io;
 
 	#[test]
 	fn test_patch() {
@@ -106,12 +107,103 @@ mod tests {
 				position: Arc::new(Vec2::new(0, 0)),
 				visible: true,
 				locked: false,
-				name: Arc::new("Foo".into()),
+				name: Arc::new("Bar".into()),
 			}))]),
 		};
 		let json = serde_json::to_string(&group).unwrap();
-		assert_eq!(json, "{\"id\":\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",\"position\":{\"x\":0,\"y\":0},\"visible\":true,\"locked\":false,\"folded\":false,\"name\":\"Foo\",\"children\":[{\"Note\":{\"id\":\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",\"position\":{\"x\":0,\"y\":0},\"visible\":true,\"locked\":false,\"name\":\"Foo\"}}]}");
+		assert_eq!(json, "{\"id\":\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",\"position\":{\"x\":0,\"y\":0},\"visible\":true,\"locked\":false,\"folded\":false,\"name\":\"Foo\",\"children\":[{\"Note\":{\"id\":\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",\"position\":{\"x\":0,\"y\":0},\"visible\":true,\"locked\":false,\"name\":\"Bar\"}}]}");
 		let ron = ron::to_string(&group).unwrap();
-		assert_eq!(ron, "(id:\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",position:(x:0,y:0),visible:true,locked:false,folded:false,name:\"Foo\",children:[Note((id:\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",position:(x:0,y:0),visible:true,locked:false,name:\"Foo\"))])");
+		assert_eq!(ron, "(id:\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",position:(x:0,y:0),visible:true,locked:false,folded:false,name:\"Foo\",children:[Note((id:\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",position:(x:0,y:0),visible:true,locked:false,name:\"Bar\"))])");
+	}
+
+	#[test]
+	fn test_file_write() {
+		let note = NodeType::Note(Note {
+			id: Uuid::new_v4(),
+			position: Arc::new(Vec2::new(0, 0)),
+			visible: true,
+			locked: false,
+			name: Arc::new("Foo".into()),
+		});
+		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
+		let mut file = File::new();
+		let size = file.write(&mut buffer, &note).expect("Could not write");
+		assert_eq!(size, 99);
+
+		let group = NodeType::Group(Group {
+			id: Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap(),
+			position: Arc::new(Vec2::new(0, 0)),
+			visible: true,
+			locked: false,
+			folded: false,
+			name: Arc::new("Foo".into()),
+			children: Arc::new(vec![Arc::new(NodeType::Note(Note {
+				id: Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap(),
+				position: Arc::new(Vec2::new(0, 0)),
+				visible: true,
+				locked: false,
+				name: Arc::new("Bar".into()),
+			}))]),
+		});
+		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
+		let mut file = File::new();
+		let size = file.write(&mut buffer, &group).expect("Could not write");
+		assert_eq!(size, 181);
+	}
+
+	#[test]
+	fn test_file_read() {
+		let group_id = Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap();
+		let note_id = Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap();
+		let group = NodeType::Group(Group {
+			id: group_id,
+			position: Arc::new(Vec2::new(0, 0)),
+			visible: true,
+			locked: false,
+			folded: false,
+			name: Arc::new("Foo".into()),
+			children: Arc::new(vec![Arc::new(NodeType::Note(Note {
+				id: note_id,
+				position: Arc::new(Vec2::new(0, 0)),
+				visible: true,
+				locked: false,
+				name: Arc::new("Bar".into()),
+			}))]),
+		});
+		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
+		let mut file = File::new();
+		let file_hash = file.index.hash;
+		let size = file.write(&mut buffer, &group).expect("Could not write");
+		assert_eq!(size, 181);
+
+		let mut file = File::read(&mut buffer).expect("Could not read");
+		assert_eq!(file.header.version, 0);
+		assert_eq!(file.index.hash, file_hash);
+		assert_eq!(file.index.prev_offset, 0);
+		assert_eq!(file.index.size, 148);
+		let node = file.get(&mut buffer, note_id).expect("Could not get Note");
+		let note = match &*node {
+			NodeType::Note(node) => node,
+			_ => panic!("Not a Note"),
+		};
+		assert_eq!(*note.name, "Bar");
+		assert_eq!(*note.position, Vec2::new(0, 0));
+		assert_eq!(note.visible, true);
+		assert_eq!(note.locked, false);
+		assert_eq!(file.cache_node.len(), 1);
+
+		let mut file = File::read(&mut buffer).expect("Could not read");
+		let node = file.get(&mut buffer, group_id).expect("Could not get Note");
+		let group = match &*node {
+			NodeType::Group(node) => node,
+			_ => panic!("Not a Group"),
+		};
+		assert_eq!(*group.name, "Foo");
+		assert_eq!(*group.position, Vec2::new(0, 0));
+		assert_eq!(group.visible, true);
+		assert_eq!(group.locked, false);
+		assert_eq!(group.folded, false);
+		assert_eq!(group.children.len(), 1);
+		assert_eq!(file.cache_node.len(), 2);
 	}
 }

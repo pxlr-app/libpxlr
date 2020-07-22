@@ -42,11 +42,11 @@ impl From<nom::Err<(&[u8], nom::error::ErrorKind)>> for FileError {
 }
 
 pub struct File {
-	header: parser::Header,
-	index: parser::v0::Index,
-	rows: Vec<parser::v0::IndexRow>,
-	uuid_index: BTreeMap<Uuid, usize>,
-	cache_node: BTreeMap<Uuid, NodeRef>,
+	pub(crate) header: parser::Header,
+	pub(crate) index: parser::v0::Index,
+	pub(crate) rows: Vec<parser::v0::IndexRow>,
+	pub(crate) uuid_index: BTreeMap<Uuid, usize>,
+	pub(crate) cache_node: BTreeMap<Uuid, NodeRef>,
 }
 
 impl File {
@@ -89,8 +89,8 @@ impl File {
 
 		let (_, header) = parser::Header::parse(&buffer)?;
 
-		let mut buffer = [0u8; 36];
-		reader.seek(io::SeekFrom::End(-36))?;
+		let mut buffer = [0u8; 28];
+		reader.seek(io::SeekFrom::End(-28))?;
 		reader.read_exact(&mut buffer)?;
 
 		let (_, index) = match header.version {
@@ -102,7 +102,7 @@ impl File {
 			Vec::new()
 		} else {
 			let mut buffer = vec![0u8; index.size as usize];
-			reader.seek(io::SeekFrom::End(-36i64 - index.size as i64))?;
+			reader.seek(io::SeekFrom::End(-28i64 - index.size as i64))?;
 			reader.read_exact(&mut buffer)?;
 
 			let (_, rows) = match header.version {
@@ -179,5 +179,55 @@ impl File {
 				}
 			}
 		}
+	}
+
+	pub fn write<W: io::Write + io::Seek>(
+		&mut self,
+		writer: &mut W,
+		node: &NodeType,
+	) -> io::Result<usize> {
+		use parser::Write;
+		writer.seek(io::SeekFrom::Start(0))?;
+		let mut size = self.header.write(writer)?;
+		self.rows = Vec::new();
+		self.index.prev_offset = 0;
+		size += self.write_node(writer, node)?;
+		size += self.write_index(writer)?;
+		Ok(size)
+	}
+
+	fn write_node<W: io::Write + io::Seek>(
+		&mut self,
+		writer: &mut W,
+		node: &NodeType,
+	) -> io::Result<usize> {
+		use parser::v0::WriteNode;
+		let mut dependencies: Vec<NodeRef> = Vec::new();
+		let mut size = node.write_node(writer, &mut self.rows, &mut dependencies)?;
+		while let Some(dep) = dependencies.pop() {
+			size += dep.write_node(writer, &mut self.rows, &mut dependencies)?;
+		}
+		Ok(size)
+	}
+
+	fn write_index<W: io::Write + io::Seek>(&mut self, writer: &mut W) -> io::Result<usize> {
+		use parser::Write;
+		let mut size: usize = 0;
+		self.uuid_index.clear();
+		for (i, row) in self.rows.iter().enumerate() {
+			self.uuid_index.insert(row.id, i);
+			size += row.write(writer)?;
+		}
+		self.index.size = size as u32;
+		size += self.index.write(writer)?;
+		Ok(size)
+	}
+
+	pub fn update<W: io::Write + io::Seek>(
+		&mut self,
+		writer: &mut W,
+		node: &NodeType,
+	) -> io::Result<usize> {
+		Ok(0)
 	}
 }

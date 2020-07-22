@@ -123,17 +123,17 @@ impl Write for IndexRow {
 	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
 		let mut b: usize = 59;
 		self.id.write(writer)?; // 16
-		self.chunk_type.write(writer)?; // 18
-		writer.write_all(&self.chunk_offset.to_le_bytes())?; // 26
-		writer.write_all(&self.chunk_size.to_le_bytes())?; // 30
+		self.chunk_type.write(writer)?; // 2
+		writer.write_all(&self.chunk_offset.to_le_bytes())?; // 8
+		writer.write_all(&self.chunk_size.to_le_bytes())?; // 4
 		let flag: u8 =
 			(self.visible as u8) << 0 | (self.locked as u8) << 1 | (self.folded as u8) << 2;
-		writer.write_all(&flag.to_le_bytes())?; // 31
-		self.position.write(writer)?; // 39
-		self.size.write(writer)?; // 47
-		writer.write_all(&(self.children.len() as u32).to_le_bytes())?; // 51
-		writer.write_all(&(self.dependencies.len() as u32).to_le_bytes())?; // 55
-		writer.write_all(&(self.preview.len() as u32).to_le_bytes())?; // 59
+		writer.write_all(&flag.to_le_bytes())?; // 1
+		self.position.write(writer)?; // 8
+		self.size.write(writer)?; // 8
+		writer.write_all(&(self.children.len() as u32).to_le_bytes())?; // 4
+		writer.write_all(&(self.dependencies.len() as u32).to_le_bytes())?; // 4
+		writer.write_all(&(self.preview.len() as u32).to_le_bytes())?; // 4
 		b += self.name.write(writer)?;
 		for item in self.children.iter() {
 			b += item.write(writer)?;

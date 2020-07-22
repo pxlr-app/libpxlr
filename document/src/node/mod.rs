@@ -45,7 +45,7 @@ impl parser::Parse for NodeKind {
 
 impl parser::Write for NodeKind {
 	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		let idx: u32 = match self {
+		let idx: u16 = match self {
 			NodeKind::Group => 0,
 			NodeKind::Note => 1,
 		};

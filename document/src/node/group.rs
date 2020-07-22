@@ -285,6 +285,7 @@ impl parser::v0::WriteNode for Group {
 		dependencies: &mut Vec<NodeRef>,
 	) -> io::Result<usize> {
 		let mut row = parser::v0::IndexRow::new(self.id);
+		row.chunk_type = NodeKind::Group;
 		row.chunk_offset = writer.seek(io::SeekFrom::Current(0))?;
 		row.visible = self.visible;
 		row.locked = self.locked;
