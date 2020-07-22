@@ -254,14 +254,43 @@ impl File {
 		self.index.prev_offset = writer.seek(io::SeekFrom::End(0))?;
 		let mut rows: Vec<parser::v0::IndexRow> = Vec::new();
 		let mut size = self.write_node(writer, &mut rows, node)?;
-		for row in rows.drain(..) {
-			if let Some(old_row) = self.rows.iter_mut().find(|r| r.id == row.id) {
-				*old_row = row;
-			} else {
-				self.rows.push(row);
+		if self.index.root == node.as_node().id() {
+			self.rows = rows;
+		} else {
+			for row in rows.drain(..) {
+				if let Some(old_row) = self.rows.iter_mut().find(|r| r.id == row.id) {
+					*old_row = row;
+				} else {
+					self.rows.push(row);
+				}
 			}
 		}
 		size += self.write_index(writer)?;
+		Ok(size)
+	}
+
+	pub fn trim<R: io::Read + io::Seek, W: io::Write + io::Seek>(
+		&mut self,
+		source: &mut R,
+		destination: &mut W,
+	) -> Result<usize, FileError> {
+		use parser::Write;
+		destination.seek(io::SeekFrom::Start(0))?;
+		let mut size = self.header.write(destination)?;
+
+		for row in self.rows.iter_mut() {
+			if row.chunk_size > 0 {
+				let mut buffer = vec![0u8; row.chunk_size as usize];
+				source.seek(io::SeekFrom::Start(row.chunk_offset))?;
+				source.read_exact(&mut buffer)?;
+
+				row.chunk_offset = size as u64;
+				destination.write_all(&buffer)?;
+				size += buffer.len();
+			}
+		}
+
+		size += self.write_index(destination)?;
 		Ok(size)
 	}
 }
