@@ -124,7 +124,11 @@ impl Folded for Sprite {
 	}
 }
 
-impl SpriteNode for Sprite {}
+impl SpriteNode for Sprite {
+	fn color_mode(&self) -> ColorMode {
+		self.color_mode
+	}
+}
 
 impl Sprite {
 	pub fn add_child(&self, child: NodeRef) -> Option<patch::PatchPair> {
@@ -186,6 +190,22 @@ impl Sprite {
 				}),
 			)),
 			None => None,
+		}
+	}
+	pub fn set_color_mode(&self, color_mode: ColorMode) -> Option<patch::PatchPair> {
+		if self.color_mode == color_mode {
+			None
+		} else {
+			Some((
+				patch::PatchType::SetColorMode(patch::SetColorMode {
+					target: self.id,
+					color_mode,
+				}),
+				patch::PatchType::SetColorMode(patch::SetColorMode {
+					target: self.id,
+					color_mode: self.color_mode,
+				}),
+			))
 		}
 	}
 	pub fn set_palette(&self, palette: NodeRef) -> Option<patch::PatchPair> {
@@ -286,10 +306,60 @@ impl patch::Patchable for Sprite {
 					}
 				}
 				patch::PatchType::SetPalette(patch) => {
+					let children = patched
+						.children
+						.iter()
+						.map(|child| {
+							match child.as_node().patch(&patch::PatchType::SetPalette(
+								patch::SetPalette {
+									target: child.as_node().id(),
+									palette: patch.palette.clone(),
+								},
+							)) {
+								Some(new_child) => Arc::new(new_child),
+								None => child.clone(),
+							}
+						})
+						.collect();
+					patched.children = Arc::new(children);
 					patched.palette = Some(Arc::downgrade(&patch.palette));
 				}
 				patch::PatchType::UnsetPalette(_) => {
+					let children = patched
+						.children
+						.iter()
+						.map(|child| {
+							match child.as_node().patch(&patch::PatchType::UnsetPalette(
+								patch::UnsetPalette {
+									target: child.as_node().id(),
+								},
+							)) {
+								Some(new_child) => Arc::new(new_child),
+								None => child.clone(),
+							}
+						})
+						.collect();
+					patched.children = Arc::new(children);
 					patched.palette = None;
+				}
+				patch::PatchType::SetColorMode(patch) => {
+					let children = patched
+						.children
+						.iter()
+						.map(|child| {
+							match child.as_node().patch(&patch::PatchType::SetColorMode(
+								patch::SetColorMode {
+									target: child.as_node().id(),
+									color_mode: patch.color_mode,
+								},
+							)) {
+								Some(new_child) => Arc::new(new_child),
+								None => child.clone(),
+							}
+						})
+						.collect();
+					patched.children = Arc::new(children);
+					patched.color_mode = patch.color_mode;
 				}
 				_ => return None,
 			};

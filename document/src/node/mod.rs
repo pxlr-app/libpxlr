@@ -181,5 +181,7 @@ pub trait Folded {
 pub trait DocumentNode: Node + Name + Position + Size + Visible + Locked + Folded {}
 impl Downcast for dyn DocumentNode {}
 
-pub trait SpriteNode: Node + Name + Position + Size + Visible + Locked + Folded {}
+pub trait SpriteNode: Node + Name + Position + Size + Visible + Locked + Folded {
+	fn color_mode(&self) -> ColorMode;
+}
 impl Downcast for dyn SpriteNode {}

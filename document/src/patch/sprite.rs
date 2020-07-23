@@ -11,3 +11,9 @@ pub struct SetPalette {
 pub struct UnsetPalette {
 	pub target: Uuid,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, Patch)]
+pub struct SetColorMode {
+	pub target: Uuid,
+	pub color_mode: ColorMode,
+}

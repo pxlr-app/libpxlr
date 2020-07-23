@@ -78,7 +78,11 @@ fn impl_spritenode_macro(ast: &syn::DeriveInput) -> TokenStream {
 			}
 		}
 
-		impl document::prelude::SpriteNode for #name {}
+		impl document::prelude::SpriteNode for #name {
+			fn color_mode(&self) -> document::prelude::ColorMode {
+				self.color_mode
+			}
+		}
 	};
 
 	gen.into()

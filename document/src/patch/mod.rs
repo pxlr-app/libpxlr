@@ -38,6 +38,7 @@ pub enum PatchType {
 	MoveColor(MoveColor),
 	SetPalette(SetPalette),
 	UnsetPalette(UnsetPalette),
+	SetColorMode(SetColorMode),
 }
 
 impl PatchType {
@@ -57,6 +58,7 @@ impl PatchType {
 			PatchType::MoveColor(patch) => patch,
 			PatchType::SetPalette(patch) => patch,
 			PatchType::UnsetPalette(patch) => patch,
+			PatchType::SetColorMode(patch) => patch,
 		}
 	}
 }
