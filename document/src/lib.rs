@@ -31,7 +31,7 @@ mod tests {
 		let note = Note {
 			id: Uuid::new_v4(),
 			position: Arc::new(Vec2::new(0, 0)),
-			visible: true,
+			display: true,
 			locked: false,
 			name: Arc::new("Foo".into()),
 		};
@@ -47,14 +47,14 @@ mod tests {
 		let group = Group {
 			id: Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap(),
 			position: Arc::new(Vec2::new(0, 0)),
-			visible: true,
+			display: true,
 			locked: false,
 			folded: false,
 			name: Arc::new("Foo".into()),
 			children: Arc::new(vec![Arc::new(NodeType::Note(Note {
 				id: Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap(),
 				position: Arc::new(Vec2::new(0, 0)),
-				visible: true,
+				display: true,
 				locked: false,
 				name: Arc::new("Foo".into()),
 			}))]),
@@ -99,22 +99,22 @@ mod tests {
 		let group = Group {
 			id: Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap(),
 			position: Arc::new(Vec2::new(0, 0)),
-			visible: true,
+			display: true,
 			locked: false,
 			folded: false,
 			name: Arc::new("Foo".into()),
 			children: Arc::new(vec![Arc::new(NodeType::Note(Note {
 				id: Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap(),
 				position: Arc::new(Vec2::new(0, 0)),
-				visible: true,
+				display: true,
 				locked: false,
 				name: Arc::new("Bar".into()),
 			}))]),
 		};
 		let json = serde_json::to_string(&group).unwrap();
-		assert_eq!(json, "{\"id\":\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",\"position\":{\"x\":0,\"y\":0},\"visible\":true,\"locked\":false,\"folded\":false,\"name\":\"Foo\",\"children\":[{\"Note\":{\"id\":\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",\"position\":{\"x\":0,\"y\":0},\"visible\":true,\"locked\":false,\"name\":\"Bar\"}}]}");
+		assert_eq!(json, "{\"id\":\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",\"position\":{\"x\":0,\"y\":0},\"display\":true,\"locked\":false,\"folded\":false,\"name\":\"Foo\",\"children\":[{\"Note\":{\"id\":\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",\"position\":{\"x\":0,\"y\":0},\"display\":true,\"locked\":false,\"name\":\"Bar\"}}]}");
 		let ron = ron::to_string(&group).unwrap();
-		assert_eq!(ron, "(id:\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",position:(x:0,y:0),visible:true,locked:false,folded:false,name:\"Foo\",children:[Note((id:\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",position:(x:0,y:0),visible:true,locked:false,name:\"Bar\"))])");
+		assert_eq!(ron, "(id:\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",position:(x:0,y:0),display:true,locked:false,folded:false,name:\"Foo\",children:[Note((id:\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",position:(x:0,y:0),display:true,locked:false,name:\"Bar\"))])");
 	}
 
 	#[test]
@@ -122,7 +122,7 @@ mod tests {
 		let note = NodeType::Note(Note {
 			id: Uuid::new_v4(),
 			position: Arc::new(Vec2::new(0, 0)),
-			visible: true,
+			display: true,
 			locked: false,
 			name: Arc::new("Foo".into()),
 		});
@@ -135,14 +135,14 @@ mod tests {
 		let group = NodeType::Group(Group {
 			id: Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap(),
 			position: Arc::new(Vec2::new(0, 0)),
-			visible: true,
+			display: true,
 			locked: false,
 			folded: false,
 			name: Arc::new("Foo".into()),
 			children: Arc::new(vec![Arc::new(NodeType::Note(Note {
 				id: Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap(),
 				position: Arc::new(Vec2::new(0, 0)),
-				visible: true,
+				display: true,
 				locked: false,
 				name: Arc::new("Bar".into()),
 			}))]),
@@ -161,14 +161,14 @@ mod tests {
 		let group = NodeType::Group(Group {
 			id: group_id,
 			position: Arc::new(Vec2::new(0, 0)),
-			visible: true,
+			display: true,
 			locked: false,
 			folded: false,
 			name: Arc::new("Foo".into()),
 			children: Arc::new(vec![Arc::new(NodeType::Note(Note {
 				id: note_id,
 				position: Arc::new(Vec2::new(0, 0)),
-				visible: true,
+				display: true,
 				locked: false,
 				name: Arc::new("Bar".into()),
 			}))]),
@@ -192,7 +192,7 @@ mod tests {
 		};
 		assert_eq!(*note.name, "Bar");
 		assert_eq!(*note.position, Vec2::new(0, 0));
-		assert_eq!(note.visible, true);
+		assert_eq!(note.display, true);
 		assert_eq!(note.locked, false);
 		assert_eq!(file.cache_node.len(), 1);
 
@@ -204,7 +204,7 @@ mod tests {
 		};
 		assert_eq!(*group.name, "Foo");
 		assert_eq!(*group.position, Vec2::new(0, 0));
-		assert_eq!(group.visible, true);
+		assert_eq!(group.display, true);
 		assert_eq!(group.locked, false);
 		assert_eq!(group.folded, false);
 		assert_eq!(group.children.len(), 1);
@@ -218,7 +218,7 @@ mod tests {
 		let group = NodeType::Group(Group {
 			id: group_id,
 			position: Arc::new(Vec2::new(0, 0)),
-			visible: true,
+			display: true,
 			locked: false,
 			folded: false,
 			name: Arc::new("Foo".into()),
@@ -234,14 +234,14 @@ mod tests {
 		let group = NodeType::Group(Group {
 			id: group_id,
 			position: Arc::new(Vec2::new(0, 0)),
-			visible: true,
+			display: true,
 			locked: false,
 			folded: false,
 			name: Arc::new("Bar".into()),
 			children: Arc::new(vec![Arc::new(NodeType::Note(Note {
 				id: note_id,
 				position: Arc::new(Vec2::new(0, 0)),
-				visible: true,
+				display: true,
 				locked: false,
 				name: Arc::new("Baz".into()),
 			}))]),
@@ -260,14 +260,14 @@ mod tests {
 		let group = NodeType::Group(Group {
 			id: group_id,
 			position: Arc::new(Vec2::new(0, 0)),
-			visible: true,
+			display: true,
 			locked: false,
 			folded: false,
 			name: Arc::new("Bar".into()),
 			children: Arc::new(vec![Arc::new(NodeType::Note(Note {
 				id: note_id,
 				position: Arc::new(Vec2::new(0, 0)),
-				visible: true,
+				display: true,
 				locked: false,
 				name: Arc::new("Baz".into()),
 			}))]),
@@ -282,7 +282,7 @@ mod tests {
 		let group = NodeType::Group(Group {
 			id: group_id,
 			position: Arc::new(Vec2::new(0, 0)),
-			visible: true,
+			display: true,
 			locked: false,
 			folded: false,
 			name: Arc::new("Foo".into()),

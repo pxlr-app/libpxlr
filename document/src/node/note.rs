@@ -5,12 +5,12 @@ use crate::prelude::*;
 pub struct Note {
 	pub id: Uuid,
 	pub position: Arc<Vec2<u32>>,
-	pub visible: bool,
+	pub display: bool,
 	pub locked: bool,
 	pub name: Arc<String>,
 }
 
-impl Name for Note {
+impl Named for Note {
 	fn name(&self) -> String {
 		(*self.name).clone()
 	}
@@ -28,7 +28,7 @@ impl Name for Note {
 	}
 }
 
-impl Position for Note {
+impl Positioned for Note {
 	fn position(&self) -> Vec2<u32> {
 		*self.position
 	}
@@ -46,13 +46,13 @@ impl Position for Note {
 	}
 }
 
-impl Size for Note {}
+impl Sized for Note {}
 
-impl Visible for Note {
-	fn visible(&self) -> bool {
-		self.visible
+impl Displayed for Note {
+	fn display(&self) -> bool {
+		self.display
 	}
-	fn set_visibility(&self, visibility: bool) -> Option<patch::PatchPair> {
+	fn set_display(&self, visibility: bool) -> Option<patch::PatchPair> {
 		Some((
 			patch::PatchType::SetVisible(patch::SetVisible {
 				target: self.id,
@@ -60,7 +60,7 @@ impl Visible for Note {
 			}),
 			patch::PatchType::SetVisible(patch::SetVisible {
 				target: self.id,
-				visibility: self.visible,
+				visibility: self.display,
 			}),
 		))
 	}
@@ -89,13 +89,7 @@ impl Folded for Note {}
 impl patch::Patchable for Note {
 	fn patch(&self, patch: &patch::PatchType) -> Option<NodeType> {
 		if patch.as_patch().target() == self.id {
-			let mut patched = Note {
-				id: self.id,
-				position: self.position.clone(),
-				visible: self.visible,
-				locked: self.locked,
-				name: self.name.clone(),
-			};
+			let mut patched = self.clone();
 			match patch {
 				patch::PatchType::Rename(patch) => {
 					patched.name = Arc::new(patch.name.clone());
@@ -104,7 +98,7 @@ impl patch::Patchable for Note {
 					patched.position = Arc::new(patch.position);
 				}
 				patch::PatchType::SetVisible(patch) => {
-					patched.visible = patch.visibility;
+					patched.display = patch.visibility;
 				}
 				patch::PatchType::SetLock(patch) => {
 					patched.locked = patch.locked;
@@ -130,7 +124,7 @@ impl parser::v0::ParseNode for Note {
 			Arc::new(NodeType::Note(Note {
 				id: row.id,
 				position: Arc::new(row.position),
-				visible: row.visible,
+				display: row.display,
 				locked: row.locked,
 				name: Arc::new(row.name.clone()),
 			})),
@@ -148,7 +142,7 @@ impl parser::v0::WriteNode for Note {
 		let mut row = parser::v0::IndexRow::new(self.id);
 		row.chunk_type = NodeKind::Note;
 		row.chunk_offset = writer.seek(io::SeekFrom::Current(0))?;
-		row.visible = self.visible;
+		row.display = self.display;
 		row.locked = self.locked;
 		row.position = *self.position;
 		row.name = (*self.name).clone();

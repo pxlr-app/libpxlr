@@ -52,7 +52,7 @@ pub struct IndexRow {
 	pub chunk_type: NodeKind,
 	pub chunk_offset: u64,
 	pub chunk_size: u32,
-	pub visible: bool,
+	pub display: bool,
 	pub locked: bool,
 	pub folded: bool,
 	pub position: Vec2<u32>,
@@ -70,7 +70,7 @@ impl IndexRow {
 			chunk_type: NodeKind::Group,
 			chunk_offset: 0,
 			chunk_size: 0,
-			visible: false,
+			display: false,
 			locked: false,
 			folded: false,
 			position: Vec2::new(0, 0),
@@ -109,7 +109,7 @@ impl Parse for IndexRow {
 				chunk_type,
 				chunk_offset,
 				chunk_size,
-				visible: flag & 1 != 0,
+				display: flag & 1 != 0,
 				locked: flag & 2 != 0,
 				folded: flag & 4 != 0,
 				position,
@@ -131,7 +131,7 @@ impl Write for IndexRow {
 		writer.write_all(&self.chunk_offset.to_le_bytes())?; // 8
 		writer.write_all(&self.chunk_size.to_le_bytes())?; // 4
 		let flag: u8 =
-			(self.visible as u8) << 0 | (self.locked as u8) << 1 | (self.folded as u8) << 2;
+			(self.display as u8) << 0 | (self.locked as u8) << 1 | (self.folded as u8) << 2;
 		writer.write_all(&flag.to_le_bytes())?; // 1
 		self.position.write(writer)?; // 8
 		self.size.write(writer)?; // 8

@@ -4,10 +4,12 @@ use nom::number::complete::le_u16;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use uuid::Uuid;
+mod canvas;
 mod group;
 mod note;
 mod palette;
 mod sprite;
+pub use canvas::*;
 pub use group::*;
 pub use note::*;
 pub use palette::*;
@@ -25,16 +27,18 @@ pub type NodeList = Vec<NodeRef>;
 pub enum NodeType {
 	Note(Note),
 	Group(Group),
-	Sprite(Sprite),
 	Palette(Palette),
+	Sprite(Sprite),
+	Canvas(Canvas),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NodeKind {
 	Note,
 	Group,
-	Sprite,
 	Palette,
+	Sprite,
+	Canvas,
 }
 
 impl parser::Parse for NodeKind {
@@ -43,8 +47,9 @@ impl parser::Parse for NodeKind {
 		match idx {
 			0 => Ok((bytes, NodeKind::Group)),
 			1 => Ok((bytes, NodeKind::Note)),
-			2 => Ok((bytes, NodeKind::Sprite)),
-			3 => Ok((bytes, NodeKind::Palette)),
+			2 => Ok((bytes, NodeKind::Palette)),
+			3 => Ok((bytes, NodeKind::Sprite)),
+			4 => Ok((bytes, NodeKind::Canvas)),
 			_ => Err(nom::Err::Error((bytes, nom::error::ErrorKind::NoneOf))),
 		}
 	}
@@ -55,8 +60,9 @@ impl parser::Write for NodeKind {
 		let idx: u16 = match self {
 			NodeKind::Group => 0,
 			NodeKind::Note => 1,
-			NodeKind::Sprite => 2,
-			NodeKind::Palette => 3,
+			NodeKind::Palette => 2,
+			NodeKind::Sprite => 3,
+			NodeKind::Canvas => 4,
 		};
 		writer.write_all(&idx.to_le_bytes())?;
 		Ok(2)
@@ -68,22 +74,24 @@ impl NodeType {
 		match self {
 			NodeType::Note(node) => node,
 			NodeType::Group(node) => node,
-			NodeType::Sprite(node) => node,
 			NodeType::Palette(node) => node,
+			NodeType::Sprite(node) => node,
+			NodeType::Canvas(node) => node,
 		}
 	}
 	pub fn as_documentnode(&self) -> Option<&dyn DocumentNode> {
 		match self {
 			NodeType::Note(node) => Some(node),
 			NodeType::Group(node) => Some(node),
-			NodeType::Sprite(node) => Some(node),
 			NodeType::Palette(node) => Some(node),
-			// _ => None,
+			NodeType::Sprite(node) => Some(node),
+			_ => None,
 		}
 	}
 	pub fn as_spritenode(&self) -> Option<&dyn SpriteNode> {
 		match self {
 			NodeType::Sprite(node) => Some(node),
+			NodeType::Canvas(node) => Some(node),
 			_ => None,
 		}
 	}
@@ -103,11 +111,14 @@ impl parser::v0::ParseNode for NodeType {
 			NodeKind::Group => {
 				<Group as parser::v0::ParseNode>::parse_node(row, items, dependencies, bytes)
 			}
+			NodeKind::Palette => {
+				<Palette as parser::v0::ParseNode>::parse_node(row, items, dependencies, bytes)
+			}
 			NodeKind::Sprite => {
 				<Sprite as parser::v0::ParseNode>::parse_node(row, items, dependencies, bytes)
 			}
-			NodeKind::Palette => {
-				<Palette as parser::v0::ParseNode>::parse_node(row, items, dependencies, bytes)
+			NodeKind::Canvas => {
+				<Canvas as parser::v0::ParseNode>::parse_node(row, items, dependencies, bytes)
 			}
 		}
 	}
@@ -123,13 +134,14 @@ impl parser::v0::WriteNode for NodeType {
 		match self {
 			NodeType::Note(node) => node.write_node(writer, rows, dependencies),
 			NodeType::Group(node) => node.write_node(writer, rows, dependencies),
-			NodeType::Sprite(node) => node.write_node(writer, rows, dependencies),
 			NodeType::Palette(node) => node.write_node(writer, rows, dependencies),
+			NodeType::Sprite(node) => node.write_node(writer, rows, dependencies),
+			NodeType::Canvas(node) => node.write_node(writer, rows, dependencies),
 		}
 	}
 }
 
-pub trait Name {
+pub trait Named {
 	fn name(&self) -> String {
 		"".into()
 	}
@@ -137,7 +149,7 @@ pub trait Name {
 		None
 	}
 }
-pub trait Position {
+pub trait Positioned {
 	fn position(&self) -> Vec2<u32> {
 		Vec2::new(0, 0)
 	}
@@ -145,7 +157,7 @@ pub trait Position {
 		None
 	}
 }
-pub trait Size {
+pub trait Sized {
 	fn size(&self) -> Extent2<u32> {
 		Extent2::new(0, 0)
 	}
@@ -153,11 +165,11 @@ pub trait Size {
 		None
 	}
 }
-pub trait Visible {
-	fn visible(&self) -> bool {
+pub trait Displayed {
+	fn display(&self) -> bool {
 		true
 	}
-	fn set_visibility(&self, _visible: bool) -> Option<patch::PatchPair> {
+	fn set_display(&self, _display: bool) -> Option<patch::PatchPair> {
 		None
 	}
 }
@@ -177,11 +189,20 @@ pub trait Folded {
 		None
 	}
 }
+pub trait Cropable {
+	fn crop(&self, _offset: Vec2<u32>, _size: Extent2<u32>) -> Option<patch::PatchPair> {
+		None
+	}
+}
+pub trait HasColorMode {
+	fn color_mode(&self) -> ColorMode;
+}
 
-pub trait DocumentNode: Node + Name + Position + Size + Visible + Locked + Folded {}
+pub trait DocumentNode: Node + Named + Positioned + Sized + Displayed + Locked + Folded {}
 impl Downcast for dyn DocumentNode {}
 
-pub trait SpriteNode: Node + Name + Position + Size + Visible + Locked + Folded {
-	fn color_mode(&self) -> ColorMode;
+pub trait SpriteNode:
+	Node + Named + Sized + Cropable + Displayed + Locked + Folded + HasColorMode
+{
 }
 impl Downcast for dyn SpriteNode {}

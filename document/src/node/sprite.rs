@@ -9,14 +9,14 @@ pub struct Sprite {
 	pub size: Arc<Extent2<u32>>,
 	pub color_mode: ColorMode,
 	pub palette: Option<Weak<NodeType>>,
-	pub visible: bool,
+	pub display: bool,
 	pub locked: bool,
 	pub folded: bool,
 	pub name: Arc<String>,
 	pub children: Arc<NodeList>,
 }
 
-impl Name for Sprite {
+impl Named for Sprite {
 	fn name(&self) -> String {
 		(*self.name).clone()
 	}
@@ -34,7 +34,7 @@ impl Name for Sprite {
 	}
 }
 
-impl Position for Sprite {
+impl Positioned for Sprite {
 	fn position(&self) -> Vec2<u32> {
 		*self.position
 	}
@@ -52,7 +52,7 @@ impl Position for Sprite {
 	}
 }
 
-impl Size for Sprite {
+impl Sized for Sprite {
 	fn size(&self) -> Extent2<u32> {
 		*self.size
 	}
@@ -70,11 +70,11 @@ impl Size for Sprite {
 	}
 }
 
-impl Visible for Sprite {
-	fn visible(&self) -> bool {
-		self.visible
+impl Displayed for Sprite {
+	fn display(&self) -> bool {
+		self.display
 	}
-	fn set_visibility(&self, visibility: bool) -> Option<patch::PatchPair> {
+	fn set_display(&self, visibility: bool) -> Option<patch::PatchPair> {
 		Some((
 			patch::PatchType::SetVisible(patch::SetVisible {
 				target: self.id,
@@ -82,7 +82,7 @@ impl Visible for Sprite {
 			}),
 			patch::PatchType::SetVisible(patch::SetVisible {
 				target: self.id,
-				visibility: self.visible,
+				visibility: self.display,
 			}),
 		))
 	}
@@ -124,7 +124,29 @@ impl Folded for Sprite {
 	}
 }
 
-impl SpriteNode for Sprite {
+impl Cropable for Sprite {
+	fn crop(&self, offset: Vec2<u32>, size: Extent2<u32>) -> Option<patch::PatchPair> {
+		Some((
+			patch::PatchType::Crop(patch::Crop {
+				target: self.id,
+				offset,
+				size,
+			}),
+			patch::PatchType::RestoreSprite(patch::RestoreSprite {
+				target: self.id,
+				children: self
+					.children
+					.iter()
+					.map(|child| child.as_spritenode().unwrap().crop(offset, size).unwrap().1)
+					.collect(),
+			}),
+		))
+	}
+}
+
+impl SpriteNode for Sprite {}
+
+impl HasColorMode for Sprite {
 	fn color_mode(&self) -> ColorMode {
 		self.color_mode
 	}
@@ -137,6 +159,7 @@ impl Sprite {
 			.iter()
 			.find(|child| child.as_node().id() == child.as_node().id())
 			.is_some() || child.as_spritenode().is_none()
+			|| child.as_spritenode().unwrap().color_mode() != self.color_mode
 		{
 			None
 		} else {
@@ -238,18 +261,7 @@ impl Sprite {
 
 impl patch::Patchable for Sprite {
 	fn patch(&self, patch: &patch::PatchType) -> Option<NodeType> {
-		let mut patched = Sprite {
-			id: self.id,
-			position: self.position.clone(),
-			size: self.size.clone(),
-			color_mode: self.color_mode.clone(),
-			palette: self.palette.clone(),
-			visible: self.visible,
-			locked: self.locked,
-			folded: self.folded,
-			name: self.name.clone(),
-			children: self.children.clone(),
-		};
+		let mut patched = self.clone();
 		if patch.as_patch().target() == self.id {
 			match patch {
 				patch::PatchType::Rename(patch) => {
@@ -259,7 +271,7 @@ impl patch::Patchable for Sprite {
 					patched.position = Arc::new(patch.position);
 				}
 				patch::PatchType::SetVisible(patch) => {
-					patched.visible = patch.visibility;
+					patched.display = patch.visibility;
 				}
 				patch::PatchType::SetLock(patch) => {
 					patched.locked = patch.locked;
@@ -417,7 +429,7 @@ impl parser::v0::ParseNode for Sprite {
 				size: Arc::new(row.size),
 				color_mode: color_mode,
 				palette: palette,
-				visible: row.visible,
+				display: row.display,
 				locked: row.locked,
 				folded: row.folded,
 				name: Arc::new(row.name.clone()),
@@ -435,23 +447,24 @@ impl parser::v0::WriteNode for Sprite {
 		dependencies: &mut Vec<NodeRef>,
 	) -> io::Result<usize> {
 		use parser::Write;
-		let size = self.color_mode.write(writer)?;
+		let mut size = self.color_mode.write(writer)?;
 		if let Some(palette) = &self.palette {
 			if let Some(palette) = palette.upgrade() {
-				writer.write(&1u8.to_le_bytes())?;
-				palette.as_node().id().write(writer)?;
+				size += writer.write(&1u8.to_le_bytes())?;
+				size += palette.as_node().id().write(writer)?;
 				dependencies.push(palette.clone());
 			} else {
-				writer.write(&0u8.to_le_bytes())?;
+				size += writer.write(&0u8.to_le_bytes())?;
 			}
 		} else {
-			writer.write(&0u8.to_le_bytes())?;
+			size += writer.write(&0u8.to_le_bytes())?;
 		}
+
 		let mut row = parser::v0::IndexRow::new(self.id);
 		row.chunk_type = NodeKind::Sprite;
 		row.chunk_offset = writer.seek(io::SeekFrom::Current(0))?;
 		row.chunk_size = size as u32;
-		row.visible = self.visible;
+		row.display = self.display;
 		row.locked = self.locked;
 		row.folded = self.folded;
 		row.position = *self.position;

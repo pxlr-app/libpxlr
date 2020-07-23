@@ -6,13 +6,13 @@ use nom::{multi::many_m_n, number::complete::le_u8};
 pub struct Palette {
 	pub id: Uuid,
 	pub position: Arc<Vec2<u32>>,
-	pub visible: bool,
+	pub display: bool,
 	pub locked: bool,
 	pub name: Arc<String>,
 	pub colors: Arc<Vec<RGBA>>,
 }
 
-impl Name for Palette {
+impl Named for Palette {
 	fn name(&self) -> String {
 		(*self.name).clone()
 	}
@@ -30,7 +30,7 @@ impl Name for Palette {
 	}
 }
 
-impl Position for Palette {
+impl Positioned for Palette {
 	fn position(&self) -> Vec2<u32> {
 		*self.position
 	}
@@ -48,13 +48,13 @@ impl Position for Palette {
 	}
 }
 
-impl Size for Palette {}
+impl Sized for Palette {}
 
-impl Visible for Palette {
-	fn visible(&self) -> bool {
-		self.visible
+impl Displayed for Palette {
+	fn display(&self) -> bool {
+		self.display
 	}
-	fn set_visibility(&self, visibility: bool) -> Option<patch::PatchPair> {
+	fn set_display(&self, visibility: bool) -> Option<patch::PatchPair> {
 		Some((
 			patch::PatchType::SetVisible(patch::SetVisible {
 				target: self.id,
@@ -62,7 +62,7 @@ impl Visible for Palette {
 			}),
 			patch::PatchType::SetVisible(patch::SetVisible {
 				target: self.id,
-				visibility: self.visible,
+				visibility: self.display,
 			}),
 		))
 	}
@@ -147,7 +147,7 @@ impl patch::Patchable for Palette {
 			let mut patched = Palette {
 				id: self.id,
 				position: self.position.clone(),
-				visible: self.visible,
+				display: self.display,
 				locked: self.locked,
 				name: self.name.clone(),
 				colors: self.colors.clone(),
@@ -160,7 +160,7 @@ impl patch::Patchable for Palette {
 					patched.position = Arc::new(patch.position);
 				}
 				patch::PatchType::SetVisible(patch) => {
-					patched.visible = patch.visibility;
+					patched.display = patch.visibility;
 				}
 				patch::PatchType::SetLock(patch) => {
 					patched.locked = patch.locked;
@@ -224,7 +224,7 @@ impl parser::v0::ParseNode for Palette {
 			Arc::new(NodeType::Palette(Palette {
 				id: row.id,
 				position: Arc::new(row.position),
-				visible: row.visible,
+				display: row.display,
 				locked: row.locked,
 				name: Arc::new(row.name.clone()),
 				colors: Arc::new(colors),
@@ -248,7 +248,7 @@ impl parser::v0::WriteNode for Palette {
 		let mut row = parser::v0::IndexRow::new(self.id);
 		row.chunk_type = NodeKind::Palette;
 		row.chunk_offset = writer.seek(io::SeekFrom::Current(0))?;
-		row.visible = self.visible;
+		row.display = self.display;
 		row.locked = self.locked;
 		row.position = *self.position;
 		row.name = (*self.name).clone();

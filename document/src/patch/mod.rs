@@ -39,6 +39,9 @@ pub enum PatchType {
 	SetPalette(SetPalette),
 	UnsetPalette(UnsetPalette),
 	SetColorMode(SetColorMode),
+	Crop(Crop),
+	RestoreSprite(RestoreSprite),
+	RestoreCanvas(RestoreCanvas),
 }
 
 impl PatchType {
@@ -59,6 +62,9 @@ impl PatchType {
 			PatchType::SetPalette(patch) => patch,
 			PatchType::UnsetPalette(patch) => patch,
 			PatchType::SetColorMode(patch) => patch,
+			PatchType::Crop(patch) => patch,
+			PatchType::RestoreSprite(patch) => patch,
+			PatchType::RestoreCanvas(patch) => patch,
 		}
 	}
 }

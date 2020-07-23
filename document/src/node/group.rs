@@ -5,14 +5,14 @@ use crate::prelude::*;
 pub struct Group {
 	pub id: Uuid,
 	pub position: Arc<Vec2<u32>>,
-	pub visible: bool,
+	pub display: bool,
 	pub locked: bool,
 	pub folded: bool,
 	pub name: Arc<String>,
 	pub children: Arc<NodeList>,
 }
 
-impl Name for Group {
+impl Named for Group {
 	fn name(&self) -> String {
 		(*self.name).clone()
 	}
@@ -30,7 +30,7 @@ impl Name for Group {
 	}
 }
 
-impl Position for Group {
+impl Positioned for Group {
 	fn position(&self) -> Vec2<u32> {
 		*self.position
 	}
@@ -48,13 +48,13 @@ impl Position for Group {
 	}
 }
 
-impl Size for Group {}
+impl Sized for Group {}
 
-impl Visible for Group {
-	fn visible(&self) -> bool {
-		self.visible
+impl Displayed for Group {
+	fn display(&self) -> bool {
+		self.display
 	}
-	fn set_visibility(&self, visibility: bool) -> Option<patch::PatchPair> {
+	fn set_display(&self, visibility: bool) -> Option<patch::PatchPair> {
 		Some((
 			patch::PatchType::SetVisible(patch::SetVisible {
 				target: self.id,
@@ -62,7 +62,7 @@ impl Visible for Group {
 			}),
 			patch::PatchType::SetVisible(patch::SetVisible {
 				target: self.id,
-				visibility: self.visible,
+				visibility: self.display,
 			}),
 		))
 	}
@@ -170,15 +170,7 @@ impl Group {
 
 impl patch::Patchable for Group {
 	fn patch(&self, patch: &patch::PatchType) -> Option<NodeType> {
-		let mut patched = Group {
-			id: self.id,
-			position: self.position.clone(),
-			visible: self.visible,
-			locked: self.locked,
-			folded: self.folded,
-			name: self.name.clone(),
-			children: self.children.clone(),
-		};
+		let mut patched = self.clone();
 		if patch.as_patch().target() == self.id {
 			match patch {
 				patch::PatchType::Rename(patch) => {
@@ -188,7 +180,7 @@ impl patch::Patchable for Group {
 					patched.position = Arc::new(patch.position);
 				}
 				patch::PatchType::SetVisible(patch) => {
-					patched.visible = patch.visibility;
+					patched.display = patch.visibility;
 				}
 				patch::PatchType::SetLock(patch) => {
 					patched.locked = patch.locked;
@@ -267,7 +259,7 @@ impl parser::v0::ParseNode for Group {
 			Arc::new(NodeType::Group(Group {
 				id: row.id,
 				position: Arc::new(row.position),
-				visible: row.visible,
+				display: row.display,
 				locked: row.locked,
 				folded: row.folded,
 				name: Arc::new(row.name.clone()),
@@ -287,7 +279,7 @@ impl parser::v0::WriteNode for Group {
 		let mut row = parser::v0::IndexRow::new(self.id);
 		row.chunk_type = NodeKind::Group;
 		row.chunk_offset = writer.seek(io::SeekFrom::Current(0))?;
-		row.visible = self.visible;
+		row.display = self.display;
 		row.locked = self.locked;
 		row.folded = self.folded;
 		row.position = *self.position;
