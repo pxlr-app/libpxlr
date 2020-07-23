@@ -1,6 +1,10 @@
 use crate::prelude::*;
 use nom;
-use std::{collections::BTreeMap, error::Error, fmt};
+use std::{
+	collections::{BTreeMap, HashSet},
+	error::Error,
+	fmt,
+};
 
 #[derive(Debug)]
 pub enum FileError {
@@ -254,17 +258,25 @@ impl File {
 		self.index.prev_offset = writer.seek(io::SeekFrom::End(0))?;
 		let mut rows: Vec<parser::v0::IndexRow> = Vec::new();
 		let mut size = self.write_node(writer, &mut rows, node)?;
-		if self.index.root == node.as_node().id() {
-			self.rows = rows;
-		} else {
-			for row in rows.drain(..) {
-				if let Some(old_row) = self.rows.iter_mut().find(|r| r.id == row.id) {
-					*old_row = row;
-				} else {
-					self.rows.push(row);
-				}
+
+		let mut dependencies: HashSet<Uuid> = HashSet::new();
+		let mut queue: Vec<Uuid> = Vec::with_capacity(self.rows.len());
+		queue.push(node.as_node().id());
+		while let Some(id) = queue.pop() {
+			if let Some(idx) = self.uuid_index.get(&id) {
+				let row = self.rows.get(*idx).unwrap();
+				dependencies.insert(row.id);
+				queue.extend_from_slice(&row.children);
 			}
 		}
+
+		self.rows = self
+			.rows
+			.drain(..)
+			.filter(|row| dependencies.contains(&row.id) == false)
+			.collect();
+
+		self.rows.append(&mut rows);
 		size += self.write_index(writer)?;
 		Ok(size)
 	}
