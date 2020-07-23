@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = ["Michael Grenier <michael@grenier.dev>"]
 edition = "2018"
 
+[features]
+default = []
+arc = []
+
 [dependencies]
 bitflags = "1.2.1"
 chrono = { version = "0.4", features = ["serde"] }

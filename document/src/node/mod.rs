@@ -1,16 +1,17 @@
-use crate::{
-	any::{Any, Downcast},
-	parser, patch,
-};
+use crate::prelude::*;
 use math::{Extent2, Vec2};
 use nom::number::complete::le_u16;
 use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, io, sync::Arc};
+use std::fmt::Debug;
 use uuid::Uuid;
 mod group;
 mod note;
+mod palette;
+mod sprite;
 pub use group::*;
 pub use note::*;
+pub use palette::*;
+pub use sprite::*;
 
 pub trait Node: Any + Debug + patch::Patchable {
 	fn id(&self) -> Uuid;
@@ -24,12 +25,16 @@ pub type NodeList = Vec<NodeRef>;
 pub enum NodeType {
 	Note(Note),
 	Group(Group),
+	Sprite(Sprite),
+	Palette(Palette),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NodeKind {
 	Note,
 	Group,
+	Sprite,
+	Palette,
 }
 
 impl parser::Parse for NodeKind {
@@ -38,6 +43,8 @@ impl parser::Parse for NodeKind {
 		match idx {
 			0 => Ok((bytes, NodeKind::Group)),
 			1 => Ok((bytes, NodeKind::Note)),
+			2 => Ok((bytes, NodeKind::Sprite)),
+			3 => Ok((bytes, NodeKind::Palette)),
 			_ => Err(nom::Err::Error((bytes, nom::error::ErrorKind::NoneOf))),
 		}
 	}
@@ -48,6 +55,8 @@ impl parser::Write for NodeKind {
 		let idx: u16 = match self {
 			NodeKind::Group => 0,
 			NodeKind::Note => 1,
+			NodeKind::Sprite => 2,
+			NodeKind::Palette => 3,
 		};
 		writer.write_all(&idx.to_le_bytes())?;
 		Ok(2)
@@ -59,12 +68,16 @@ impl NodeType {
 		match self {
 			NodeType::Note(node) => node,
 			NodeType::Group(node) => node,
+			NodeType::Sprite(node) => node,
+			NodeType::Palette(node) => node,
 		}
 	}
 	pub fn as_documentnode(&self) -> Option<&dyn DocumentNode> {
 		match self {
 			NodeType::Note(node) => Some(node),
 			NodeType::Group(node) => Some(node),
+			NodeType::Sprite(node) => Some(node),
+			NodeType::Palette(node) => Some(node),
 		}
 	}
 }
@@ -83,6 +96,12 @@ impl parser::v0::ParseNode for NodeType {
 			NodeKind::Group => {
 				<Group as parser::v0::ParseNode>::parse_node(row, items, dependencies, bytes)
 			}
+			NodeKind::Sprite => {
+				<Sprite as parser::v0::ParseNode>::parse_node(row, items, dependencies, bytes)
+			}
+			NodeKind::Palette => {
+				<Palette as parser::v0::ParseNode>::parse_node(row, items, dependencies, bytes)
+			}
 		}
 	}
 }
@@ -97,6 +116,8 @@ impl parser::v0::WriteNode for NodeType {
 		match self {
 			NodeType::Note(node) => node.write_node(writer, rows, dependencies),
 			NodeType::Group(node) => node.write_node(writer, rows, dependencies),
+			NodeType::Sprite(node) => node.write_node(writer, rows, dependencies),
+			NodeType::Palette(node) => node.write_node(writer, rows, dependencies),
 		}
 	}
 }
