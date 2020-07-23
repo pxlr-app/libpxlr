@@ -78,6 +78,13 @@ impl NodeType {
 			NodeType::Group(node) => Some(node),
 			NodeType::Sprite(node) => Some(node),
 			NodeType::Palette(node) => Some(node),
+			// _ => None,
+		}
+	}
+	pub fn as_spritenode(&self) -> Option<&dyn SpriteNode> {
+		match self {
+			NodeType::Sprite(node) => Some(node),
+			_ => None,
 		}
 	}
 }
@@ -173,3 +180,6 @@ pub trait Folded {
 
 pub trait DocumentNode: Node + Name + Position + Size + Visible + Locked + Folded {}
 impl Downcast for dyn DocumentNode {}
+
+pub trait SpriteNode: Node + Name + Position + Size + Visible + Locked + Folded {}
+impl Downcast for dyn SpriteNode {}

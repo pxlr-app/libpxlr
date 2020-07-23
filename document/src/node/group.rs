@@ -110,7 +110,7 @@ impl Group {
 			.children
 			.iter()
 			.find(|child| child.as_node().id() == child.as_node().id())
-			.is_some()
+			.is_some() || child.as_documentnode().is_none()
 		{
 			None
 		} else {

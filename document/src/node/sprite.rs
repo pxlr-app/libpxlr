@@ -124,13 +124,15 @@ impl Folded for Sprite {
 	}
 }
 
+impl SpriteNode for Sprite {}
+
 impl Sprite {
 	pub fn add_child(&self, child: NodeRef) -> Option<patch::PatchPair> {
 		if self
 			.children
 			.iter()
 			.find(|child| child.as_node().id() == child.as_node().id())
-			.is_some()
+			.is_some() || child.as_spritenode().is_none()
 		{
 			None
 		} else {
@@ -184,6 +186,32 @@ impl Sprite {
 				}),
 			)),
 			None => None,
+		}
+	}
+	pub fn set_palette(&self, palette: NodeRef) -> Option<patch::PatchPair> {
+		Some((
+			patch::PatchType::SetPalette(patch::SetPalette {
+				target: self.id,
+				palette,
+			}),
+			patch::PatchType::UnsetPalette(patch::UnsetPalette { target: self.id }),
+		))
+	}
+	pub fn unset_palette(&self) -> Option<patch::PatchPair> {
+		if let Some(palette) = &self.palette {
+			if let Some(palette) = palette.upgrade() {
+				Some((
+					patch::PatchType::UnsetPalette(patch::UnsetPalette { target: self.id }),
+					patch::PatchType::SetPalette(patch::SetPalette {
+						target: self.id,
+						palette: palette.clone(),
+					}),
+				))
+			} else {
+				None
+			}
+		} else {
+			None
 		}
 	}
 }
@@ -242,13 +270,26 @@ impl patch::Patchable for Sprite {
 				patch::PatchType::MoveChild(patch) => {
 					let mut children: NodeList =
 						patched.children.iter().map(|child| child.clone()).collect();
-					let child = children.remove(patch.position);
-					if patch.position > children.len() {
-						children.push(child);
+					if let Some(index) = children
+						.iter()
+						.position(|child| child.as_node().id() == patch.child_id)
+					{
+						let child = children.remove(index);
+						if patch.position > children.len() {
+							children.push(child);
+						} else {
+							children.insert(patch.position, child);
+						}
+						patched.children = Arc::new(children);
 					} else {
-						children.insert(patch.position, child);
+						return None;
 					}
-					patched.children = Arc::new(children);
+				}
+				patch::PatchType::SetPalette(patch) => {
+					patched.palette = Some(Arc::downgrade(&patch.palette));
+				}
+				patch::PatchType::UnsetPalette(_) => {
+					patched.palette = None;
 				}
 				_ => return None,
 			};

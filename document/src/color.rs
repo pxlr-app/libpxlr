@@ -14,12 +14,12 @@ pub enum ColorMode {
 	XYZ,
 }
 
-#[derive(Color, Debug, Clone, Serialize, Deserialize)]
+#[derive(Color, Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Grey {
 	pub g: u8,
 }
 
-#[derive(Color, Debug, Clone, Serialize, Deserialize)]
+#[derive(Color, Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct RGBA {
 	pub r: u8,
 	pub g: u8,
@@ -27,13 +27,13 @@ pub struct RGBA {
 	pub a: u8,
 }
 
-#[derive(Color, Debug, Clone, Serialize, Deserialize)]
+#[derive(Color, Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct UV {
 	pub u: f32,
 	pub v: f32,
 }
 
-#[derive(Color, Debug, Clone, Serialize, Deserialize)]
+#[derive(Color, Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct XYZ {
 	pub x: f32,
 	pub y: f32,

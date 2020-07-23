@@ -61,3 +61,25 @@ fn impl_color_macro(ast: &syn::DeriveInput) -> TokenStream {
 
 	gen.into()
 }
+
+#[proc_macro_derive(SpriteNode)]
+pub fn spritenode_derive(input: TokenStream) -> TokenStream {
+	let ast = syn::parse(input).unwrap();
+	impl_spritenode_macro(&ast)
+}
+
+fn impl_spritenode_macro(ast: &syn::DeriveInput) -> TokenStream {
+	let name = &ast.ident;
+
+	let gen = quote! {
+		impl document::prelude::Node for #name {
+			fn id(&self) -> document::prelude::Uuid {
+				self.id
+			}
+		}
+
+		impl document::prelude::SpriteNode for #name {}
+	};
+
+	gen.into()
+}

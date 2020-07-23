@@ -7,7 +7,11 @@ use std::fmt::Debug;
 use uuid::Uuid;
 
 mod node;
+mod palette;
+mod sprite;
 pub use node::*;
+pub use palette::*;
+pub use sprite::*;
 
 pub trait Patch: Any + Debug {
 	fn target(&self) -> Uuid;
@@ -29,6 +33,11 @@ pub enum PatchType {
 	AddChild(AddChild),
 	RemoveChild(RemoveChild),
 	MoveChild(MoveChild),
+	AddColor(AddColor),
+	RemoveColor(RemoveColor),
+	MoveColor(MoveColor),
+	SetPalette(SetPalette),
+	UnsetPalette(UnsetPalette),
 }
 
 impl PatchType {
@@ -43,6 +52,11 @@ impl PatchType {
 			PatchType::AddChild(patch) => patch,
 			PatchType::RemoveChild(patch) => patch,
 			PatchType::MoveChild(patch) => patch,
+			PatchType::AddColor(patch) => patch,
+			PatchType::RemoveColor(patch) => patch,
+			PatchType::MoveColor(patch) => patch,
+			PatchType::SetPalette(patch) => patch,
+			PatchType::UnsetPalette(patch) => patch,
 		}
 	}
 }

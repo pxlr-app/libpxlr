@@ -88,15 +88,69 @@ impl Locked for Palette {
 
 impl Folded for Palette {}
 
+impl Palette {
+	pub fn add_color(&self, color: RGBA) -> Option<patch::PatchPair> {
+		if self.colors.iter().find(|c| *c == &color).is_some() {
+			None
+		} else {
+			Some((
+				patch::PatchType::AddColor(patch::AddColor {
+					target: self.id,
+					color: color.clone(),
+				}),
+				patch::PatchType::RemoveColor(patch::RemoveColor {
+					target: self.id,
+					color,
+				}),
+			))
+		}
+	}
+	pub fn remove_color(&self, color: RGBA) -> Option<patch::PatchPair> {
+		let color = self.colors.iter().find(|c| *c == &color);
+		match color {
+			Some(color) => Some((
+				patch::PatchType::RemoveColor(patch::RemoveColor {
+					target: self.id,
+					color: color.clone(),
+				}),
+				patch::PatchType::AddColor(patch::AddColor {
+					target: self.id,
+					color: color.clone(),
+				}),
+			)),
+			None => None,
+		}
+	}
+	pub fn move_color(&self, color: RGBA, position: usize) -> Option<patch::PatchPair> {
+		let old_position = self.colors.iter().position(|c| c == &color);
+		match old_position {
+			Some(old_position) => Some((
+				patch::PatchType::MoveColor(patch::MoveColor {
+					target: self.id,
+					color: color.clone(),
+					position,
+				}),
+				patch::PatchType::MoveColor(patch::MoveColor {
+					target: self.id,
+					color: color,
+					position: old_position,
+				}),
+			)),
+			None => None,
+		}
+	}
+}
+
 impl patch::Patchable for Palette {
 	fn patch(&self, patch: &patch::PatchType) -> Option<NodeType> {
 		if patch.as_patch().target() == self.id {
-			let mut patched = Note {
+			let mut patched = Palette {
 				id: self.id,
 				position: self.position.clone(),
 				visible: self.visible,
 				locked: self.locked,
 				name: self.name.clone(),
+				colors: self.colors.clone(),
 			};
 			match patch {
 				patch::PatchType::Rename(patch) => {
@@ -111,9 +165,44 @@ impl patch::Patchable for Palette {
 				patch::PatchType::SetLock(patch) => {
 					patched.locked = patch.locked;
 				}
+				patch::PatchType::AddColor(patch) => {
+					let mut colors: Vec<RGBA> =
+						patched.colors.iter().map(|color| color.clone()).collect();
+					colors.push(patch.color.clone());
+					patched.colors = Arc::new(colors);
+				}
+				patch::PatchType::RemoveColor(patch) => {
+					let colors: Vec<RGBA> = patched
+						.colors
+						.iter()
+						.filter_map(|color| {
+							if color == &patch.color {
+								None
+							} else {
+								Some(color.clone())
+							}
+						})
+						.collect();
+					patched.colors = Arc::new(colors);
+				}
+				patch::PatchType::MoveColor(patch) => {
+					let mut colors: Vec<RGBA> =
+						patched.colors.iter().map(|color| color.clone()).collect();
+					if let Some(index) = colors.iter().position(|color| color == &patch.color) {
+						let color = colors.remove(index);
+						if patch.position > colors.len() {
+							colors.push(color);
+						} else {
+							colors.insert(patch.position, color);
+						}
+						patched.colors = Arc::new(colors);
+					} else {
+						return None;
+					}
+				}
 				_ => return None,
 			};
-			Some(NodeType::Note(patched))
+			Some(NodeType::Palette(patched))
 		} else {
 			None
 		}
