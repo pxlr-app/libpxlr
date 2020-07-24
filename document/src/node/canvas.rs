@@ -12,6 +12,7 @@ pub struct Canvas {
 	pub locked: bool,
 	pub name: Arc<String>,
 	pub color: Arc<Vec<u8>>,
+	pub alpha: Arc<Vec<Grey>>,
 	pub has_normal: bool,
 	pub normal: Arc<Vec<XYZ>>,
 }
@@ -168,6 +169,7 @@ impl parser::v0::ParseNode for Canvas {
 		let len = (row.size.w as usize) * (row.size.h as usize);
 		let (bytes, flags) = le_u8(bytes)?;
 		let has_normal = flags > 0;
+		let (bytes, alpha) = many_m_n(len, len, Grey::parse)(bytes)?;
 		let (bytes, color) = take(len)(bytes)?;
 		let (bytes, normal) = if has_normal {
 			many_m_n(len, len, XYZ::parse)(bytes)?
@@ -185,6 +187,7 @@ impl parser::v0::ParseNode for Canvas {
 				locked: row.locked,
 				name: Arc::new(row.name.clone()),
 				color: Arc::new(color.to_owned()),
+				alpha: Arc::new(alpha),
 				has_normal,
 				normal: Arc::new(normal),
 			})),
@@ -215,9 +218,12 @@ impl parser::v0::WriteNode for Canvas {
 		let flags = if self.has_normal { 1u8 } else { 0u8 };
 		size += writer.write(&flags.to_le_bytes())?;
 		size += writer.write(&self.color.as_slice())?;
+		for a in self.alpha.iter() {
+			size += a.write(writer)?;
+		}
 		if self.has_normal {
-			for p in self.normal.iter() {
-				size += p.write(writer)?;
+			for n in self.normal.iter() {
+				size += n.write(writer)?;
 			}
 		}
 

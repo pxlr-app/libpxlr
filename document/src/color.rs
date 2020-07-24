@@ -9,7 +9,7 @@ impl Downcast for dyn Color {}
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ColorMode {
 	Grey,
-	RGBA,
+	RGB,
 	UV,
 	XYZ,
 }
@@ -20,11 +20,10 @@ pub struct Grey {
 }
 
 #[derive(Color, Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
-pub struct RGBA {
+pub struct RGB {
 	pub r: u8,
 	pub g: u8,
 	pub b: u8,
-	pub a: u8,
 }
 
 #[derive(Color, Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
@@ -45,7 +44,7 @@ impl parser::Parse for ColorMode {
 		let (bytes, idx) = le_u8(bytes)?;
 		match idx {
 			0 => Ok((bytes, ColorMode::Grey)),
-			1 => Ok((bytes, ColorMode::RGBA)),
+			1 => Ok((bytes, ColorMode::RGB)),
 			2 => Ok((bytes, ColorMode::UV)),
 			3 => Ok((bytes, ColorMode::XYZ)),
 			_ => Err(nom::Err::Error((bytes, nom::error::ErrorKind::NoneOf))),
@@ -57,7 +56,7 @@ impl parser::Write for ColorMode {
 	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
 		let idx: u8 = match self {
 			ColorMode::Grey => 0,
-			ColorMode::RGBA => 1,
+			ColorMode::RGB => 1,
 			ColorMode::UV => 2,
 			ColorMode::XYZ => 3,
 		};
@@ -80,22 +79,20 @@ impl parser::Write for Grey {
 	}
 }
 
-impl parser::Parse for RGBA {
-	fn parse(bytes: &[u8]) -> nom::IResult<&[u8], RGBA> {
+impl parser::Parse for RGB {
+	fn parse(bytes: &[u8]) -> nom::IResult<&[u8], RGB> {
 		let (bytes, r) = le_u8(bytes)?;
 		let (bytes, g) = le_u8(bytes)?;
 		let (bytes, b) = le_u8(bytes)?;
-		let (bytes, a) = le_u8(bytes)?;
-		Ok((bytes, RGBA { r, g, b, a }))
+		Ok((bytes, RGB { r, g, b }))
 	}
 }
 
-impl parser::Write for RGBA {
+impl parser::Write for RGB {
 	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
 		writer.write_all(&self.r.to_le_bytes())?;
 		writer.write_all(&self.g.to_le_bytes())?;
 		writer.write_all(&self.b.to_le_bytes())?;
-		writer.write_all(&self.a.to_le_bytes())?;
 		Ok(1)
 	}
 }

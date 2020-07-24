@@ -9,7 +9,7 @@ pub struct Palette {
 	pub display: bool,
 	pub locked: bool,
 	pub name: Arc<String>,
-	pub colors: Arc<Vec<RGBA>>,
+	pub colors: Arc<Vec<RGB>>,
 }
 
 impl Named for Palette {
@@ -89,7 +89,7 @@ impl Locked for Palette {
 impl Folded for Palette {}
 
 impl Palette {
-	pub fn add_color(&self, color: RGBA) -> Option<patch::PatchPair> {
+	pub fn add_color(&self, color: RGB) -> Option<patch::PatchPair> {
 		if self.colors.iter().find(|c| *c == &color).is_some() {
 			None
 		} else {
@@ -105,7 +105,7 @@ impl Palette {
 			))
 		}
 	}
-	pub fn remove_color(&self, color: RGBA) -> Option<patch::PatchPair> {
+	pub fn remove_color(&self, color: RGB) -> Option<patch::PatchPair> {
 		let color = self.colors.iter().find(|c| *c == &color);
 		match color {
 			Some(color) => Some((
@@ -121,7 +121,7 @@ impl Palette {
 			None => None,
 		}
 	}
-	pub fn move_color(&self, color: RGBA, position: usize) -> Option<patch::PatchPair> {
+	pub fn move_color(&self, color: RGB, position: usize) -> Option<patch::PatchPair> {
 		let old_position = self.colors.iter().position(|c| c == &color);
 		match old_position {
 			Some(old_position) => Some((
@@ -166,13 +166,13 @@ impl patch::Patchable for Palette {
 					patched.locked = patch.locked;
 				}
 				patch::PatchType::AddColor(patch) => {
-					let mut colors: Vec<RGBA> =
+					let mut colors: Vec<RGB> =
 						patched.colors.iter().map(|color| color.clone()).collect();
 					colors.push(patch.color.clone());
 					patched.colors = Arc::new(colors);
 				}
 				patch::PatchType::RemoveColor(patch) => {
-					let colors: Vec<RGBA> = patched
+					let colors: Vec<RGB> = patched
 						.colors
 						.iter()
 						.filter_map(|color| {
@@ -186,7 +186,7 @@ impl patch::Patchable for Palette {
 					patched.colors = Arc::new(colors);
 				}
 				patch::PatchType::MoveColor(patch) => {
-					let mut colors: Vec<RGBA> =
+					let mut colors: Vec<RGB> =
 						patched.colors.iter().map(|color| color.clone()).collect();
 					if let Some(index) = colors.iter().position(|color| color == &patch.color) {
 						let color = colors.remove(index);
@@ -218,7 +218,7 @@ impl parser::v0::ParseNode for Palette {
 	) -> parser::Result<&'bytes [u8], NodeRef> {
 		use parser::Parse;
 		let (bytes, len) = le_u8(bytes)?;
-		let (bytes, colors) = many_m_n(len as usize, len as usize, RGBA::parse)(bytes)?;
+		let (bytes, colors) = many_m_n(len as usize, len as usize, RGB::parse)(bytes)?;
 		Ok((
 			bytes,
 			Arc::new(NodeType::Palette(Palette {
