@@ -129,7 +129,7 @@ mod tests {
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 		let mut file = File::new();
 		let size = file.write(&mut buffer, &note).expect("Could not write");
-		assert_eq!(size, 115);
+		assert_eq!(size, 111);
 		// std::fs::write("test_file_write_1.pxlr", buffer.get_ref()).expect("Could not dump");
 
 		let group = NodeType::Group(Group {
@@ -150,7 +150,7 @@ mod tests {
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 		let mut file = File::new();
 		let size = file.write(&mut buffer, &group).expect("Could not write");
-		assert_eq!(size, 197);
+		assert_eq!(size, 189);
 		// std::fs::write("test_file_write_2.pxlr", buffer.get_ref()).expect("Could not dump");
 	}
 
@@ -177,14 +177,14 @@ mod tests {
 		let mut file = File::new();
 		let file_hash = file.index.hash;
 		let size = file.write(&mut buffer, &group).expect("Could not write");
-		assert_eq!(size, 197);
+		assert_eq!(size, 189);
 		// std::fs::write("test_file_read.pxlr", buffer.get_ref()).expect("Could not dump");
 
 		let mut file = File::read(&mut buffer).expect("Could not read");
 		assert_eq!(file.header.version, 0);
 		assert_eq!(file.index.hash, file_hash);
 		assert_eq!(file.index.prev_offset, 0);
-		assert_eq!(file.index.size, 148);
+		assert_eq!(file.index.size, 140);
 		let node = file.get(&mut buffer, note_id).expect("Could not get Note");
 		let note = match &*node {
 			NodeType::Note(node) => node,
@@ -227,7 +227,7 @@ mod tests {
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 		let mut file = File::new();
 		let size = file.write(&mut buffer, &group).expect("Could not write");
-		assert_eq!(size, 115);
+		assert_eq!(size, 111);
 		assert_eq!(file.rows.len(), 1);
 		// std::fs::write("test_file_update_1.pxlr", buffer.get_ref()).expect("Could not dump");
 
@@ -248,7 +248,7 @@ mod tests {
 		});
 
 		let size = file.update(&mut buffer, &group).expect("Could not write");
-		assert_eq!(size, 192);
+		assert_eq!(size, 184);
 		assert_eq!(file.rows.len(), 2);
 		// std::fs::write("test_file_update_2.pxlr", buffer.get_ref()).expect("Could not dump");
 	}
@@ -275,7 +275,7 @@ mod tests {
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 		let mut file = File::new();
 		let size = file.write(&mut buffer, &group).expect("Could not write");
-		assert_eq!(size, 197);
+		assert_eq!(size, 189);
 		assert_eq!(file.rows.len(), 2);
 		// std::fs::write("test_file_trim_1.pxlr", buffer.get_ref()).expect("Could not dump");
 
@@ -290,7 +290,7 @@ mod tests {
 		});
 
 		let size = file.update(&mut buffer, &group).expect("Could not write");
-		assert_eq!(size, 110);
+		assert_eq!(size, 106);
 		assert_eq!(file.rows.len(), 1);
 		// std::fs::write("test_file_trim_2.pxlr", buffer.get_ref()).expect("Could not dump");
 
@@ -298,7 +298,7 @@ mod tests {
 		let size = file
 			.trim(&mut buffer, &mut buffer2)
 			.expect("Could not trim");
-		assert_eq!(size, 115);
+		assert_eq!(size, 111);
 		// std::fs::write("test_file_trim_3.pxlr", buffer2.get_ref()).expect("Could not dump");
 	}
 }

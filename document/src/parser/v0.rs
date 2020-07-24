@@ -60,7 +60,6 @@ pub struct IndexRow {
 	pub name: String,
 	pub children: Vec<Uuid>,
 	pub dependencies: Vec<Uuid>,
-	pub preview: Vec<u8>,
 }
 
 impl IndexRow {
@@ -78,7 +77,6 @@ impl IndexRow {
 			name: String::new(),
 			children: Vec::new(),
 			dependencies: Vec::new(),
-			preview: Vec::new(),
 		}
 	}
 }
@@ -94,14 +92,11 @@ impl Parse for IndexRow {
 		let (bytes, size) = Extent2::<u32>::parse(bytes)?;
 		let (bytes, item_count) = le_u32(bytes)?;
 		let (bytes, dep_count) = le_u32(bytes)?;
-		let (bytes, preview_size) = le_u32(bytes)?;
 		let (bytes, name) = String::parse(bytes)?;
 		let (bytes, children) =
 			many_m_n(item_count as usize, item_count as usize, Uuid::parse)(bytes)?;
 		let (bytes, dependencies) =
 			many_m_n(dep_count as usize, dep_count as usize, Uuid::parse)(bytes)?;
-		let (bytes, preview) =
-			many_m_n(preview_size as usize, preview_size as usize, le_u8)(bytes)?;
 		Ok((
 			bytes,
 			IndexRow {
@@ -117,7 +112,6 @@ impl Parse for IndexRow {
 				name,
 				children,
 				dependencies,
-				preview,
 			},
 		))
 	}
@@ -125,7 +119,7 @@ impl Parse for IndexRow {
 
 impl Write for IndexRow {
 	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		let mut b: usize = 59;
+		let mut b: usize = 55;
 		self.id.write(writer)?; // 16
 		self.chunk_type.write(writer)?; // 2
 		writer.write_all(&self.chunk_offset.to_le_bytes())?; // 8
@@ -137,7 +131,6 @@ impl Write for IndexRow {
 		self.size.write(writer)?; // 8
 		writer.write_all(&(self.children.len() as u32).to_le_bytes())?; // 4
 		writer.write_all(&(self.dependencies.len() as u32).to_le_bytes())?; // 4
-		writer.write_all(&(self.preview.len() as u32).to_le_bytes())?; // 4
 		b += self.name.write(writer)?;
 		for item in self.children.iter() {
 			b += item.write(writer)?;
@@ -145,8 +138,6 @@ impl Write for IndexRow {
 		for dep in self.dependencies.iter() {
 			b += dep.write(writer)?;
 		}
-		writer.write_all(&self.preview)?;
-		b += self.preview.len();
 		Ok(b)
 	}
 }
