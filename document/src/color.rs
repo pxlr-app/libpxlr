@@ -1,10 +1,10 @@
-use crate as document;
 use crate::prelude::*;
 use nom::number::complete::{le_f32, le_u8};
 use std::fmt::Debug;
 
-pub trait Color: Any + Debug {}
-impl Downcast for dyn Color {}
+pub trait Color: Debug {
+	fn stride() -> usize;
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ColorMode {
@@ -14,29 +14,64 @@ pub enum ColorMode {
 	XYZ,
 }
 
-#[derive(Color, Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub struct Grey {
 	pub g: u8,
 }
 
-#[derive(Color, Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub struct RGB {
 	pub r: u8,
 	pub g: u8,
 	pub b: u8,
 }
 
-#[derive(Color, Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub struct UV {
 	pub u: f32,
 	pub v: f32,
 }
 
-#[derive(Color, Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub struct XYZ {
 	pub x: f32,
 	pub y: f32,
 	pub z: f32,
+}
+
+impl ColorMode {
+	pub fn stride(&self) -> usize {
+		match self {
+			ColorMode::Grey => Grey::stride(),
+			ColorMode::RGB => RGB::stride(),
+			ColorMode::UV => UV::stride(),
+			ColorMode::XYZ => XYZ::stride(),
+		}
+	}
+}
+
+impl Color for Grey {
+	fn stride() -> usize {
+		1
+	}
+}
+
+impl Color for RGB {
+	fn stride() -> usize {
+		3
+	}
+}
+
+impl Color for UV {
+	fn stride() -> usize {
+		8
+	}
+}
+
+impl Color for XYZ {
+	fn stride() -> usize {
+		12
+	}
 }
 
 impl parser::Parse for ColorMode {

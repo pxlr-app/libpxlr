@@ -46,22 +46,6 @@ fn impl_patch_macro(ast: &syn::DeriveInput) -> TokenStream {
 	gen.into()
 }
 
-#[proc_macro_derive(Color)]
-pub fn color_derive(input: TokenStream) -> TokenStream {
-	let ast = syn::parse(input).unwrap();
-	impl_color_macro(&ast)
-}
-
-fn impl_color_macro(ast: &syn::DeriveInput) -> TokenStream {
-	let name = &ast.ident;
-
-	let gen = quote! {
-		impl document::prelude::Color for #name {}
-	};
-
-	gen.into()
-}
-
 #[proc_macro_derive(SpriteNode)]
 pub fn spritenode_derive(input: TokenStream) -> TokenStream {
 	let ast = syn::parse(input).unwrap();
