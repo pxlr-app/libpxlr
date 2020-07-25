@@ -7,9 +7,12 @@ pub mod file;
 pub mod node;
 pub mod parser;
 pub mod patch;
+pub mod stencil2;
 
 pub mod prelude {
-	pub use super::{any::*, color::*, file::*, node::*, parser, patch, patch::Patchable};
+	pub use super::{
+		any::*, color::*, file::*, node::*, parser, patch, patch::Patchable, stencil2::*,
+	};
 	pub use document_derive::*;
 	pub use math::{Extent2, Vec2};
 	pub use serde::{Deserialize, Serialize};
