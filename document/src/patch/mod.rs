@@ -6,9 +6,11 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use uuid::Uuid;
 
+mod canvas;
 mod node;
 mod palette;
 mod sprite;
+pub use canvas::*;
 pub use node::*;
 pub use palette::*;
 pub use sprite::*;
