@@ -231,31 +231,20 @@ impl Sprite {
 			))
 		}
 	}
-	pub fn set_palette(&self, palette: NodeRef) -> Option<patch::PatchPair> {
+	pub fn set_palette(&self, palette: Option<NodeRef>) -> Option<patch::PatchPair> {
 		Some((
 			patch::PatchType::SetPalette(patch::SetPalette {
 				target: self.id,
 				palette,
 			}),
-			patch::PatchType::UnsetPalette(patch::UnsetPalette { target: self.id }),
+			patch::PatchType::SetPalette(patch::SetPalette {
+				target: self.id,
+				palette: match self.palette.clone().map(|weak| weak.upgrade()) {
+					Some(Some(node)) => Some(node.clone()),
+					_ => None,
+				},
+			}),
 		))
-	}
-	pub fn unset_palette(&self) -> Option<patch::PatchPair> {
-		if let Some(palette) = &self.palette {
-			if let Some(palette) = palette.upgrade() {
-				Some((
-					patch::PatchType::UnsetPalette(patch::UnsetPalette { target: self.id }),
-					patch::PatchType::SetPalette(patch::SetPalette {
-						target: self.id,
-						palette: palette.clone(),
-					}),
-				))
-			} else {
-				None
-			}
-		} else {
-			None
-		}
 	}
 }
 
@@ -334,25 +323,10 @@ impl patch::Patchable for Sprite {
 						})
 						.collect();
 					patched.children = Arc::new(children);
-					patched.palette = Some(Arc::downgrade(&patch.palette));
-				}
-				patch::PatchType::UnsetPalette(_) => {
-					let children = patched
-						.children
-						.iter()
-						.map(|child| {
-							match child.as_node().patch(&patch::PatchType::UnsetPalette(
-								patch::UnsetPalette {
-									target: child.as_node().id(),
-								},
-							)) {
-								Some(new_child) => Arc::new(new_child),
-								None => child.clone(),
-							}
-						})
-						.collect();
-					patched.children = Arc::new(children);
-					patched.palette = None;
+					match &patch.palette {
+						Some(node) => patched.palette = Some(Arc::downgrade(node)),
+						None => patched.palette = None,
+					};
 				}
 				patch::PatchType::SetColorMode(patch) => {
 					let children = patched
@@ -448,14 +422,10 @@ impl parser::v0::WriteNode for Sprite {
 	) -> io::Result<usize> {
 		use parser::Write;
 		let mut size = self.color_mode.write(writer)?;
-		if let Some(palette) = &self.palette {
-			if let Some(palette) = palette.upgrade() {
-				size += writer.write(&1u8.to_le_bytes())?;
-				size += palette.as_node().id().write(writer)?;
-				dependencies.push(palette.clone());
-			} else {
-				size += writer.write(&0u8.to_le_bytes())?;
-			}
+		if let Some(Some(palette)) = self.palette.clone().map(|weak| weak.upgrade()) {
+			size += writer.write(&1u8.to_le_bytes())?;
+			size += palette.as_node().id().write(writer)?;
+			dependencies.push(palette.clone());
 		} else {
 			size += writer.write(&0u8.to_le_bytes())?;
 		}
