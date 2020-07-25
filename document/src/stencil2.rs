@@ -2,7 +2,7 @@ use crate::prelude::*;
 use collections::{bitvec, braille_fmt2, BitVec, Lsb0};
 use nom::{multi::many_m_n, number::complete::le_u8};
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Stencil2 {
 	pub size: Extent2<u32>,
 	pub mask: BitVec<Lsb0, u8>,
