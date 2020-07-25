@@ -1,13 +1,18 @@
 pub use bitvec::prelude::*;
 
-pub fn braille_fmt(bitvec: &BitVec) -> String {
+pub fn braille_fmt<O: BitOrder, S: BitStore>(bitvec: &BitVec<O, S>) -> String {
 	let l = bitvec.len();
 	let w = ((l as f32) / 2.).min((l as f32) / 4.).ceil() as usize;
 	let h = 1usize;
 	braille_fmt2(&bitvec, w, h, "")
 }
 
-pub fn braille_fmt2(bitvec: &BitVec, width: usize, height: usize, new_line: &str) -> String {
+pub fn braille_fmt2<O: BitOrder, S: BitStore>(
+	bitvec: &BitVec<O, S>,
+	width: usize,
+	height: usize,
+	new_line: &str,
+) -> String {
 	let w = ((width as f32) / 2.).ceil() as usize;
 	let h = ((height as f32) / 4.).ceil() as usize;
 	let mut grid = vec![vec![0u32; h]; w];
