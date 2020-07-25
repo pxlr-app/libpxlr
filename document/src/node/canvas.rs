@@ -64,6 +64,7 @@ impl Cropable for Canvas {
 			patch::PatchType::RestoreCanvas(patch::RestoreCanvas {
 				target: self.id,
 				color: (*self.color).to_owned(),
+				alpha: (*self.alpha).to_owned(),
 				normal: (*self.normal).to_owned(),
 			}),
 		))

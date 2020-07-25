@@ -19,13 +19,6 @@ pub struct SetColorMode {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Patch)]
-pub struct Crop {
-	pub target: Uuid,
-	pub offset: Vec2<u32>,
-	pub size: Extent2<u32>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Patch)]
 pub struct RestoreSprite {
 	pub target: Uuid,
 	pub children: Vec<patch::PatchType>,
