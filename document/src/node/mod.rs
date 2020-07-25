@@ -206,3 +206,31 @@ pub trait SpriteNode:
 {
 }
 impl Downcast for dyn SpriteNode {}
+
+#[cfg(test)]
+mod tests {
+	use crate::prelude::*;
+
+	#[test]
+	fn test_serialize() {
+		let group = Group {
+			id: Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap(),
+			position: Arc::new(Vec2::new(0, 0)),
+			display: true,
+			locked: false,
+			folded: false,
+			name: Arc::new("Foo".into()),
+			children: Arc::new(vec![Arc::new(NodeType::Note(Note {
+				id: Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap(),
+				position: Arc::new(Vec2::new(0, 0)),
+				display: true,
+				locked: false,
+				name: Arc::new("Bar".into()),
+			}))]),
+		};
+		let json = serde_json::to_string(&group).unwrap();
+		assert_eq!(json, "{\"id\":\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",\"position\":{\"x\":0,\"y\":0},\"display\":true,\"locked\":false,\"folded\":false,\"name\":\"Foo\",\"children\":[{\"Note\":{\"id\":\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",\"position\":{\"x\":0,\"y\":0},\"display\":true,\"locked\":false,\"name\":\"Bar\"}}]}");
+		let ron = ron::to_string(&group).unwrap();
+		assert_eq!(ron, "(id:\"fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b\",position:(x:0,y:0),display:true,locked:false,folded:false,name:\"Foo\",children:[Note((id:\"1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391\",position:(x:0,y:0),display:true,locked:false,name:\"Bar\"))])");
+	}
+}

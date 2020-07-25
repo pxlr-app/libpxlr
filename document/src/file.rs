@@ -306,3 +306,194 @@ impl File {
 		Ok(size)
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use crate::prelude::*;
+	use std::io;
+
+	#[test]
+	fn test_write() {
+		let note = NodeType::Note(Note {
+			id: Uuid::new_v4(),
+			position: Arc::new(Vec2::new(0, 0)),
+			display: true,
+			locked: false,
+			name: Arc::new("Foo".into()),
+		});
+		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
+		let mut file = File::new();
+		let size = file.write(&mut buffer, &note).expect("Could not write");
+		assert_eq!(size, 111);
+		// std::fs::write("test_write_1.pxlr", buffer.get_ref()).expect("Could not dump");
+
+		let group = NodeType::Group(Group {
+			id: Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap(),
+			position: Arc::new(Vec2::new(0, 0)),
+			display: true,
+			locked: false,
+			folded: false,
+			name: Arc::new("Foo".into()),
+			children: Arc::new(vec![Arc::new(NodeType::Note(Note {
+				id: Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap(),
+				position: Arc::new(Vec2::new(0, 0)),
+				display: true,
+				locked: false,
+				name: Arc::new("Bar".into()),
+			}))]),
+		});
+		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
+		let mut file = File::new();
+		let size = file.write(&mut buffer, &group).expect("Could not write");
+		assert_eq!(size, 189);
+		// std::fs::write("test_write_2.pxlr", buffer.get_ref()).expect("Could not dump");
+	}
+
+	#[test]
+	fn test_read() {
+		let group_id = Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap();
+		let note_id = Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap();
+		let group = NodeType::Group(Group {
+			id: group_id,
+			position: Arc::new(Vec2::new(0, 0)),
+			display: true,
+			locked: false,
+			folded: false,
+			name: Arc::new("Foo".into()),
+			children: Arc::new(vec![Arc::new(NodeType::Note(Note {
+				id: note_id,
+				position: Arc::new(Vec2::new(0, 0)),
+				display: true,
+				locked: false,
+				name: Arc::new("Bar".into()),
+			}))]),
+		});
+		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
+		let mut file = File::new();
+		let file_hash = file.index.hash;
+		let size = file.write(&mut buffer, &group).expect("Could not write");
+		assert_eq!(size, 189);
+		// std::fs::write("test_read.pxlr", buffer.get_ref()).expect("Could not dump");
+
+		let mut file = File::read(&mut buffer).expect("Could not read");
+		assert_eq!(file.header.version, 0);
+		assert_eq!(file.index.hash, file_hash);
+		assert_eq!(file.index.prev_offset, 0);
+		assert_eq!(file.index.size, 140);
+		let node = file.get(&mut buffer, note_id).expect("Could not get Note");
+		let note = match &*node {
+			NodeType::Note(node) => node,
+			_ => panic!("Not a Note"),
+		};
+		assert_eq!(*note.name, "Bar");
+		assert_eq!(*note.position, Vec2::new(0, 0));
+		assert_eq!(note.display, true);
+		assert_eq!(note.locked, false);
+		assert_eq!(file.cache_node.len(), 1);
+
+		let mut file = File::read(&mut buffer).expect("Could not read");
+		let node = file.get(&mut buffer, group_id).expect("Could not get Note");
+		let group = match &*node {
+			NodeType::Group(node) => node,
+			_ => panic!("Not a Group"),
+		};
+		assert_eq!(*group.name, "Foo");
+		assert_eq!(*group.position, Vec2::new(0, 0));
+		assert_eq!(group.display, true);
+		assert_eq!(group.locked, false);
+		assert_eq!(group.folded, false);
+		assert_eq!(group.children.len(), 1);
+		assert_eq!(file.cache_node.len(), 2);
+	}
+
+	#[test]
+	fn test_update() {
+		let group_id = Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap();
+		let note_id = Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap();
+		let group = NodeType::Group(Group {
+			id: group_id,
+			position: Arc::new(Vec2::new(0, 0)),
+			display: true,
+			locked: false,
+			folded: false,
+			name: Arc::new("Foo".into()),
+			children: Arc::new(vec![]),
+		});
+		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
+		let mut file = File::new();
+		let size = file.write(&mut buffer, &group).expect("Could not write");
+		assert_eq!(size, 111);
+		assert_eq!(file.rows.len(), 1);
+		// std::fs::write("test_update_1.pxlr", buffer.get_ref()).expect("Could not dump");
+
+		let group = NodeType::Group(Group {
+			id: group_id,
+			position: Arc::new(Vec2::new(0, 0)),
+			display: true,
+			locked: false,
+			folded: false,
+			name: Arc::new("Bar".into()),
+			children: Arc::new(vec![Arc::new(NodeType::Note(Note {
+				id: note_id,
+				position: Arc::new(Vec2::new(0, 0)),
+				display: true,
+				locked: false,
+				name: Arc::new("Baz".into()),
+			}))]),
+		});
+
+		let size = file.update(&mut buffer, &group).expect("Could not write");
+		assert_eq!(size, 184);
+		assert_eq!(file.rows.len(), 2);
+		// std::fs::write("test_update_2.pxlr", buffer.get_ref()).expect("Could not dump");
+	}
+
+	#[test]
+	fn test_trim() {
+		let group_id = Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap();
+		let note_id = Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap();
+		let group = NodeType::Group(Group {
+			id: group_id,
+			position: Arc::new(Vec2::new(0, 0)),
+			display: true,
+			locked: false,
+			folded: false,
+			name: Arc::new("Bar".into()),
+			children: Arc::new(vec![Arc::new(NodeType::Note(Note {
+				id: note_id,
+				position: Arc::new(Vec2::new(0, 0)),
+				display: true,
+				locked: false,
+				name: Arc::new("Baz".into()),
+			}))]),
+		});
+		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
+		let mut file = File::new();
+		let size = file.write(&mut buffer, &group).expect("Could not write");
+		assert_eq!(size, 189);
+		assert_eq!(file.rows.len(), 2);
+		// std::fs::write("test_trim_1.pxlr", buffer.get_ref()).expect("Could not dump");
+
+		let group = NodeType::Group(Group {
+			id: group_id,
+			position: Arc::new(Vec2::new(0, 0)),
+			display: true,
+			locked: false,
+			folded: false,
+			name: Arc::new("Foo".into()),
+			children: Arc::new(vec![]),
+		});
+
+		let size = file.update(&mut buffer, &group).expect("Could not write");
+		assert_eq!(size, 106);
+		assert_eq!(file.rows.len(), 1);
+		// std::fs::write("test_trim_2.pxlr", buffer.get_ref()).expect("Could not dump");
+
+		let mut buffer2: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
+		let size = file
+			.trim(&mut buffer, &mut buffer2)
+			.expect("Could not trim");
+		assert_eq!(size, 111);
+		// std::fs::write("test_trim_3.pxlr", buffer2.get_ref()).expect("Could not dump");
+	}
+}
