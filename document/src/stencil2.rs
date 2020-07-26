@@ -36,7 +36,7 @@ impl std::fmt::Debug for Stencil2 {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		write!(
 			f,
-			"Stencil2::{:<4?} ( {} )",
+			"Stencil2::{:<5?} ( {} )",
 			self.color_mode,
 			braille_fmt2(
 				&self.mask,
@@ -194,17 +194,17 @@ mod tests {
 
 	#[test]
 	fn test_from_buffer() {
-		let s = Stencil2::from_buffer(Extent2::new(2, 2), ColorMode::Grey, &[1u8, 2, 3, 4]);
+		let s = Stencil2::from_buffer(Extent2::new(2, 2), ColorMode::ALPHA, &[1u8, 2, 3, 4]);
 		assert_eq!(*s.mask, bitvec![1, 1, 1, 1]);
 		assert_eq!(*s.color, [1u8, 2, 3, 4]);
 	}
 
 	#[test]
 	fn test_debug() {
-		let s = Stencil2::new(Extent2::new(3, 1), ColorMode::Grey);
-		assert_eq!(format!("{:?}", s), "Stencil2::Grey ( ⠉⠁ )");
-		let s = Stencil2::new(Extent2::new(1, 3), ColorMode::Grey);
-		assert_eq!(format!("{:?}", s), "Stencil2::Grey ( ⠇ )");
+		let s = Stencil2::new(Extent2::new(3, 1), ColorMode::ALPHA);
+		assert_eq!(format!("{:?}", s), "Stencil2::ALPHA ( ⠉⠁ )");
+		let s = Stencil2::new(Extent2::new(1, 3), ColorMode::ALPHA);
+		assert_eq!(format!("{:?}", s), "Stencil2::ALPHA ( ⠇ )");
 	}
 
 	#[test]
@@ -212,40 +212,40 @@ mod tests {
 		let a = Stencil2 {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 1, 0, 0, 1],
-			color_mode: ColorMode::Grey,
+			color_mode: ColorMode::ALPHA,
 			color: vec![1u8, 4],
 		};
-		assert_eq!(format!("{:?}", a), "Stencil2::Grey ( ⠑ )");
+		assert_eq!(format!("{:?}", a), "Stencil2::ALPHA ( ⠑ )");
 		let b = Stencil2 {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 0, 1, 1, 0],
-			color_mode: ColorMode::Grey,
+			color_mode: ColorMode::ALPHA,
 			color: vec![2u8, 3],
 		};
-		assert_eq!(format!("{:?}", b), "Stencil2::Grey ( ⠊ )");
+		assert_eq!(format!("{:?}", b), "Stencil2::ALPHA ( ⠊ )");
 		let c = a + b;
 		assert_eq!(*c.mask, bitvec![1, 1, 1, 1]);
 		assert_eq!(*c.color, [1u8, 2, 3, 4]);
-		assert_eq!(format!("{:?}", c), "Stencil2::Grey ( ⠛ )");
+		assert_eq!(format!("{:?}", c), "Stencil2::ALPHA ( ⠛ )");
 
 		let a = Stencil2 {
 			size: Extent2::new(1, 2),
 			mask: bitvec![Lsb0, u8; 1, 1],
-			color_mode: ColorMode::Grey,
+			color_mode: ColorMode::ALPHA,
 			color: vec![1u8, 3],
 		};
-		assert_eq!(format!("{:?}", a), "Stencil2::Grey ( ⠃ )");
+		assert_eq!(format!("{:?}", a), "Stencil2::ALPHA ( ⠃ )");
 		let b = Stencil2 {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 0, 1, 0, 1],
-			color_mode: ColorMode::Grey,
+			color_mode: ColorMode::ALPHA,
 			color: vec![2u8, 4],
 		};
-		assert_eq!(format!("{:?}", b), "Stencil2::Grey ( ⠘ )");
+		assert_eq!(format!("{:?}", b), "Stencil2::ALPHA ( ⠘ )");
 		let c = a + b;
 		assert_eq!(*c.mask, bitvec![1, 1, 1, 1]);
 		assert_eq!(*c.color, [1u8, 2, 3, 4]);
-		assert_eq!(format!("{:?}", c), "Stencil2::Grey ( ⠛ )");
+		assert_eq!(format!("{:?}", c), "Stencil2::ALPHA ( ⠛ )");
 	}
 
 	#[test]
@@ -253,7 +253,7 @@ mod tests {
 		let a = Stencil2 {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 1, 1, 1, 1],
-			color_mode: ColorMode::Grey,
+			color_mode: ColorMode::ALPHA,
 			color: vec![1u8, 2, 3, 4],
 		};
 		let mut i = a.into_iter();
@@ -266,7 +266,7 @@ mod tests {
 		let a = Stencil2 {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 1, 0, 0, 1],
-			color_mode: ColorMode::Grey,
+			color_mode: ColorMode::ALPHA,
 			color: vec![1u8, 4],
 		};
 		let mut i = a.into_iter();
@@ -281,7 +281,7 @@ mod tests {
 		let a = Stencil2 {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 1, 1, 1, 1],
-			color_mode: ColorMode::Grey,
+			color_mode: ColorMode::ALPHA,
 			color: vec![1u8, 2, 3, 4],
 		};
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());

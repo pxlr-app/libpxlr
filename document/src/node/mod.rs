@@ -194,15 +194,15 @@ pub trait Cropable {
 		None
 	}
 }
-pub trait HasColorMode {
-	fn color_mode(&self) -> ColorMode;
+pub trait HasChannels {
+	fn channels(&self) -> ColorMode;
 }
 
 pub trait DocumentNode: Node + Named + Positioned + Sized + Displayed + Locked + Folded {}
 impl Downcast for dyn DocumentNode {}
 
 pub trait SpriteNode:
-	Node + Named + Sized + Cropable + Displayed + Locked + Folded + HasColorMode
+	Node + Named + Sized + Cropable + Displayed + Locked + Folded + HasChannels
 {
 }
 impl Downcast for dyn SpriteNode {}

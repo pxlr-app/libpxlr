@@ -1,20 +1,17 @@
 use crate as document;
 use crate::prelude::*;
-use nom::{bytes::complete::take, multi::many_m_n, number::complete::le_u8};
+use nom::{bytes::complete::take, number::complete::le_u8};
 
 #[derive(SpriteNode, Debug, Clone, Serialize, Deserialize)]
 pub struct Canvas {
 	pub id: Uuid,
 	pub size: Arc<Extent2<u32>>,
-	pub color_mode: ColorMode,
 	pub palette: Option<Weak<NodeType>>,
 	pub display: bool,
 	pub locked: bool,
 	pub name: Arc<String>,
-	pub color: Arc<Vec<u8>>,
-	pub alpha: Arc<Vec<Grey>>,
-	pub has_normal: bool,
-	pub normal: Arc<Vec<XYZ>>,
+	pub channels: ColorMode,
+	pub data: Arc<Vec<u8>>,
 }
 
 impl Named for Canvas {
@@ -63,9 +60,8 @@ impl Cropable for Canvas {
 			}),
 			patch::PatchType::RestoreCanvas(patch::RestoreCanvas {
 				target: self.id,
-				color: (*self.color).to_owned(),
-				alpha: (*self.alpha).to_owned(),
-				normal: (*self.normal).to_owned(),
+				channels: self.channels,
+				data: (*self.data).to_owned(),
 			}),
 		))
 	}
@@ -109,9 +105,63 @@ impl Locked for Canvas {
 
 impl Folded for Canvas {}
 
-impl HasColorMode for Canvas {
-	fn color_mode(&self) -> ColorMode {
-		self.color_mode
+impl HasChannels for Canvas {
+	fn channels(&self) -> ColorMode {
+		self.channels
+	}
+}
+
+impl Canvas {
+	pub fn set_channels(&self, channels: ColorMode) -> Option<patch::PatchPair> {
+		if self.channels == channels {
+			None
+		} else {
+			Some((
+				patch::PatchType::SetChannels(patch::SetChannels {
+					target: self.id,
+					channels,
+				}),
+				patch::PatchType::SetChannels(patch::SetChannels {
+					target: self.id,
+					channels: self.channels,
+				}),
+			))
+		}
+	}
+	pub fn set_palette(&self, palette: Option<NodeRef>) -> Option<patch::PatchPair> {
+		Some((
+			patch::PatchType::SetPalette(patch::SetPalette {
+				target: self.id,
+				palette,
+			}),
+			patch::PatchType::SetPalette(patch::SetPalette {
+				target: self.id,
+				palette: match self.palette.clone().map(|weak| weak.upgrade()) {
+					Some(Some(node)) => Some(node.clone()),
+					_ => None,
+				},
+			}),
+		))
+	}
+	pub fn apply_stencil(
+		&self,
+		offset: Vec2<u32>,
+		channels: ColorMode,
+		stencil: Stencil2,
+	) -> Option<patch::PatchPair> {
+		Some((
+			patch::PatchType::ApplyStencil2(patch::ApplyStencil2 {
+				target: self.id,
+				offset,
+				channels,
+				stencil,
+			}),
+			patch::PatchType::RestoreCanvas(patch::RestoreCanvas {
+				target: self.id,
+				channels: self.channels,
+				data: (*self.data).to_owned(),
+			}),
+		))
 	}
 }
 
@@ -130,14 +180,21 @@ impl patch::Patchable for Canvas {
 					patched.locked = patch.locked;
 				}
 				patch::PatchType::SetPalette(patch) => {
-					patched.palette = Some(Arc::downgrade(&patch.palette));
+					match &patch.palette {
+						Some(node) => patched.palette = Some(Arc::downgrade(node)),
+						None => patched.palette = None,
+					};
 				}
-				patch::PatchType::UnsetPalette(_) => {
-					patched.palette = None;
+				patch::PatchType::SetChannels(patch) => {
+					patched.channels = patch.channels;
 				}
-				patch::PatchType::SetColorMode(patch) => {
-					patched.color_mode = patch.color_mode;
+				patch::PatchType::RestoreCanvas(patch) => {
+					patched.channels = patch.channels;
+					patched.data = Arc::new(patch.data.to_owned());
 				}
+				patch::PatchType::Resize(_patch) => unimplemented!(),
+				patch::PatchType::Crop(_patch) => unimplemented!(),
+				patch::PatchType::ApplyStencil2(_patch) => unimplemented!(),
 				_ => return None,
 			};
 			Some(NodeType::Canvas(patched))
@@ -155,7 +212,7 @@ impl parser::v0::ParseNode for Canvas {
 		bytes: &'bytes [u8],
 	) -> parser::Result<&'bytes [u8], NodeRef> {
 		use parser::Parse;
-		let (bytes, color_mode) = ColorMode::parse(bytes)?;
+		let (bytes, channels) = ColorMode::parse(bytes)?;
 		let (bytes, has_palette) = le_u8(bytes)?;
 		let (bytes, palette) = if has_palette == 1 {
 			let (bytes, palette_id) = Uuid::parse(bytes)?;
@@ -168,29 +225,18 @@ impl parser::v0::ParseNode for Canvas {
 			(bytes, None)
 		};
 		let len = (row.size.w as usize) * (row.size.h as usize);
-		let (bytes, flags) = le_u8(bytes)?;
-		let has_normal = flags > 0;
-		let (bytes, alpha) = many_m_n(len, len, Grey::parse)(bytes)?;
-		let (bytes, color) = take(len)(bytes)?;
-		let (bytes, normal) = if has_normal {
-			many_m_n(len, len, XYZ::parse)(bytes)?
-		} else {
-			(bytes, Vec::new())
-		};
+		let (bytes, data) = take(len)(bytes)?;
 		Ok((
 			bytes,
 			Arc::new(NodeType::Canvas(Canvas {
 				id: row.id,
 				size: Arc::new(row.size),
-				color_mode: color_mode,
 				palette: palette,
 				display: row.display,
 				locked: row.locked,
 				name: Arc::new(row.name.clone()),
-				color: Arc::new(color.to_owned()),
-				alpha: Arc::new(alpha),
-				has_normal,
-				normal: Arc::new(normal),
+				channels: channels,
+				data: Arc::new(data.to_owned()),
 			})),
 		))
 	}
@@ -204,29 +250,15 @@ impl parser::v0::WriteNode for Canvas {
 		dependencies: &mut Vec<NodeRef>,
 	) -> io::Result<usize> {
 		use parser::Write;
-		let mut size = self.color_mode.write(writer)?;
-		if let Some(palette) = &self.palette {
-			if let Some(palette) = palette.upgrade() {
-				size += writer.write(&1u8.to_le_bytes())?;
-				size += palette.as_node().id().write(writer)?;
-				dependencies.push(palette.clone());
-			} else {
-				size += writer.write(&0u8.to_le_bytes())?;
-			}
+		let mut size = self.channels.write(writer)?;
+		if let Some(Some(palette)) = self.palette.clone().map(|weak| weak.upgrade()) {
+			size += writer.write(&1u8.to_le_bytes())?;
+			size += palette.as_node().id().write(writer)?;
+			dependencies.push(palette.clone());
 		} else {
 			size += writer.write(&0u8.to_le_bytes())?;
 		}
-		let flags = if self.has_normal { 1u8 } else { 0u8 };
-		size += writer.write(&flags.to_le_bytes())?;
-		size += writer.write(&self.color.as_slice())?;
-		for a in self.alpha.iter() {
-			size += a.write(writer)?;
-		}
-		if self.has_normal {
-			for n in self.normal.iter() {
-				size += n.write(writer)?;
-			}
-		}
+		size += writer.write(&self.data.as_slice())?;
 
 		let mut row = parser::v0::IndexRow::new(self.id);
 		row.chunk_type = NodeKind::Sprite;

@@ -8,9 +8,9 @@ pub struct SetPalette {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Patch)]
-pub struct SetColorMode {
+pub struct SetChannels {
 	pub target: Uuid,
-	pub color_mode: ColorMode,
+	pub channels: ColorMode,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Patch)]

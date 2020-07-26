@@ -7,7 +7,7 @@ pub struct Sprite {
 	pub id: Uuid,
 	pub position: Arc<Vec2<u32>>,
 	pub size: Arc<Extent2<u32>>,
-	pub color_mode: ColorMode,
+	pub channels: ColorMode,
 	pub palette: Option<Weak<NodeType>>,
 	pub display: bool,
 	pub locked: bool,
@@ -146,9 +146,9 @@ impl Cropable for Sprite {
 
 impl SpriteNode for Sprite {}
 
-impl HasColorMode for Sprite {
-	fn color_mode(&self) -> ColorMode {
-		self.color_mode
+impl HasChannels for Sprite {
+	fn channels(&self) -> ColorMode {
+		self.channels
 	}
 }
 
@@ -159,7 +159,7 @@ impl Sprite {
 			.iter()
 			.find(|child| child.as_node().id() == child.as_node().id())
 			.is_some() || child.as_spritenode().is_none()
-			|| child.as_spritenode().unwrap().color_mode() != self.color_mode
+			|| child.as_spritenode().unwrap().channels() != self.channels
 		{
 			None
 		} else {
@@ -215,18 +215,18 @@ impl Sprite {
 			None => None,
 		}
 	}
-	pub fn set_color_mode(&self, color_mode: ColorMode) -> Option<patch::PatchPair> {
-		if self.color_mode == color_mode {
+	pub fn set_channels(&self, channels: ColorMode) -> Option<patch::PatchPair> {
+		if self.channels == channels {
 			None
 		} else {
 			Some((
-				patch::PatchType::SetColorMode(patch::SetColorMode {
+				patch::PatchType::SetChannels(patch::SetChannels {
 					target: self.id,
-					color_mode,
+					channels,
 				}),
-				patch::PatchType::SetColorMode(patch::SetColorMode {
+				patch::PatchType::SetChannels(patch::SetChannels {
 					target: self.id,
-					color_mode: self.color_mode,
+					channels: self.channels,
 				}),
 			))
 		}
@@ -328,15 +328,15 @@ impl patch::Patchable for Sprite {
 						None => patched.palette = None,
 					};
 				}
-				patch::PatchType::SetColorMode(patch) => {
+				patch::PatchType::SetChannels(patch) => {
 					let children = patched
 						.children
 						.iter()
 						.map(|child| {
-							match child.as_node().patch(&patch::PatchType::SetColorMode(
-								patch::SetColorMode {
+							match child.as_node().patch(&patch::PatchType::SetChannels(
+								patch::SetChannels {
 									target: child.as_node().id(),
-									color_mode: patch.color_mode,
+									channels: patch.channels,
 								},
 							)) {
 								Some(new_child) => Arc::new(new_child),
@@ -345,7 +345,7 @@ impl patch::Patchable for Sprite {
 						})
 						.collect();
 					patched.children = Arc::new(children);
-					patched.color_mode = patch.color_mode;
+					patched.channels = patch.channels;
 				}
 				_ => return None,
 			};
@@ -383,7 +383,7 @@ impl parser::v0::ParseNode for Sprite {
 	) -> parser::Result<&'bytes [u8], NodeRef> {
 		use parser::Parse;
 		let mut children = children;
-		let (bytes, color_mode) = ColorMode::parse(bytes)?;
+		let (bytes, channels) = ColorMode::parse(bytes)?;
 		let (bytes, has_palette) = le_u8(bytes)?;
 		let (bytes, palette) = if has_palette == 1 {
 			let (bytes, palette_id) = Uuid::parse(bytes)?;
@@ -401,7 +401,7 @@ impl parser::v0::ParseNode for Sprite {
 				id: row.id,
 				position: Arc::new(row.position),
 				size: Arc::new(row.size),
-				color_mode: color_mode,
+				channels: channels,
 				palette: palette,
 				display: row.display,
 				locked: row.locked,
@@ -421,7 +421,7 @@ impl parser::v0::WriteNode for Sprite {
 		dependencies: &mut Vec<NodeRef>,
 	) -> io::Result<usize> {
 		use parser::Write;
-		let mut size = self.color_mode.write(writer)?;
+		let mut size = self.channels.write(writer)?;
 		if let Some(Some(palette)) = self.palette.clone().map(|weak| weak.upgrade()) {
 			size += writer.write(&1u8.to_le_bytes())?;
 			size += palette.as_node().id().write(writer)?;

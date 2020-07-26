@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use bitflags::bitflags;
 use nom::number::complete::{le_f32, le_u8};
 use std::fmt::Debug;
 
@@ -6,12 +7,14 @@ pub trait Color: Debug {
 	fn stride() -> usize;
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-pub enum ColorMode {
-	Grey,
-	RGB,
-	UV,
-	XYZ,
+bitflags! {
+	#[derive(Serialize, Deserialize)]
+	pub struct ColorMode: u8 {
+		const ALPHA	= 0b00000001;
+		const RGB 	= 0b00000010;
+		const UV 	= 0b00000100;
+		const XYZ 	= 0b00001000;
+	}
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
@@ -41,11 +44,12 @@ pub struct XYZ {
 
 impl ColorMode {
 	pub fn stride(&self) -> usize {
-		match self {
-			ColorMode::Grey => Grey::stride(),
-			ColorMode::RGB => RGB::stride(),
-			ColorMode::UV => UV::stride(),
-			ColorMode::XYZ => XYZ::stride(),
+		match self.bits() {
+			1 => Grey::stride(),
+			2 => RGB::stride(),
+			4 => UV::stride(),
+			8 => XYZ::stride(),
+			_ => 0,
 		}
 	}
 }
@@ -76,26 +80,14 @@ impl Color for XYZ {
 
 impl parser::Parse for ColorMode {
 	fn parse(bytes: &[u8]) -> nom::IResult<&[u8], ColorMode> {
-		let (bytes, idx) = le_u8(bytes)?;
-		match idx {
-			0 => Ok((bytes, ColorMode::Grey)),
-			1 => Ok((bytes, ColorMode::RGB)),
-			2 => Ok((bytes, ColorMode::UV)),
-			3 => Ok((bytes, ColorMode::XYZ)),
-			_ => Err(nom::Err::Error((bytes, nom::error::ErrorKind::NoneOf))),
-		}
+		let (bytes, bits) = le_u8(bytes)?;
+		Ok((bytes, ColorMode::from_bits(bits).unwrap()))
 	}
 }
 
 impl parser::Write for ColorMode {
 	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		let idx: u8 = match self {
-			ColorMode::Grey => 0,
-			ColorMode::RGB => 1,
-			ColorMode::UV => 2,
-			ColorMode::XYZ => 3,
-		};
-		writer.write_all(&idx.to_le_bytes())?;
+		writer.write_all(&self.bits().to_le_bytes())?;
 		Ok(1)
 	}
 }
