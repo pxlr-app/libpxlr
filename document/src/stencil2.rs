@@ -12,13 +12,13 @@ pub struct Stencil2 {
 
 impl Stencil2 {
 	pub fn new(size: Extent2<u32>, channels: Channel) -> Stencil2 {
-		let buffer: Vec<u8> = vec![0u8; (size.w * size.h * channels.stride() as u32) as usize];
+		let buffer: Vec<u8> = vec![0u8; (size.w * size.h * channels.len() as u32) as usize];
 		Stencil2::from_buffer(size, channels, &buffer)
 	}
 
 	pub fn from_buffer(size: Extent2<u32>, channels: Channel, buffer: &[u8]) -> Stencil2 {
 		assert_eq!(
-			(size.w * size.h * channels.stride() as u32) as usize,
+			(size.w * size.h * channels.len() as u32) as usize,
 			buffer.len()
 		);
 		let mask = bitvec![Lsb0, u8; 1; (size.w * size.h) as usize];
@@ -53,7 +53,7 @@ impl std::ops::Add for Stencil2 {
 
 	fn add(self, other: Self) -> Self {
 		assert_eq!(self.channels, other.channels);
-		let stride = self.channels.stride() as usize;
+		let stride = self.channels.len() as usize;
 		let size = Extent2::new(self.size.w.max(other.size.w), self.size.h.max(other.size.h));
 		let mut mask = bitvec![Lsb0, u8; 0; (size.w * size.h) as usize];
 		let mut data: Vec<u8> = Vec::with_capacity((size.w * size.h * stride as u32) as usize);
@@ -145,7 +145,7 @@ impl<'a> IntoIterator for &'a Stencil2 {
 			data_offset: 0,
 			width: self.size.w,
 			mask: &self.mask,
-			data_stride: self.channels.stride(),
+			data_stride: self.channels.len(),
 			data: &self.data,
 		}
 	}
@@ -158,7 +158,7 @@ impl parser::Parse for Stencil2 {
 		let (bytes, buffer) = many_m_n(len, len, le_u8)(bytes)?;
 		let mask: BitVec<Lsb0, u8> = buffer.into();
 		let (bytes, channels) = Channel::parse(bytes)?;
-		let len = (size.w * size.h * channels.stride() as u32) as usize;
+		let len = (size.w * size.h * channels.len() as u32) as usize;
 		let (bytes, data) = many_m_n(len, len, le_u8)(bytes)?;
 		Ok((
 			bytes,

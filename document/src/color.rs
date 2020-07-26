@@ -43,14 +43,22 @@ pub struct XYZ {
 }
 
 impl Channel {
-	pub fn stride(&self) -> usize {
-		match self.bits() {
-			1 => A::stride(),
-			2 => RGB::stride(),
-			4 => UV::stride(),
-			8 => XYZ::stride(),
-			_ => 0,
+	pub fn len(&self) -> usize {
+		let mut len = 0usize;
+		let bits = self.bits();
+		if bits & 1u8 > 0 {
+			len += A::stride();
 		}
+		if bits & 2u8 > 0 {
+			len += RGB::stride();
+		}
+		if bits & 4u8 > 0 {
+			len += UV::stride();
+		}
+		if bits & 8u8 > 0 {
+			len += XYZ::stride();
+		}
+		len
 	}
 }
 
