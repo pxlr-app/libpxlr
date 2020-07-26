@@ -7,7 +7,7 @@ pub struct Sprite {
 	pub id: Uuid,
 	pub position: Arc<Vec2<u32>>,
 	pub size: Arc<Extent2<u32>>,
-	pub channels: ColorMode,
+	pub channels: Channel,
 	pub palette: Option<Weak<NodeType>>,
 	pub display: bool,
 	pub locked: bool,
@@ -147,7 +147,7 @@ impl Cropable for Sprite {
 impl SpriteNode for Sprite {}
 
 impl HasChannels for Sprite {
-	fn channels(&self) -> ColorMode {
+	fn channels(&self) -> Channel {
 		self.channels
 	}
 }
@@ -215,7 +215,7 @@ impl Sprite {
 			None => None,
 		}
 	}
-	pub fn set_channels(&self, channels: ColorMode) -> Option<patch::PatchPair> {
+	pub fn set_channels(&self, channels: Channel) -> Option<patch::PatchPair> {
 		if self.channels == channels {
 			None
 		} else {
@@ -383,7 +383,7 @@ impl parser::v0::ParseNode for Sprite {
 	) -> parser::Result<&'bytes [u8], NodeRef> {
 		use parser::Parse;
 		let mut children = children;
-		let (bytes, channels) = ColorMode::parse(bytes)?;
+		let (bytes, channels) = Channel::parse(bytes)?;
 		let (bytes, has_palette) = le_u8(bytes)?;
 		let (bytes, palette) = if has_palette == 1 {
 			let (bytes, palette_id) = Uuid::parse(bytes)?;

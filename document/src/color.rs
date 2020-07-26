@@ -9,8 +9,8 @@ pub trait Color: Debug {
 
 bitflags! {
 	#[derive(Serialize, Deserialize)]
-	pub struct ColorMode: u8 {
-		const ALPHA	= 0b00000001;
+	pub struct Channel: u8 {
+		const A	= 0b00000001;
 		const RGB 	= 0b00000010;
 		const UV 	= 0b00000100;
 		const XYZ 	= 0b00001000;
@@ -18,8 +18,8 @@ bitflags! {
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
-pub struct Grey {
-	pub g: u8,
+pub struct A {
+	pub a: u8,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
@@ -42,10 +42,10 @@ pub struct XYZ {
 	pub z: f32,
 }
 
-impl ColorMode {
+impl Channel {
 	pub fn stride(&self) -> usize {
 		match self.bits() {
-			1 => Grey::stride(),
+			1 => A::stride(),
 			2 => RGB::stride(),
 			4 => UV::stride(),
 			8 => XYZ::stride(),
@@ -54,7 +54,7 @@ impl ColorMode {
 	}
 }
 
-impl Color for Grey {
+impl Color for A {
 	fn stride() -> usize {
 		1
 	}
@@ -78,30 +78,30 @@ impl Color for XYZ {
 	}
 }
 
-impl parser::Parse for ColorMode {
-	fn parse(bytes: &[u8]) -> nom::IResult<&[u8], ColorMode> {
+impl parser::Parse for Channel {
+	fn parse(bytes: &[u8]) -> nom::IResult<&[u8], Channel> {
 		let (bytes, bits) = le_u8(bytes)?;
-		Ok((bytes, ColorMode::from_bits(bits).unwrap()))
+		Ok((bytes, Channel::from_bits(bits).unwrap()))
 	}
 }
 
-impl parser::Write for ColorMode {
+impl parser::Write for Channel {
 	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
 		writer.write_all(&self.bits().to_le_bytes())?;
 		Ok(1)
 	}
 }
 
-impl parser::Parse for Grey {
-	fn parse(bytes: &[u8]) -> nom::IResult<&[u8], Grey> {
-		let (bytes, g) = le_u8(bytes)?;
-		Ok((bytes, Grey { g }))
+impl parser::Parse for A {
+	fn parse(bytes: &[u8]) -> nom::IResult<&[u8], A> {
+		let (bytes, a) = le_u8(bytes)?;
+		Ok((bytes, A { a }))
 	}
 }
 
-impl parser::Write for Grey {
+impl parser::Write for A {
 	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		writer.write_all(&self.g.to_le_bytes())?;
+		writer.write_all(&self.a.to_le_bytes())?;
 		Ok(1)
 	}
 }

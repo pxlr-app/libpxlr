@@ -10,7 +10,7 @@ pub struct Canvas {
 	pub display: bool,
 	pub locked: bool,
 	pub name: Arc<String>,
-	pub channels: ColorMode,
+	pub channels: Channel,
 	pub data: Arc<Vec<u8>>,
 }
 
@@ -106,13 +106,13 @@ impl Locked for Canvas {
 impl Folded for Canvas {}
 
 impl HasChannels for Canvas {
-	fn channels(&self) -> ColorMode {
+	fn channels(&self) -> Channel {
 		self.channels
 	}
 }
 
 impl Canvas {
-	pub fn set_channels(&self, channels: ColorMode) -> Option<patch::PatchPair> {
+	pub fn set_channels(&self, channels: Channel) -> Option<patch::PatchPair> {
 		if self.channels == channels {
 			None
 		} else {
@@ -146,7 +146,7 @@ impl Canvas {
 	pub fn apply_stencil(
 		&self,
 		offset: Vec2<u32>,
-		channels: ColorMode,
+		channels: Channel,
 		stencil: Stencil2,
 	) -> Option<patch::PatchPair> {
 		Some((
@@ -212,7 +212,7 @@ impl parser::v0::ParseNode for Canvas {
 		bytes: &'bytes [u8],
 	) -> parser::Result<&'bytes [u8], NodeRef> {
 		use parser::Parse;
-		let (bytes, channels) = ColorMode::parse(bytes)?;
+		let (bytes, channels) = Channel::parse(bytes)?;
 		let (bytes, has_palette) = le_u8(bytes)?;
 		let (bytes, palette) = if has_palette == 1 {
 			let (bytes, palette_id) = Uuid::parse(bytes)?;

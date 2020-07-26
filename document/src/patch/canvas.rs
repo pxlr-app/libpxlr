@@ -10,7 +10,7 @@ pub struct Crop {
 #[derive(Debug, Clone, Serialize, Deserialize, Patch)]
 pub struct RestoreCanvas {
 	pub target: Uuid,
-	pub channels: ColorMode,
+	pub channels: Channel,
 	pub data: Vec<u8>,
 }
 
@@ -18,6 +18,6 @@ pub struct RestoreCanvas {
 pub struct ApplyStencil2 {
 	pub target: Uuid,
 	pub offset: Vec2<u32>,
-	pub channels: ColorMode,
+	pub channels: Channel,
 	pub stencil: Stencil2,
 }

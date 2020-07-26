@@ -10,7 +10,7 @@ pub struct SetPalette {
 #[derive(Debug, Clone, Serialize, Deserialize, Patch)]
 pub struct SetChannels {
 	pub target: Uuid,
-	pub channels: ColorMode,
+	pub channels: Channel,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Patch)]

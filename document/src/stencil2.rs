@@ -6,28 +6,28 @@ use nom::{multi::many_m_n, number::complete::le_u8};
 pub struct Stencil2 {
 	pub size: Extent2<u32>,
 	pub mask: BitVec<Lsb0, u8>,
-	pub color_mode: ColorMode,
-	pub color: Vec<u8>,
+	pub channels: Channel,
+	pub data: Vec<u8>,
 }
 
 impl Stencil2 {
-	pub fn new(size: Extent2<u32>, color_mode: ColorMode) -> Stencil2 {
-		let buffer: Vec<u8> = vec![0u8; (size.w * size.h * color_mode.stride() as u32) as usize];
-		Stencil2::from_buffer(size, color_mode, &buffer)
+	pub fn new(size: Extent2<u32>, channels: Channel) -> Stencil2 {
+		let buffer: Vec<u8> = vec![0u8; (size.w * size.h * channels.stride() as u32) as usize];
+		Stencil2::from_buffer(size, channels, &buffer)
 	}
 
-	pub fn from_buffer(size: Extent2<u32>, color_mode: ColorMode, buffer: &[u8]) -> Stencil2 {
+	pub fn from_buffer(size: Extent2<u32>, channels: Channel, buffer: &[u8]) -> Stencil2 {
 		assert_eq!(
-			(size.w * size.h * color_mode.stride() as u32) as usize,
+			(size.w * size.h * channels.stride() as u32) as usize,
 			buffer.len()
 		);
 		let mask = bitvec![Lsb0, u8; 1; (size.w * size.h) as usize];
-		let color = buffer.to_vec();
+		let data = buffer.to_vec();
 		Stencil2 {
 			size,
 			mask,
-			color_mode,
-			color,
+			channels,
+			data,
 		}
 	}
 }
@@ -36,13 +36,13 @@ impl std::fmt::Debug for Stencil2 {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		write!(
 			f,
-			"Stencil2::{:<5?} ( {} )",
-			self.color_mode,
+			"Stencil2 ({:<3?}, {} )",
+			self.channels,
 			braille_fmt2(
 				&self.mask,
 				self.size.w as usize,
 				self.size.h as usize,
-				"\n                 "
+				"\n               "
 			)
 		)
 	}
@@ -52,11 +52,11 @@ impl std::ops::Add for Stencil2 {
 	type Output = Self;
 
 	fn add(self, other: Self) -> Self {
-		assert_eq!(self.color_mode, other.color_mode);
-		let stride = self.color_mode.stride() as usize;
+		assert_eq!(self.channels, other.channels);
+		let stride = self.channels.stride() as usize;
 		let size = Extent2::new(self.size.w.max(other.size.w), self.size.h.max(other.size.h));
 		let mut mask = bitvec![Lsb0, u8; 0; (size.w * size.h) as usize];
-		let mut color: Vec<u8> = Vec::with_capacity((size.w * size.h * stride as u32) as usize);
+		let mut data: Vec<u8> = Vec::with_capacity((size.w * size.h * stride as u32) as usize);
 		let mut count_a: usize = 0;
 		let mut count_b: usize = 0;
 
@@ -79,10 +79,10 @@ impl std::ops::Add for Stencil2 {
 			};
 
 			if bit_b {
-				color.extend_from_slice(&other.color[(count_b * stride)..((count_b + 1) * stride)]);
+				data.extend_from_slice(&other.data[(count_b * stride)..((count_b + 1) * stride)]);
 				mask.set(i, true);
 			} else if bit_a {
-				color.extend_from_slice(&self.color[(count_a * stride)..((count_a + 1) * stride)]);
+				data.extend_from_slice(&self.data[(count_a * stride)..((count_a + 1) * stride)]);
 				mask.set(i, true);
 			}
 
@@ -96,19 +96,19 @@ impl std::ops::Add for Stencil2 {
 		Stencil2 {
 			size,
 			mask,
-			color_mode: self.color_mode,
-			color,
+			channels: self.channels,
+			data,
 		}
 	}
 }
 
 pub struct Stencil2Iterator<'a> {
 	bit_offset: usize,
-	color_offset: usize,
+	data_offset: usize,
 	width: u32,
 	mask: &'a BitVec<Lsb0, u8>,
-	color_stride: usize,
-	color: &'a Vec<u8>,
+	data_stride: usize,
+	data: &'a Vec<u8>,
 }
 
 impl<'a> Iterator for Stencil2Iterator<'a> {
@@ -122,12 +122,12 @@ impl<'a> Iterator for Stencil2Iterator<'a> {
 			if bit {
 				let x = bit_offset % self.width as usize;
 				let y = (bit_offset / self.width as usize) | 0;
-				self.color_offset += 1;
+				self.data_offset += 1;
 				return Some((
 					x as u32,
 					y as u32,
-					&self.color[(self.color_offset - 1 * self.color_stride)
-						..(self.color_offset * self.color_stride)],
+					&self.data[(self.data_offset - 1 * self.data_stride)
+						..(self.data_offset * self.data_stride)],
 				));
 			}
 		}
@@ -142,11 +142,11 @@ impl<'a> IntoIterator for &'a Stencil2 {
 	fn into_iter(self) -> Self::IntoIter {
 		Stencil2Iterator {
 			bit_offset: 0,
-			color_offset: 0,
+			data_offset: 0,
 			width: self.size.w,
 			mask: &self.mask,
-			color_stride: self.color_mode.stride(),
-			color: &self.color,
+			data_stride: self.channels.stride(),
+			data: &self.data,
 		}
 	}
 }
@@ -157,16 +157,16 @@ impl parser::Parse for Stencil2 {
 		let len = (((size.w * size.h) + 8 - 1) / 8) as usize;
 		let (bytes, buffer) = many_m_n(len, len, le_u8)(bytes)?;
 		let mask: BitVec<Lsb0, u8> = buffer.into();
-		let (bytes, color_mode) = ColorMode::parse(bytes)?;
-		let len = (size.w * size.h * color_mode.stride() as u32) as usize;
-		let (bytes, color) = many_m_n(len, len, le_u8)(bytes)?;
+		let (bytes, channels) = Channel::parse(bytes)?;
+		let len = (size.w * size.h * channels.stride() as u32) as usize;
+		let (bytes, data) = many_m_n(len, len, le_u8)(bytes)?;
 		Ok((
 			bytes,
 			Stencil2 {
 				size,
 				mask,
-				color_mode,
-				color,
+				channels,
+				data,
 			},
 		))
 	}
@@ -178,8 +178,8 @@ impl parser::Write for Stencil2 {
 		let buffer = self.mask.as_slice();
 		writer.write(&buffer)?;
 		size += buffer.len();
-		size += self.color_mode.write(writer)?;
-		let buffer = self.color.as_slice();
+		size += self.channels.write(writer)?;
+		let buffer = self.data.as_slice();
 		writer.write(&buffer)?;
 		size += buffer.len();
 		Ok(size)
@@ -194,17 +194,17 @@ mod tests {
 
 	#[test]
 	fn test_from_buffer() {
-		let s = Stencil2::from_buffer(Extent2::new(2, 2), ColorMode::ALPHA, &[1u8, 2, 3, 4]);
+		let s = Stencil2::from_buffer(Extent2::new(2, 2), Channel::A, &[1u8, 2, 3, 4]);
 		assert_eq!(*s.mask, bitvec![1, 1, 1, 1]);
-		assert_eq!(*s.color, [1u8, 2, 3, 4]);
+		assert_eq!(*s.data, [1u8, 2, 3, 4]);
 	}
 
 	#[test]
 	fn test_debug() {
-		let s = Stencil2::new(Extent2::new(3, 1), ColorMode::ALPHA);
-		assert_eq!(format!("{:?}", s), "Stencil2::ALPHA ( ⠉⠁ )");
-		let s = Stencil2::new(Extent2::new(1, 3), ColorMode::ALPHA);
-		assert_eq!(format!("{:?}", s), "Stencil2::ALPHA ( ⠇ )");
+		let s = Stencil2::new(Extent2::new(3, 1), Channel::A);
+		assert_eq!(format!("{:?}", s), "Stencil2 (A, ⠉⠁ )");
+		let s = Stencil2::new(Extent2::new(1, 3), Channel::A);
+		assert_eq!(format!("{:?}", s), "Stencil2 (A, ⠇ )");
 	}
 
 	#[test]
@@ -212,40 +212,40 @@ mod tests {
 		let a = Stencil2 {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 1, 0, 0, 1],
-			color_mode: ColorMode::ALPHA,
-			color: vec![1u8, 4],
+			channels: Channel::A,
+			data: vec![1u8, 4],
 		};
-		assert_eq!(format!("{:?}", a), "Stencil2::ALPHA ( ⠑ )");
+		assert_eq!(format!("{:?}", a), "Stencil2 (A, ⠑ )");
 		let b = Stencil2 {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 0, 1, 1, 0],
-			color_mode: ColorMode::ALPHA,
-			color: vec![2u8, 3],
+			channels: Channel::A,
+			data: vec![2u8, 3],
 		};
-		assert_eq!(format!("{:?}", b), "Stencil2::ALPHA ( ⠊ )");
+		assert_eq!(format!("{:?}", b), "Stencil2 (A, ⠊ )");
 		let c = a + b;
 		assert_eq!(*c.mask, bitvec![1, 1, 1, 1]);
-		assert_eq!(*c.color, [1u8, 2, 3, 4]);
-		assert_eq!(format!("{:?}", c), "Stencil2::ALPHA ( ⠛ )");
+		assert_eq!(*c.data, [1u8, 2, 3, 4]);
+		assert_eq!(format!("{:?}", c), "Stencil2 (A, ⠛ )");
 
 		let a = Stencil2 {
 			size: Extent2::new(1, 2),
 			mask: bitvec![Lsb0, u8; 1, 1],
-			color_mode: ColorMode::ALPHA,
-			color: vec![1u8, 3],
+			channels: Channel::A,
+			data: vec![1u8, 3],
 		};
-		assert_eq!(format!("{:?}", a), "Stencil2::ALPHA ( ⠃ )");
+		assert_eq!(format!("{:?}", a), "Stencil2 (A, ⠃ )");
 		let b = Stencil2 {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 0, 1, 0, 1],
-			color_mode: ColorMode::ALPHA,
-			color: vec![2u8, 4],
+			channels: Channel::A,
+			data: vec![2u8, 4],
 		};
-		assert_eq!(format!("{:?}", b), "Stencil2::ALPHA ( ⠘ )");
+		assert_eq!(format!("{:?}", b), "Stencil2 (A, ⠘ )");
 		let c = a + b;
 		assert_eq!(*c.mask, bitvec![1, 1, 1, 1]);
-		assert_eq!(*c.color, [1u8, 2, 3, 4]);
-		assert_eq!(format!("{:?}", c), "Stencil2::ALPHA ( ⠛ )");
+		assert_eq!(*c.data, [1u8, 2, 3, 4]);
+		assert_eq!(format!("{:?}", c), "Stencil2 (A, ⠛ )");
 	}
 
 	#[test]
@@ -253,8 +253,8 @@ mod tests {
 		let a = Stencil2 {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 1, 1, 1, 1],
-			color_mode: ColorMode::ALPHA,
-			color: vec![1u8, 2, 3, 4],
+			channels: Channel::A,
+			data: vec![1u8, 2, 3, 4],
 		};
 		let mut i = a.into_iter();
 		assert_eq!(i.next(), Some((0, 0, &[1u8][..])));
@@ -266,8 +266,8 @@ mod tests {
 		let a = Stencil2 {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 1, 0, 0, 1],
-			color_mode: ColorMode::ALPHA,
-			color: vec![1u8, 4],
+			channels: Channel::A,
+			data: vec![1u8, 4],
 		};
 		let mut i = a.into_iter();
 		assert_eq!(i.next(), Some((0, 0, &[1u8][..])));
@@ -281,8 +281,8 @@ mod tests {
 		let a = Stencil2 {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 1, 1, 1, 1],
-			color_mode: ColorMode::ALPHA,
-			color: vec![1u8, 2, 3, 4],
+			channels: Channel::A,
+			data: vec![1u8, 2, 3, 4],
 		};
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 		let size = a.write(&mut buffer).expect("Could not write Stencil2");

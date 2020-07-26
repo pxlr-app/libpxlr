@@ -195,7 +195,7 @@ pub trait Cropable {
 	}
 }
 pub trait HasChannels {
-	fn channels(&self) -> ColorMode;
+	fn channels(&self) -> Channel;
 }
 
 pub trait DocumentNode: Node + Named + Positioned + Sized + Displayed + Locked + Folded {}
