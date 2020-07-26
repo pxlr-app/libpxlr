@@ -18,6 +18,5 @@ pub struct RestoreCanvas {
 pub struct ApplyStencil2 {
 	pub target: Uuid,
 	pub offset: Vec2<u32>,
-	pub channels: Channel,
 	pub stencil: Stencil2,
 }

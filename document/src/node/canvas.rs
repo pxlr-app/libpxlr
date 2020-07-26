@@ -143,17 +143,11 @@ impl Canvas {
 			}),
 		))
 	}
-	pub fn apply_stencil(
-		&self,
-		offset: Vec2<u32>,
-		channels: Channel,
-		stencil: Stencil2,
-	) -> Option<patch::PatchPair> {
+	pub fn apply_stencil(&self, offset: Vec2<u32>, stencil: Stencil2) -> Option<patch::PatchPair> {
 		Some((
 			patch::PatchType::ApplyStencil2(patch::ApplyStencil2 {
 				target: self.id,
 				offset,
-				channels,
 				stencil,
 			}),
 			patch::PatchType::RestoreCanvas(patch::RestoreCanvas {
