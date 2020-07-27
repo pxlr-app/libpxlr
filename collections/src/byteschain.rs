@@ -187,7 +187,7 @@ mod tests {
 	use bytes::Bytes;
 
 	#[test]
-	fn test_blep() {
+	fn test_specs() {
 		let mut a = BytesChain::new();
 		a.push(Bytes::from(&[1u8, 2, 3, 4, 5][..]));
 		a.push(Bytes::from(&[6u8, 7, 8, 9, 10][..]));
