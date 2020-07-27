@@ -4,8 +4,14 @@ version = "0.1.0"
 authors = ["Michael Grenier <michael@grenier.dev>"]
 edition = "2018"
 
+[features]
+default = []
+arc = []
+
 [dependencies]
+bytes = "0.5.6"
 bitvec = { version = "0.17.4", features = ["serde"] }
+serde = { version = "1.0.106", features = ["rc"] }
 
 [dev-dependencies.cargo-husky]
 version = "1"
