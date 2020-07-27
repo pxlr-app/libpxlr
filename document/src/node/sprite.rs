@@ -377,12 +377,11 @@ impl patch::Patchable for Sprite {
 impl parser::v0::ParseNode for Sprite {
 	fn parse_node<'bytes>(
 		row: &parser::v0::IndexRow,
-		children: NodeList,
+		mut children: NodeList,
 		dependencies: NodeList,
 		bytes: &'bytes [u8],
 	) -> parser::Result<&'bytes [u8], NodeRef> {
 		use parser::Parse;
-		let mut children = children;
 		let (bytes, channels) = Channel::parse(bytes)?;
 		let (bytes, has_palette) = le_u8(bytes)?;
 		let (bytes, palette) = if has_palette == 1 {

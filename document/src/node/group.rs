@@ -249,11 +249,10 @@ impl patch::Patchable for Group {
 impl parser::v0::ParseNode for Group {
 	fn parse_node<'bytes>(
 		row: &parser::v0::IndexRow,
-		children: NodeList,
+		mut children: NodeList,
 		_dependencies: NodeList,
 		bytes: &'bytes [u8],
 	) -> parser::Result<&'bytes [u8], NodeRef> {
-		let mut children = children;
 		Ok((
 			bytes,
 			Arc::new(NodeType::Group(Group {
