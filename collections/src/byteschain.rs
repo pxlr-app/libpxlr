@@ -9,7 +9,7 @@ use std::{
 	ops::{Bound, Index, RangeBounds},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BytesChain {
 	chain: VecDeque<Bytes>,
 }
