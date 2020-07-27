@@ -1,4 +1,8 @@
 use bytes::{Bytes, BytesMut};
+use serde::{
+	de::{Deserialize, Deserializer, Error, Visitor},
+	ser::{Serialize, Serializer},
+};
 use std::{
 	collections::VecDeque,
 	iter::FromIterator,
@@ -181,6 +185,63 @@ impl FromIterator<u8> for BytesChain {
 	}
 }
 
+impl Serialize for BytesChain {
+	fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+		let mut bytes = vec![0u8; self.len()];
+		self.copy_to_slice(.., &mut bytes);
+		serializer.serialize_bytes(&bytes)
+	}
+}
+
+struct BytesChainVisitor;
+impl<'de> Visitor<'de> for BytesChainVisitor {
+	type Value = BytesChain;
+
+	fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		f.write_str("a sequence of bytes")
+	}
+
+	fn visit_str<E: Error>(self, v: &str) -> Result<Self::Value, E> {
+		let mut bytes = BytesChain::new();
+		bytes.push(Bytes::from(v.as_bytes().to_owned()));
+		Ok(bytes)
+	}
+
+	fn visit_string<E: Error>(self, v: String) -> Result<Self::Value, E> {
+		let mut bytes = BytesChain::new();
+		bytes.push(Bytes::from(v.as_bytes().to_owned()));
+		Ok(bytes)
+	}
+
+	fn visit_bytes<E: Error>(self, v: &[u8]) -> Result<Self::Value, E> {
+		let mut bytes = BytesChain::new();
+		bytes.push(Bytes::from(v.to_owned()));
+		Ok(bytes)
+	}
+
+	fn visit_byte_buf<E: Error>(self, v: Vec<u8>) -> Result<Self::Value, E> {
+		let mut bytes = BytesChain::new();
+		bytes.push(Bytes::from(v));
+		Ok(bytes)
+	}
+
+	fn visit_seq<A: serde::de::SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+		let mut v: Vec<u8> = Vec::with_capacity(seq.size_hint().or(Some(0usize)).unwrap());
+		while let Ok(Some(byte)) = seq.next_element::<u8>() {
+			v.push(byte);
+		}
+		let mut bytes = BytesChain::new();
+		bytes.push(Bytes::from(v));
+		Ok(bytes)
+	}
+}
+
+impl<'de> Deserialize<'de> for BytesChain {
+	fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<BytesChain, D::Error> {
+		deserializer.deserialize_byte_buf(BytesChainVisitor)
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -205,6 +266,21 @@ mod tests {
 		assert_eq!(
 			c.iter().collect::<Vec<_>>(),
 			vec![&4, &5, &6, &7, &8, &21, &22, &23, &24, &25]
+		);
+	}
+
+	#[test]
+	fn test_serialize() {
+		let mut a = BytesChain::new();
+		a.push(Bytes::from(&[1u8, 2, 3, 4, 5][..]));
+		a.push(Bytes::from(&[6u8, 7, 8, 9, 10][..]));
+
+		let json = serde_json::to_string(&a).expect("Could not serialize");
+		assert_eq!(json, "[1,2,3,4,5,6,7,8,9,10]");
+		let b: BytesChain = serde_json::from_str(&json[..]).expect("Could not deserialize JSON");
+		assert_eq!(
+			b.iter().collect::<Vec<_>>(),
+			vec![&1, &2, &3, &4, &5, &6, &7, &8, &9, &10]
 		);
 	}
 }

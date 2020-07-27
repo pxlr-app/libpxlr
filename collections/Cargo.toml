@@ -13,6 +13,9 @@ bytes = "0.5.6"
 bitvec = { version = "0.17.4", features = ["serde"] }
 serde = { version = "1.0.106", features = ["rc"] }
 
+[dev-dependencies]
+serde_json = "1.0"
+
 [dev-dependencies.cargo-husky]
 version = "1"
 default-features = false
