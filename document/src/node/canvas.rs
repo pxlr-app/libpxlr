@@ -143,9 +143,9 @@ impl Canvas {
 			}),
 		))
 	}
-	pub fn apply_stencil(&self, offset: Vec2<u32>, stencil: Stencil2) -> Option<patch::PatchPair> {
+	pub fn apply_stencil(&self, offset: Vec2<u32>, stencil: Stencil) -> Option<patch::PatchPair> {
 		Some((
-			patch::PatchType::ApplyStencil2(patch::ApplyStencil2 {
+			patch::PatchType::ApplyStencil(patch::ApplyStencil {
 				target: self.id,
 				offset,
 				stencil,
@@ -188,7 +188,7 @@ impl patch::Patchable for Canvas {
 				}
 				patch::PatchType::Resize(_patch) => unimplemented!(),
 				patch::PatchType::Crop(_patch) => unimplemented!(),
-				patch::PatchType::ApplyStencil2(_patch) => unimplemented!(),
+				patch::PatchType::ApplyStencil(_patch) => unimplemented!(),
 				_ => return None,
 			};
 			Some(NodeType::Canvas(patched))

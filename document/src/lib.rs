@@ -7,11 +7,11 @@ pub mod file;
 pub mod node;
 pub mod parser;
 pub mod patch;
-pub mod stencil2;
+pub mod stencil;
 
 pub mod prelude {
 	pub use super::{
-		any::*, color::*, file::*, node::*, parser, patch, patch::Patchable, stencil2::*,
+		any::*, color::*, file::*, node::*, parser, patch, patch::Patchable, stencil::*,
 	};
 	pub use document_derive::*;
 	pub use math::{Extent2, Vec2};

@@ -43,7 +43,7 @@ pub enum PatchType {
 	Crop(Crop),
 	RestoreSprite(RestoreSprite),
 	RestoreCanvas(RestoreCanvas),
-	ApplyStencil2(ApplyStencil2),
+	ApplyStencil(ApplyStencil),
 }
 
 impl PatchType {
@@ -66,7 +66,7 @@ impl PatchType {
 			PatchType::Crop(patch) => patch,
 			PatchType::RestoreSprite(patch) => patch,
 			PatchType::RestoreCanvas(patch) => patch,
-			PatchType::ApplyStencil2(patch) => patch,
+			PatchType::ApplyStencil(patch) => patch,
 		}
 	}
 }

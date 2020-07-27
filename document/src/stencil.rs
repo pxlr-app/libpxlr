@@ -3,27 +3,27 @@ use collections::{bitvec, braille_fmt2, BitVec, Lsb0};
 use nom::{multi::many_m_n, number::complete::le_u8};
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct Stencil2 {
+pub struct Stencil {
 	pub size: Extent2<u32>,
 	pub mask: BitVec<Lsb0, u8>,
 	pub channels: Channel,
 	pub data: Vec<u8>,
 }
 
-impl Stencil2 {
-	pub fn new(size: Extent2<u32>, channels: Channel) -> Stencil2 {
+impl Stencil {
+	pub fn new(size: Extent2<u32>, channels: Channel) -> Stencil {
 		let buffer: Vec<u8> = vec![0u8; (size.w * size.h * channels.len() as u32) as usize];
-		Stencil2::from_buffer(size, channels, &buffer)
+		Stencil::from_buffer(size, channels, &buffer)
 	}
 
-	pub fn from_buffer(size: Extent2<u32>, channels: Channel, buffer: &[u8]) -> Stencil2 {
+	pub fn from_buffer(size: Extent2<u32>, channels: Channel, buffer: &[u8]) -> Stencil {
 		assert_eq!(
 			(size.w * size.h * channels.len() as u32) as usize,
 			buffer.len()
 		);
 		let mask = bitvec![Lsb0, u8; 1; (size.w * size.h) as usize];
 		let data = buffer.to_vec();
-		Stencil2 {
+		Stencil {
 			size,
 			mask,
 			channels,
@@ -32,11 +32,11 @@ impl Stencil2 {
 	}
 }
 
-impl std::fmt::Debug for Stencil2 {
+impl std::fmt::Debug for Stencil {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		write!(
 			f,
-			"Stencil2 ({:<3?}, {} )",
+			"Stencil ({:<3?}, {} )",
 			self.channels,
 			braille_fmt2(
 				&self.mask,
@@ -48,7 +48,7 @@ impl std::fmt::Debug for Stencil2 {
 	}
 }
 
-impl std::ops::Add for Stencil2 {
+impl std::ops::Add for Stencil {
 	type Output = Self;
 
 	fn add(self, other: Self) -> Self {
@@ -93,7 +93,7 @@ impl std::ops::Add for Stencil2 {
 				count_b += 1;
 			}
 		}
-		Stencil2 {
+		Stencil {
 			size,
 			mask,
 			channels: self.channels,
@@ -102,7 +102,7 @@ impl std::ops::Add for Stencil2 {
 	}
 }
 
-pub struct Stencil2Iterator<'a> {
+pub struct StencilIterator<'a> {
 	bit_offset: usize,
 	data_offset: usize,
 	width: u32,
@@ -111,7 +111,7 @@ pub struct Stencil2Iterator<'a> {
 	data: &'a Vec<u8>,
 }
 
-impl<'a> Iterator for Stencil2Iterator<'a> {
+impl<'a> Iterator for StencilIterator<'a> {
 	type Item = (u32, u32, &'a [u8]);
 
 	fn next(&mut self) -> Option<(u32, u32, &'a [u8])> {
@@ -135,12 +135,12 @@ impl<'a> Iterator for Stencil2Iterator<'a> {
 	}
 }
 
-impl<'a> IntoIterator for &'a Stencil2 {
+impl<'a> IntoIterator for &'a Stencil {
 	type Item = (u32, u32, &'a [u8]);
-	type IntoIter = Stencil2Iterator<'a>;
+	type IntoIter = StencilIterator<'a>;
 
 	fn into_iter(self) -> Self::IntoIter {
-		Stencil2Iterator {
+		StencilIterator {
 			bit_offset: 0,
 			data_offset: 0,
 			width: self.size.w,
@@ -151,8 +151,8 @@ impl<'a> IntoIterator for &'a Stencil2 {
 	}
 }
 
-impl parser::Parse for Stencil2 {
-	fn parse(bytes: &[u8]) -> nom::IResult<&[u8], Stencil2> {
+impl parser::Parse for Stencil {
+	fn parse(bytes: &[u8]) -> nom::IResult<&[u8], Stencil> {
 		let (bytes, size) = Extent2::parse(bytes)?;
 		let len = (((size.w * size.h) + 8 - 1) / 8) as usize;
 		let (bytes, buffer) = many_m_n(len, len, le_u8)(bytes)?;
@@ -162,7 +162,7 @@ impl parser::Parse for Stencil2 {
 		let (bytes, data) = many_m_n(len, len, le_u8)(bytes)?;
 		Ok((
 			bytes,
-			Stencil2 {
+			Stencil {
 				size,
 				mask,
 				channels,
@@ -172,7 +172,7 @@ impl parser::Parse for Stencil2 {
 	}
 }
 
-impl parser::Write for Stencil2 {
+impl parser::Write for Stencil {
 	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
 		let mut size = self.size.write(writer)?;
 		let buffer = self.mask.as_slice();
@@ -194,63 +194,63 @@ mod tests {
 
 	#[test]
 	fn test_from_buffer() {
-		let s = Stencil2::from_buffer(Extent2::new(2, 2), Channel::A, &[1u8, 2, 3, 4]);
+		let s = Stencil::from_buffer(Extent2::new(2, 2), Channel::A, &[1u8, 2, 3, 4]);
 		assert_eq!(*s.mask, bitvec![1, 1, 1, 1]);
 		assert_eq!(*s.data, [1u8, 2, 3, 4]);
 	}
 
 	#[test]
 	fn test_debug() {
-		let s = Stencil2::new(Extent2::new(3, 1), Channel::A);
-		assert_eq!(format!("{:?}", s), "Stencil2 (A, ⠉⠁ )");
-		let s = Stencil2::new(Extent2::new(1, 3), Channel::A);
-		assert_eq!(format!("{:?}", s), "Stencil2 (A, ⠇ )");
+		let s = Stencil::new(Extent2::new(3, 1), Channel::A);
+		assert_eq!(format!("{:?}", s), "Stencil (A, ⠉⠁ )");
+		let s = Stencil::new(Extent2::new(1, 3), Channel::A);
+		assert_eq!(format!("{:?}", s), "Stencil (A, ⠇ )");
 	}
 
 	#[test]
 	fn test_combine() {
-		let a = Stencil2 {
+		let a = Stencil {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 1, 0, 0, 1],
 			channels: Channel::A,
 			data: vec![1u8, 4],
 		};
-		assert_eq!(format!("{:?}", a), "Stencil2 (A, ⠑ )");
-		let b = Stencil2 {
+		assert_eq!(format!("{:?}", a), "Stencil (A, ⠑ )");
+		let b = Stencil {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 0, 1, 1, 0],
 			channels: Channel::A,
 			data: vec![2u8, 3],
 		};
-		assert_eq!(format!("{:?}", b), "Stencil2 (A, ⠊ )");
+		assert_eq!(format!("{:?}", b), "Stencil (A, ⠊ )");
 		let c = a + b;
 		assert_eq!(*c.mask, bitvec![1, 1, 1, 1]);
 		assert_eq!(*c.data, [1u8, 2, 3, 4]);
-		assert_eq!(format!("{:?}", c), "Stencil2 (A, ⠛ )");
+		assert_eq!(format!("{:?}", c), "Stencil (A, ⠛ )");
 
-		let a = Stencil2 {
+		let a = Stencil {
 			size: Extent2::new(1, 2),
 			mask: bitvec![Lsb0, u8; 1, 1],
 			channels: Channel::A,
 			data: vec![1u8, 3],
 		};
-		assert_eq!(format!("{:?}", a), "Stencil2 (A, ⠃ )");
-		let b = Stencil2 {
+		assert_eq!(format!("{:?}", a), "Stencil (A, ⠃ )");
+		let b = Stencil {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 0, 1, 0, 1],
 			channels: Channel::A,
 			data: vec![2u8, 4],
 		};
-		assert_eq!(format!("{:?}", b), "Stencil2 (A, ⠘ )");
+		assert_eq!(format!("{:?}", b), "Stencil (A, ⠘ )");
 		let c = a + b;
 		assert_eq!(*c.mask, bitvec![1, 1, 1, 1]);
 		assert_eq!(*c.data, [1u8, 2, 3, 4]);
-		assert_eq!(format!("{:?}", c), "Stencil2 (A, ⠛ )");
+		assert_eq!(format!("{:?}", c), "Stencil (A, ⠛ )");
 	}
 
 	#[test]
 	fn test_iter() {
-		let a = Stencil2 {
+		let a = Stencil {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 1, 1, 1, 1],
 			channels: Channel::A,
@@ -263,7 +263,7 @@ mod tests {
 		assert_eq!(i.next(), Some((1, 1, &[4u8][..])));
 		assert_eq!(i.next(), None);
 
-		let a = Stencil2 {
+		let a = Stencil {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 1, 0, 0, 1],
 			channels: Channel::A,
@@ -278,16 +278,16 @@ mod tests {
 	#[test]
 	fn test_write_parse() {
 		use parser::{Parse, Write};
-		let a = Stencil2 {
+		let a = Stencil {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 1, 1, 1, 1],
 			channels: Channel::A,
 			data: vec![1u8, 2, 3, 4],
 		};
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
-		let size = a.write(&mut buffer).expect("Could not write Stencil2");
+		let size = a.write(&mut buffer).expect("Could not write Stencil");
 		assert_eq!(size, 14);
-		let r = Stencil2::parse(&buffer.get_ref());
+		let r = Stencil::parse(&buffer.get_ref());
 		assert_eq!(r.is_ok(), true);
 	}
 }

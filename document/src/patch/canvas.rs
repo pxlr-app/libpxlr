@@ -15,8 +15,8 @@ pub struct RestoreCanvas {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Patch)]
-pub struct ApplyStencil2 {
+pub struct ApplyStencil {
 	pub target: Uuid,
 	pub offset: Vec2<u32>,
-	pub stencil: Stencil2,
+	pub stencil: Stencil,
 }
