@@ -3,7 +3,7 @@ use crate::prelude::*;
 use nom::{bytes::complete::take, number::complete::le_u8};
 
 #[derive(SpriteNode, Debug, Clone, Serialize, Deserialize)]
-pub struct Canvas {
+pub struct CanvasNode {
 	pub id: Uuid,
 	pub size: Arc<Extent2<u32>>,
 	pub palette: Option<Weak<NodeType>>,
@@ -14,7 +14,7 @@ pub struct Canvas {
 	pub data: Arc<Vec<u8>>,
 }
 
-impl Named for Canvas {
+impl Named for CanvasNode {
 	fn name(&self) -> String {
 		(*self.name).clone()
 	}
@@ -32,7 +32,7 @@ impl Named for Canvas {
 	}
 }
 
-impl Sized for Canvas {
+impl Sized for CanvasNode {
 	fn size(&self) -> Extent2<u32> {
 		*self.size
 	}
@@ -50,7 +50,7 @@ impl Sized for Canvas {
 	}
 }
 
-impl Cropable for Canvas {
+impl Cropable for CanvasNode {
 	fn crop(&self, offset: Vec2<u32>, size: Extent2<u32>) -> Option<CommandPair> {
 		Some((
 			CommandType::Crop(CropCommand {
@@ -67,7 +67,7 @@ impl Cropable for Canvas {
 	}
 }
 
-impl Displayed for Canvas {
+impl Displayed for CanvasNode {
 	fn display(&self) -> bool {
 		self.display
 	}
@@ -85,7 +85,7 @@ impl Displayed for Canvas {
 	}
 }
 
-impl Locked for Canvas {
+impl Locked for CanvasNode {
 	fn locked(&self) -> bool {
 		self.locked
 	}
@@ -103,15 +103,15 @@ impl Locked for Canvas {
 	}
 }
 
-impl Folded for Canvas {}
+impl Folded for CanvasNode {}
 
-impl HasChannels for Canvas {
+impl HasChannels for CanvasNode {
 	fn channels(&self) -> Channel {
 		self.channels
 	}
 }
 
-impl Canvas {
+impl CanvasNode {
 	pub fn set_channels(&self, channels: Channel) -> Option<CommandPair> {
 		if self.channels == channels {
 			None
@@ -130,11 +130,11 @@ impl Canvas {
 	}
 	pub fn set_palette(&self, palette: Option<NodeRef>) -> Option<CommandPair> {
 		Some((
-			CommandType::SetPalette(SetPaletteCommand {
+			CommandType::SetPaletteNode(SetPaletteNodeCommand {
 				target: self.id,
 				palette,
 			}),
-			CommandType::SetPalette(SetPaletteCommand {
+			CommandType::SetPaletteNode(SetPaletteNodeCommand {
 				target: self.id,
 				palette: match self.palette.clone().map(|weak| weak.upgrade()) {
 					Some(Some(node)) => Some(node.clone()),
@@ -159,7 +159,7 @@ impl Canvas {
 	}
 }
 
-impl Executable for Canvas {
+impl Executable for CanvasNode {
 	fn execute(&self, command: &CommandType) -> Option<NodeType> {
 		let mut patched = self.clone();
 		if command.as_command().target() == self.id {
@@ -173,7 +173,7 @@ impl Executable for Canvas {
 				CommandType::SetLock(command) => {
 					patched.locked = command.locked;
 				}
-				CommandType::SetPalette(command) => {
+				CommandType::SetPaletteNode(command) => {
 					match &command.palette {
 						Some(node) => patched.palette = Some(Arc::downgrade(node)),
 						None => patched.palette = None,
@@ -198,7 +198,7 @@ impl Executable for Canvas {
 	}
 }
 
-impl parser::v0::ParseNode for Canvas {
+impl parser::v0::ParseNode for CanvasNode {
 	fn parse_node<'bytes>(
 		row: &parser::v0::IndexRow,
 		_children: NodeList,
@@ -222,7 +222,7 @@ impl parser::v0::ParseNode for Canvas {
 		let (bytes, data) = take(len)(bytes)?;
 		Ok((
 			bytes,
-			Arc::new(NodeType::Canvas(Canvas {
+			Arc::new(NodeType::Canvas(CanvasNode {
 				id: row.id,
 				size: Arc::new(row.size),
 				palette: palette,
@@ -236,7 +236,7 @@ impl parser::v0::ParseNode for Canvas {
 	}
 }
 
-impl parser::v0::WriteNode for Canvas {
+impl parser::v0::WriteNode for CanvasNode {
 	fn write_node<W: io::Write + io::Seek>(
 		&self,
 		writer: &mut W,
@@ -255,7 +255,7 @@ impl parser::v0::WriteNode for Canvas {
 		size += writer.write(&self.data.as_slice())?;
 
 		let mut row = parser::v0::IndexRow::new(self.id);
-		row.chunk_type = NodeKind::Sprite;
+		row.chunk_type = NodeKind::CanvasGroup;
 		row.chunk_offset = writer.seek(io::SeekFrom::Current(0))?;
 		row.chunk_size = size as u32;
 		row.display = self.display;

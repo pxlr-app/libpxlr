@@ -2,7 +2,7 @@ use crate as document;
 use crate::prelude::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Command)]
-pub struct SetPaletteCommand {
+pub struct SetPaletteNodeCommand {
 	pub target: Uuid,
 	pub palette: Option<NodeRef>,
 }

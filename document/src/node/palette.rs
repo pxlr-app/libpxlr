@@ -3,7 +3,7 @@ use crate::prelude::*;
 use nom::{multi::many_m_n, number::complete::le_u8};
 
 #[derive(DocumentNode, Debug, Clone, Serialize, Deserialize)]
-pub struct Palette {
+pub struct PaletteNode {
 	pub id: Uuid,
 	pub position: Arc<Vec2<u32>>,
 	pub display: bool,
@@ -12,7 +12,7 @@ pub struct Palette {
 	pub colors: Arc<Vec<RGB>>,
 }
 
-impl Named for Palette {
+impl Named for PaletteNode {
 	fn name(&self) -> String {
 		(*self.name).clone()
 	}
@@ -30,7 +30,7 @@ impl Named for Palette {
 	}
 }
 
-impl Positioned for Palette {
+impl Positioned for PaletteNode {
 	fn position(&self) -> Vec2<u32> {
 		*self.position
 	}
@@ -48,9 +48,9 @@ impl Positioned for Palette {
 	}
 }
 
-impl Sized for Palette {}
+impl Sized for PaletteNode {}
 
-impl Displayed for Palette {
+impl Displayed for PaletteNode {
 	fn display(&self) -> bool {
 		self.display
 	}
@@ -68,7 +68,7 @@ impl Displayed for Palette {
 	}
 }
 
-impl Locked for Palette {
+impl Locked for PaletteNode {
 	fn locked(&self) -> bool {
 		self.locked
 	}
@@ -86,9 +86,9 @@ impl Locked for Palette {
 	}
 }
 
-impl Folded for Palette {}
+impl Folded for PaletteNode {}
 
-impl Palette {
+impl PaletteNode {
 	pub fn add_color(&self, color: RGB) -> Option<CommandPair> {
 		if self.colors.iter().find(|c| *c == &color).is_some() {
 			None
@@ -141,10 +141,10 @@ impl Palette {
 	}
 }
 
-impl Executable for Palette {
+impl Executable for PaletteNode {
 	fn execute(&self, command: &CommandType) -> Option<NodeType> {
 		if command.as_command().target() == self.id {
-			let mut patched = Palette {
+			let mut patched = PaletteNode {
 				id: self.id,
 				position: self.position.clone(),
 				display: self.display,
@@ -209,7 +209,7 @@ impl Executable for Palette {
 	}
 }
 
-impl parser::v0::ParseNode for Palette {
+impl parser::v0::ParseNode for PaletteNode {
 	fn parse_node<'bytes>(
 		row: &parser::v0::IndexRow,
 		_items: NodeList,
@@ -221,7 +221,7 @@ impl parser::v0::ParseNode for Palette {
 		let (bytes, colors) = many_m_n(len as usize, len as usize, RGB::parse)(bytes)?;
 		Ok((
 			bytes,
-			Arc::new(NodeType::Palette(Palette {
+			Arc::new(NodeType::Palette(PaletteNode {
 				id: row.id,
 				position: Arc::new(row.position),
 				display: row.display,
@@ -233,7 +233,7 @@ impl parser::v0::ParseNode for Palette {
 	}
 }
 
-impl parser::v0::WriteNode for Palette {
+impl parser::v0::WriteNode for PaletteNode {
 	fn write_node<W: io::Write + io::Seek>(
 		&self,
 		writer: &mut W,

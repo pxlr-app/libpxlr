@@ -5,15 +5,15 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use uuid::Uuid;
 mod canvas;
+mod canvasgroup;
 mod group;
 mod note;
 mod palette;
-mod sprite;
 pub use canvas::*;
+pub use canvasgroup::*;
 pub use group::*;
 pub use note::*;
 pub use palette::*;
-pub use sprite::*;
 
 pub trait Node: Any + Debug + Executable {
 	fn id(&self) -> Uuid;
@@ -25,11 +25,11 @@ pub type NodeList = Vec<NodeRef>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NodeType {
-	Note(Note),
-	Group(Group),
-	Palette(Palette),
-	Sprite(Sprite),
-	Canvas(Canvas),
+	Note(NoteNode),
+	Group(GroupNode),
+	Palette(PaletteNode),
+	CanvasGroup(CanvasGroupNode),
+	Canvas(CanvasNode),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,7 +37,7 @@ pub enum NodeKind {
 	Note,
 	Group,
 	Palette,
-	Sprite,
+	CanvasGroup,
 	Canvas,
 }
 
@@ -48,7 +48,7 @@ impl parser::Parse for NodeKind {
 			0 => Ok((bytes, NodeKind::Group)),
 			1 => Ok((bytes, NodeKind::Note)),
 			2 => Ok((bytes, NodeKind::Palette)),
-			3 => Ok((bytes, NodeKind::Sprite)),
+			3 => Ok((bytes, NodeKind::CanvasGroup)),
 			4 => Ok((bytes, NodeKind::Canvas)),
 			_ => Err(nom::Err::Error((bytes, nom::error::ErrorKind::NoneOf))),
 		}
@@ -61,7 +61,7 @@ impl parser::Write for NodeKind {
 			NodeKind::Group => 0,
 			NodeKind::Note => 1,
 			NodeKind::Palette => 2,
-			NodeKind::Sprite => 3,
+			NodeKind::CanvasGroup => 3,
 			NodeKind::Canvas => 4,
 		};
 		writer.write_all(&idx.to_le_bytes())?;
@@ -75,7 +75,7 @@ impl NodeType {
 			NodeType::Note(node) => node,
 			NodeType::Group(node) => node,
 			NodeType::Palette(node) => node,
-			NodeType::Sprite(node) => node,
+			NodeType::CanvasGroup(node) => node,
 			NodeType::Canvas(node) => node,
 		}
 	}
@@ -84,13 +84,13 @@ impl NodeType {
 			NodeType::Note(node) => Some(node),
 			NodeType::Group(node) => Some(node),
 			NodeType::Palette(node) => Some(node),
-			NodeType::Sprite(node) => Some(node),
+			NodeType::CanvasGroup(node) => Some(node),
 			_ => None,
 		}
 	}
 	pub fn as_spritenode(&self) -> Option<&dyn SpriteNode> {
 		match self {
-			NodeType::Sprite(node) => Some(node),
+			NodeType::CanvasGroup(node) => Some(node),
 			NodeType::Canvas(node) => Some(node),
 			_ => None,
 		}
@@ -106,19 +106,22 @@ impl parser::v0::ParseNode for NodeType {
 	) -> parser::Result<&'bytes [u8], NodeRef> {
 		match row.chunk_type {
 			NodeKind::Note => {
-				<Note as parser::v0::ParseNode>::parse_node(row, items, dependencies, bytes)
+				<NoteNode as parser::v0::ParseNode>::parse_node(row, items, dependencies, bytes)
 			}
 			NodeKind::Group => {
-				<Group as parser::v0::ParseNode>::parse_node(row, items, dependencies, bytes)
+				<GroupNode as parser::v0::ParseNode>::parse_node(row, items, dependencies, bytes)
 			}
 			NodeKind::Palette => {
-				<Palette as parser::v0::ParseNode>::parse_node(row, items, dependencies, bytes)
+				<PaletteNode as parser::v0::ParseNode>::parse_node(row, items, dependencies, bytes)
 			}
-			NodeKind::Sprite => {
-				<Sprite as parser::v0::ParseNode>::parse_node(row, items, dependencies, bytes)
-			}
+			NodeKind::CanvasGroup => <CanvasGroupNode as parser::v0::ParseNode>::parse_node(
+				row,
+				items,
+				dependencies,
+				bytes,
+			),
 			NodeKind::Canvas => {
-				<Canvas as parser::v0::ParseNode>::parse_node(row, items, dependencies, bytes)
+				<CanvasNode as parser::v0::ParseNode>::parse_node(row, items, dependencies, bytes)
 			}
 		}
 	}
@@ -135,7 +138,7 @@ impl parser::v0::WriteNode for NodeType {
 			NodeType::Note(node) => node.write_node(writer, rows, dependencies),
 			NodeType::Group(node) => node.write_node(writer, rows, dependencies),
 			NodeType::Palette(node) => node.write_node(writer, rows, dependencies),
-			NodeType::Sprite(node) => node.write_node(writer, rows, dependencies),
+			NodeType::CanvasGroup(node) => node.write_node(writer, rows, dependencies),
 			NodeType::Canvas(node) => node.write_node(writer, rows, dependencies),
 		}
 	}
@@ -213,14 +216,14 @@ mod tests {
 
 	#[test]
 	fn test_serialize() {
-		let group = Group {
+		let group = GroupNode {
 			id: Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap(),
 			position: Arc::new(Vec2::new(0, 0)),
 			display: true,
 			locked: false,
 			folded: false,
 			name: Arc::new("Foo".into()),
-			children: Arc::new(vec![Arc::new(NodeType::Note(Note {
+			children: Arc::new(vec![Arc::new(NodeType::Note(NoteNode {
 				id: Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap(),
 				position: Arc::new(Vec2::new(0, 0)),
 				display: true,

@@ -2,7 +2,7 @@ use crate as document;
 use crate::prelude::*;
 
 #[derive(DocumentNode, Debug, Clone, Serialize, Deserialize)]
-pub struct Note {
+pub struct NoteNode {
 	pub id: Uuid,
 	pub position: Arc<Vec2<u32>>,
 	pub display: bool,
@@ -10,7 +10,7 @@ pub struct Note {
 	pub name: Arc<String>,
 }
 
-impl Named for Note {
+impl Named for NoteNode {
 	fn name(&self) -> String {
 		(*self.name).clone()
 	}
@@ -28,7 +28,7 @@ impl Named for Note {
 	}
 }
 
-impl Positioned for Note {
+impl Positioned for NoteNode {
 	fn position(&self) -> Vec2<u32> {
 		*self.position
 	}
@@ -46,9 +46,9 @@ impl Positioned for Note {
 	}
 }
 
-impl Sized for Note {}
+impl Sized for NoteNode {}
 
-impl Displayed for Note {
+impl Displayed for NoteNode {
 	fn display(&self) -> bool {
 		self.display
 	}
@@ -66,7 +66,7 @@ impl Displayed for Note {
 	}
 }
 
-impl Locked for Note {
+impl Locked for NoteNode {
 	fn locked(&self) -> bool {
 		self.locked
 	}
@@ -84,9 +84,9 @@ impl Locked for Note {
 	}
 }
 
-impl Folded for Note {}
+impl Folded for NoteNode {}
 
-impl Executable for Note {
+impl Executable for NoteNode {
 	fn execute(&self, command: &CommandType) -> Option<NodeType> {
 		if command.as_command().target() == self.id {
 			let mut patched = self.clone();
@@ -112,7 +112,7 @@ impl Executable for Note {
 	}
 }
 
-impl parser::v0::ParseNode for Note {
+impl parser::v0::ParseNode for NoteNode {
 	fn parse_node<'bytes>(
 		row: &parser::v0::IndexRow,
 		_items: NodeList,
@@ -121,7 +121,7 @@ impl parser::v0::ParseNode for Note {
 	) -> parser::Result<&'bytes [u8], NodeRef> {
 		Ok((
 			bytes,
-			Arc::new(NodeType::Note(Note {
+			Arc::new(NodeType::Note(NoteNode {
 				id: row.id,
 				position: Arc::new(row.position),
 				display: row.display,
@@ -132,7 +132,7 @@ impl parser::v0::ParseNode for Note {
 	}
 }
 
-impl parser::v0::WriteNode for Note {
+impl parser::v0::WriteNode for NoteNode {
 	fn write_node<W: io::Write + io::Seek>(
 		&self,
 		writer: &mut W,

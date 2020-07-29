@@ -3,7 +3,7 @@ use crate::prelude::*;
 use nom::number::complete::le_u8;
 
 #[derive(DocumentNode, Debug, Clone, Serialize, Deserialize)]
-pub struct Sprite {
+pub struct CanvasGroupNode {
 	pub id: Uuid,
 	pub position: Arc<Vec2<u32>>,
 	pub size: Arc<Extent2<u32>>,
@@ -16,7 +16,7 @@ pub struct Sprite {
 	pub children: Arc<NodeList>,
 }
 
-impl Named for Sprite {
+impl Named for CanvasGroupNode {
 	fn name(&self) -> String {
 		(*self.name).clone()
 	}
@@ -34,7 +34,7 @@ impl Named for Sprite {
 	}
 }
 
-impl Positioned for Sprite {
+impl Positioned for CanvasGroupNode {
 	fn position(&self) -> Vec2<u32> {
 		*self.position
 	}
@@ -52,7 +52,7 @@ impl Positioned for Sprite {
 	}
 }
 
-impl Sized for Sprite {
+impl Sized for CanvasGroupNode {
 	fn size(&self) -> Extent2<u32> {
 		*self.size
 	}
@@ -70,7 +70,7 @@ impl Sized for Sprite {
 	}
 }
 
-impl Displayed for Sprite {
+impl Displayed for CanvasGroupNode {
 	fn display(&self) -> bool {
 		self.display
 	}
@@ -88,7 +88,7 @@ impl Displayed for Sprite {
 	}
 }
 
-impl Locked for Sprite {
+impl Locked for CanvasGroupNode {
 	fn locked(&self) -> bool {
 		self.locked
 	}
@@ -106,7 +106,7 @@ impl Locked for Sprite {
 	}
 }
 
-impl Folded for Sprite {
+impl Folded for CanvasGroupNode {
 	fn folded(&self) -> bool {
 		self.folded
 	}
@@ -124,7 +124,7 @@ impl Folded for Sprite {
 	}
 }
 
-impl Cropable for Sprite {
+impl Cropable for CanvasGroupNode {
 	fn crop(&self, offset: Vec2<u32>, size: Extent2<u32>) -> Option<CommandPair> {
 		Some((
 			CommandType::Crop(CropCommand {
@@ -144,15 +144,15 @@ impl Cropable for Sprite {
 	}
 }
 
-impl SpriteNode for Sprite {}
+impl SpriteNode for CanvasGroupNode {}
 
-impl HasChannels for Sprite {
+impl HasChannels for CanvasGroupNode {
 	fn channels(&self) -> Channel {
 		self.channels
 	}
 }
 
-impl Sprite {
+impl CanvasGroupNode {
 	pub fn add_child(&self, child: NodeRef) -> Option<CommandPair> {
 		if self
 			.children
@@ -233,11 +233,11 @@ impl Sprite {
 	}
 	pub fn set_palette(&self, palette: Option<NodeRef>) -> Option<CommandPair> {
 		Some((
-			CommandType::SetPalette(SetPaletteCommand {
+			CommandType::SetPaletteNode(SetPaletteNodeCommand {
 				target: self.id,
 				palette,
 			}),
-			CommandType::SetPalette(SetPaletteCommand {
+			CommandType::SetPaletteNode(SetPaletteNodeCommand {
 				target: self.id,
 				palette: match self.palette.clone().map(|weak| weak.upgrade()) {
 					Some(Some(node)) => Some(node.clone()),
@@ -248,7 +248,7 @@ impl Sprite {
 	}
 }
 
-impl Executable for Sprite {
+impl Executable for CanvasGroupNode {
 	fn execute(&self, command: &CommandType) -> Option<NodeType> {
 		let mut patched = self.clone();
 		if command.as_command().target() == self.id {
@@ -306,13 +306,13 @@ impl Executable for Sprite {
 						return None;
 					}
 				}
-				CommandType::SetPalette(command) => {
+				CommandType::SetPaletteNode(command) => {
 					let children = patched
 						.children
 						.iter()
 						.map(|child| {
-							match child.as_node().execute(&CommandType::SetPalette(
-								SetPaletteCommand {
+							match child.as_node().execute(&CommandType::SetPaletteNode(
+								SetPaletteNodeCommand {
 									target: child.as_node().id(),
 									palette: command.palette.clone(),
 								},
@@ -349,7 +349,7 @@ impl Executable for Sprite {
 				}
 				_ => return None,
 			};
-			Some(NodeType::Sprite(patched))
+			Some(NodeType::CanvasGroup(patched))
 		} else {
 			let mut mutated = false;
 			patched.children = Arc::new(
@@ -366,7 +366,7 @@ impl Executable for Sprite {
 					.collect(),
 			);
 			if mutated {
-				Some(NodeType::Sprite(patched))
+				Some(NodeType::CanvasGroup(patched))
 			} else {
 				None
 			}
@@ -374,7 +374,7 @@ impl Executable for Sprite {
 	}
 }
 
-impl parser::v0::ParseNode for Sprite {
+impl parser::v0::ParseNode for CanvasGroupNode {
 	fn parse_node<'bytes>(
 		row: &parser::v0::IndexRow,
 		mut children: NodeList,
@@ -396,7 +396,7 @@ impl parser::v0::ParseNode for Sprite {
 		};
 		Ok((
 			bytes,
-			Arc::new(NodeType::Sprite(Sprite {
+			Arc::new(NodeType::CanvasGroup(CanvasGroupNode {
 				id: row.id,
 				position: Arc::new(row.position),
 				size: Arc::new(row.size),
@@ -412,7 +412,7 @@ impl parser::v0::ParseNode for Sprite {
 	}
 }
 
-impl parser::v0::WriteNode for Sprite {
+impl parser::v0::WriteNode for CanvasGroupNode {
 	fn write_node<W: io::Write + io::Seek>(
 		&self,
 		writer: &mut W,
@@ -430,7 +430,7 @@ impl parser::v0::WriteNode for Sprite {
 		}
 
 		let mut row = parser::v0::IndexRow::new(self.id);
-		row.chunk_type = NodeKind::Sprite;
+		row.chunk_type = NodeKind::CanvasGroup;
 		row.chunk_offset = writer.seek(io::SeekFrom::Current(0))?;
 		row.chunk_size = size as u32;
 		row.display = self.display;

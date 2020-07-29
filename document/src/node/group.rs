@@ -2,7 +2,7 @@ use crate as document;
 use crate::prelude::*;
 
 #[derive(DocumentNode, Debug, Clone, Serialize, Deserialize)]
-pub struct Group {
+pub struct GroupNode {
 	pub id: Uuid,
 	pub position: Arc<Vec2<u32>>,
 	pub display: bool,
@@ -12,7 +12,7 @@ pub struct Group {
 	pub children: Arc<NodeList>,
 }
 
-impl Named for Group {
+impl Named for GroupNode {
 	fn name(&self) -> String {
 		(*self.name).clone()
 	}
@@ -30,7 +30,7 @@ impl Named for Group {
 	}
 }
 
-impl Positioned for Group {
+impl Positioned for GroupNode {
 	fn position(&self) -> Vec2<u32> {
 		*self.position
 	}
@@ -48,9 +48,9 @@ impl Positioned for Group {
 	}
 }
 
-impl Sized for Group {}
+impl Sized for GroupNode {}
 
-impl Displayed for Group {
+impl Displayed for GroupNode {
 	fn display(&self) -> bool {
 		self.display
 	}
@@ -68,7 +68,7 @@ impl Displayed for Group {
 	}
 }
 
-impl Locked for Group {
+impl Locked for GroupNode {
 	fn locked(&self) -> bool {
 		self.locked
 	}
@@ -86,7 +86,7 @@ impl Locked for Group {
 	}
 }
 
-impl Folded for Group {
+impl Folded for GroupNode {
 	fn folded(&self) -> bool {
 		self.folded
 	}
@@ -104,7 +104,7 @@ impl Folded for Group {
 	}
 }
 
-impl Group {
+impl GroupNode {
 	pub fn add_child(&self, child: NodeRef) -> Option<CommandPair> {
 		if self
 			.children
@@ -168,7 +168,7 @@ impl Group {
 	}
 }
 
-impl Executable for Group {
+impl Executable for GroupNode {
 	fn execute(&self, command: &CommandType) -> Option<NodeType> {
 		let mut patched = self.clone();
 		if command.as_command().target() == self.id {
@@ -246,7 +246,7 @@ impl Executable for Group {
 	}
 }
 
-impl parser::v0::ParseNode for Group {
+impl parser::v0::ParseNode for GroupNode {
 	fn parse_node<'bytes>(
 		row: &parser::v0::IndexRow,
 		mut children: NodeList,
@@ -255,7 +255,7 @@ impl parser::v0::ParseNode for Group {
 	) -> parser::Result<&'bytes [u8], NodeRef> {
 		Ok((
 			bytes,
-			Arc::new(NodeType::Group(Group {
+			Arc::new(NodeType::Group(GroupNode {
 				id: row.id,
 				position: Arc::new(row.position),
 				display: row.display,
@@ -268,7 +268,7 @@ impl parser::v0::ParseNode for Group {
 	}
 }
 
-impl parser::v0::WriteNode for Group {
+impl parser::v0::WriteNode for GroupNode {
 	fn write_node<W: io::Write + io::Seek>(
 		&self,
 		writer: &mut W,

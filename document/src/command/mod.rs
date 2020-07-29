@@ -38,7 +38,7 @@ pub enum CommandType {
 	AddColor(AddColorCommand),
 	RemoveColor(RemoveColorCommand),
 	MoveColor(MoveColorCommand),
-	SetPalette(SetPaletteCommand),
+	SetPaletteNode(SetPaletteNodeCommand),
 	SetChannels(SetChannelsCommand),
 	Crop(CropCommand),
 	RestoreSprite(RestoreSpriteCommand),
@@ -61,7 +61,7 @@ impl CommandType {
 			CommandType::AddColor(command) => command,
 			CommandType::RemoveColor(command) => command,
 			CommandType::MoveColor(command) => command,
-			CommandType::SetPalette(command) => command,
+			CommandType::SetPaletteNode(command) => command,
 			CommandType::SetChannels(command) => command,
 			CommandType::Crop(command) => command,
 			CommandType::RestoreSprite(command) => command,
@@ -79,7 +79,7 @@ mod tests {
 
 	#[test]
 	fn test_execute() {
-		let note = Note {
+		let note = NoteNode {
 			id: Uuid::new_v4(),
 			position: Arc::new(Vec2::new(0, 0)),
 			display: true,
@@ -95,14 +95,14 @@ mod tests {
 		assert_eq!(*note.name, "Foo");
 		assert_eq!(*note2.name, "Bar");
 
-		let group = Group {
+		let group = GroupNode {
 			id: Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap(),
 			position: Arc::new(Vec2::new(0, 0)),
 			display: true,
 			locked: false,
 			folded: false,
 			name: Arc::new("Foo".into()),
-			children: Arc::new(vec![Arc::new(NodeType::Note(Note {
+			children: Arc::new(vec![Arc::new(NodeType::Note(NoteNode {
 				id: Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap(),
 				position: Arc::new(Vec2::new(0, 0)),
 				display: true,
@@ -121,7 +121,7 @@ mod tests {
 		let node = group.execute(&command).unwrap();
 		let group2 = match node {
 			NodeType::Group(n) => n,
-			_ => panic!("Not a Group"),
+			_ => panic!("Not a GroupNode"),
 		};
 		assert_eq!(
 			group

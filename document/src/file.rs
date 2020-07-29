@@ -314,7 +314,7 @@ mod tests {
 
 	#[test]
 	fn test_write() {
-		let note = NodeType::Note(Note {
+		let note = NodeType::Note(NoteNode {
 			id: Uuid::new_v4(),
 			position: Arc::new(Vec2::new(0, 0)),
 			display: true,
@@ -327,14 +327,14 @@ mod tests {
 		assert_eq!(size, 111);
 		// std::fs::write("test_write_1.pxlr", buffer.get_ref()).expect("Could not dump");
 
-		let group = NodeType::Group(Group {
+		let group = NodeType::Group(GroupNode {
 			id: Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap(),
 			position: Arc::new(Vec2::new(0, 0)),
 			display: true,
 			locked: false,
 			folded: false,
 			name: Arc::new("Foo".into()),
-			children: Arc::new(vec![Arc::new(NodeType::Note(Note {
+			children: Arc::new(vec![Arc::new(NodeType::Note(NoteNode {
 				id: Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap(),
 				position: Arc::new(Vec2::new(0, 0)),
 				display: true,
@@ -353,14 +353,14 @@ mod tests {
 	fn test_read() {
 		let group_id = Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap();
 		let note_id = Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap();
-		let group = NodeType::Group(Group {
+		let group = NodeType::Group(GroupNode {
 			id: group_id,
 			position: Arc::new(Vec2::new(0, 0)),
 			display: true,
 			locked: false,
 			folded: false,
 			name: Arc::new("Foo".into()),
-			children: Arc::new(vec![Arc::new(NodeType::Note(Note {
+			children: Arc::new(vec![Arc::new(NodeType::Note(NoteNode {
 				id: note_id,
 				position: Arc::new(Vec2::new(0, 0)),
 				display: true,
@@ -380,10 +380,12 @@ mod tests {
 		assert_eq!(file.index.hash, file_hash);
 		assert_eq!(file.index.prev_offset, 0);
 		assert_eq!(file.index.size, 140);
-		let node = file.get(&mut buffer, note_id).expect("Could not get Note");
+		let node = file
+			.get(&mut buffer, note_id)
+			.expect("Could not get NoteNode");
 		let note = match &*node {
 			NodeType::Note(node) => node,
-			_ => panic!("Not a Note"),
+			_ => panic!("Not a NoteNode"),
 		};
 		assert_eq!(*note.name, "Bar");
 		assert_eq!(*note.position, Vec2::new(0, 0));
@@ -392,10 +394,12 @@ mod tests {
 		assert_eq!(file.cache_node.len(), 1);
 
 		let mut file = File::read(&mut buffer).expect("Could not read");
-		let node = file.get(&mut buffer, group_id).expect("Could not get Note");
+		let node = file
+			.get(&mut buffer, group_id)
+			.expect("Could not get NoteNode");
 		let group = match &*node {
 			NodeType::Group(node) => node,
-			_ => panic!("Not a Group"),
+			_ => panic!("Not a GroupNode"),
 		};
 		assert_eq!(*group.name, "Foo");
 		assert_eq!(*group.position, Vec2::new(0, 0));
@@ -410,7 +414,7 @@ mod tests {
 	fn test_update() {
 		let group_id = Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap();
 		let note_id = Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap();
-		let group = NodeType::Group(Group {
+		let group = NodeType::Group(GroupNode {
 			id: group_id,
 			position: Arc::new(Vec2::new(0, 0)),
 			display: true,
@@ -426,14 +430,14 @@ mod tests {
 		assert_eq!(file.rows.len(), 1);
 		// std::fs::write("test_update_1.pxlr", buffer.get_ref()).expect("Could not dump");
 
-		let group = NodeType::Group(Group {
+		let group = NodeType::Group(GroupNode {
 			id: group_id,
 			position: Arc::new(Vec2::new(0, 0)),
 			display: true,
 			locked: false,
 			folded: false,
 			name: Arc::new("Bar".into()),
-			children: Arc::new(vec![Arc::new(NodeType::Note(Note {
+			children: Arc::new(vec![Arc::new(NodeType::Note(NoteNode {
 				id: note_id,
 				position: Arc::new(Vec2::new(0, 0)),
 				display: true,
@@ -452,14 +456,14 @@ mod tests {
 	fn test_trim() {
 		let group_id = Uuid::parse_str("fc2c9e3e-2cd7-4375-a6fe-49403cc9f82b").unwrap();
 		let note_id = Uuid::parse_str("1c3deaf3-3c7f-444d-9e05-9ddbcc2b9391").unwrap();
-		let group = NodeType::Group(Group {
+		let group = NodeType::Group(GroupNode {
 			id: group_id,
 			position: Arc::new(Vec2::new(0, 0)),
 			display: true,
 			locked: false,
 			folded: false,
 			name: Arc::new("Bar".into()),
-			children: Arc::new(vec![Arc::new(NodeType::Note(Note {
+			children: Arc::new(vec![Arc::new(NodeType::Note(NoteNode {
 				id: note_id,
 				position: Arc::new(Vec2::new(0, 0)),
 				display: true,
@@ -474,7 +478,7 @@ mod tests {
 		assert_eq!(file.rows.len(), 2);
 		// std::fs::write("test_trim_1.pxlr", buffer.get_ref()).expect("Could not dump");
 
-		let group = NodeType::Group(Group {
+		let group = NodeType::Group(GroupNode {
 			id: group_id,
 			position: Arc::new(Vec2::new(0, 0)),
 			display: true,
