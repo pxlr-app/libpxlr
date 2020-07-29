@@ -1,6 +1,9 @@
 use crate as document;
 use crate::prelude::*;
-use nom::{bytes::complete::take, number::complete::le_u8};
+use nom::{
+	bytes::complete::take,
+	number::complete::{le_f32, le_u8},
+};
 
 #[derive(SpriteNode, Debug, Clone, Serialize, Deserialize)]
 pub struct CanvasNode {
@@ -10,6 +13,7 @@ pub struct CanvasNode {
 	pub display: bool,
 	pub locked: bool,
 	pub name: Arc<String>,
+	pub opacity: f32,
 	pub channels: Channel,
 	pub data: Arc<Vec<u8>>,
 }
@@ -105,6 +109,24 @@ impl Locked for CanvasNode {
 
 impl Folded for CanvasNode {}
 
+impl Transparent for CanvasNode {
+	fn opacity(&self) -> f32 {
+		self.opacity
+	}
+	fn set_opacity(&self, opacity: f32) -> Option<CommandPair> {
+		Some((
+			CommandType::SetOpacity(SetOpacityCommand {
+				target: self.id,
+				opacity,
+			}),
+			CommandType::SetOpacity(SetOpacityCommand {
+				target: self.id,
+				opacity: self.opacity,
+			}),
+		))
+	}
+}
+
 impl HasChannels for CanvasNode {
 	fn channels(&self) -> Channel {
 		self.channels
@@ -179,6 +201,9 @@ impl Executable for CanvasNode {
 						None => patched.palette = None,
 					};
 				}
+				CommandType::SetOpacity(command) => {
+					patched.opacity = command.opacity;
+				}
 				CommandType::SetChannels(command) => {
 					patched.channels = command.channels;
 				}
@@ -206,6 +231,7 @@ impl parser::v0::ParseNode for CanvasNode {
 		bytes: &'bytes [u8],
 	) -> parser::Result<&'bytes [u8], NodeRef> {
 		use parser::Parse;
+		let (bytes, opacity) = le_f32(bytes)?;
 		let (bytes, channels) = Channel::parse(bytes)?;
 		let (bytes, has_palette) = le_u8(bytes)?;
 		let (bytes, palette) = if has_palette == 1 {
@@ -229,6 +255,7 @@ impl parser::v0::ParseNode for CanvasNode {
 				display: row.display,
 				locked: row.locked,
 				name: Arc::new(row.name.clone()),
+				opacity: opacity,
 				channels: channels,
 				data: Arc::new(data.to_owned()),
 			})),
@@ -244,7 +271,9 @@ impl parser::v0::WriteNode for CanvasNode {
 		dependencies: &mut Vec<NodeRef>,
 	) -> io::Result<usize> {
 		use parser::Write;
-		let mut size = self.channels.write(writer)?;
+		let mut size = 4usize;
+		writer.write(&self.opacity.to_le_bytes())?;
+		size += self.channels.write(writer)?;
 		if let Some(Some(palette)) = self.palette.clone().map(|weak| weak.upgrade()) {
 			size += writer.write(&1u8.to_le_bytes())?;
 			size += palette.as_node().id().write(writer)?;

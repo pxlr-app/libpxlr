@@ -1,12 +1,13 @@
 use crate as document;
 use crate::prelude::*;
-use nom::number::complete::le_u8;
+use nom::number::complete::{le_f32, le_u8};
 
 #[derive(DocumentNode, Debug, Clone, Serialize, Deserialize)]
 pub struct CanvasGroupNode {
 	pub id: Uuid,
 	pub position: Arc<Vec2<u32>>,
 	pub size: Arc<Extent2<u32>>,
+	pub opacity: f32,
 	pub channels: Channel,
 	pub palette: Option<Weak<NodeType>>,
 	pub display: bool,
@@ -132,7 +133,7 @@ impl Cropable for CanvasGroupNode {
 				offset,
 				size,
 			}),
-			CommandType::RestoreSprite(RestoreSpriteCommand {
+			CommandType::RestoreSprite(RestoreCanvasGroupCommand {
 				target: self.id,
 				children: self
 					.children
@@ -145,6 +146,24 @@ impl Cropable for CanvasGroupNode {
 }
 
 impl SpriteNode for CanvasGroupNode {}
+
+impl Transparent for CanvasGroupNode {
+	fn opacity(&self) -> f32 {
+		self.opacity
+	}
+	fn set_opacity(&self, opacity: f32) -> Option<CommandPair> {
+		Some((
+			CommandType::SetOpacity(SetOpacityCommand {
+				target: self.id,
+				opacity,
+			}),
+			CommandType::SetOpacity(SetOpacityCommand {
+				target: self.id,
+				opacity: self.opacity,
+			}),
+		))
+	}
+}
 
 impl HasChannels for CanvasGroupNode {
 	fn channels(&self) -> Channel {
@@ -328,6 +347,9 @@ impl Executable for CanvasGroupNode {
 						None => patched.palette = None,
 					};
 				}
+				CommandType::SetOpacity(command) => {
+					patched.opacity = command.opacity;
+				}
 				CommandType::SetChannels(command) => {
 					let children = patched
 						.children
@@ -382,6 +404,7 @@ impl parser::v0::ParseNode for CanvasGroupNode {
 		bytes: &'bytes [u8],
 	) -> parser::Result<&'bytes [u8], NodeRef> {
 		use parser::Parse;
+		let (bytes, opacity) = le_f32(bytes)?;
 		let (bytes, channels) = Channel::parse(bytes)?;
 		let (bytes, has_palette) = le_u8(bytes)?;
 		let (bytes, palette) = if has_palette == 1 {
@@ -400,6 +423,7 @@ impl parser::v0::ParseNode for CanvasGroupNode {
 				id: row.id,
 				position: Arc::new(row.position),
 				size: Arc::new(row.size),
+				opacity: opacity,
 				channels: channels,
 				palette: palette,
 				display: row.display,
@@ -420,7 +444,9 @@ impl parser::v0::WriteNode for CanvasGroupNode {
 		dependencies: &mut Vec<NodeRef>,
 	) -> io::Result<usize> {
 		use parser::Write;
-		let mut size = self.channels.write(writer)?;
+		let mut size = 4usize;
+		writer.write(&self.opacity.to_le_bytes())?;
+		size += self.channels.write(writer)?;
 		if let Some(Some(palette)) = self.palette.clone().map(|weak| weak.upgrade()) {
 			size += writer.write(&1u8.to_le_bytes())?;
 			size += palette.as_node().id().write(writer)?;

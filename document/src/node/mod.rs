@@ -200,12 +200,19 @@ pub trait Cropable {
 pub trait HasChannels {
 	fn channels(&self) -> Channel;
 }
-
+pub trait Transparent {
+	fn opacity(&self) -> f32 {
+		1.
+	}
+	fn set_opacity(&self, _opacity: f32) -> Option<CommandPair> {
+		None
+	}
+}
 pub trait DocumentNode: Node + Named + Positioned + Sized + Displayed + Locked + Folded {}
 impl Downcast for dyn DocumentNode {}
 
 pub trait SpriteNode:
-	Node + Named + Sized + Cropable + Displayed + Locked + Folded + HasChannels
+	Node + Named + Sized + Cropable + Displayed + Locked + Folded + HasChannels + Transparent
 {
 }
 impl Downcast for dyn SpriteNode {}

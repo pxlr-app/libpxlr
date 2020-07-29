@@ -9,11 +9,9 @@ use uuid::Uuid;
 mod canvas;
 mod node;
 mod palette;
-mod sprite;
 pub use canvas::*;
 pub use node::*;
 pub use palette::*;
-pub use sprite::*;
 
 pub trait Command: Any + Debug {
 	fn target(&self) -> Uuid;
@@ -39,9 +37,10 @@ pub enum CommandType {
 	RemoveColor(RemoveColorCommand),
 	MoveColor(MoveColorCommand),
 	SetPaletteNode(SetPaletteNodeCommand),
+	SetOpacity(SetOpacityCommand),
 	SetChannels(SetChannelsCommand),
 	Crop(CropCommand),
-	RestoreSprite(RestoreSpriteCommand),
+	RestoreSprite(RestoreCanvasGroupCommand),
 	RestoreCanvas(RestoreCanvasCommand),
 	ApplyStencil(ApplyStencilCommand),
 }
@@ -62,6 +61,7 @@ impl CommandType {
 			CommandType::RemoveColor(command) => command,
 			CommandType::MoveColor(command) => command,
 			CommandType::SetPaletteNode(command) => command,
+			CommandType::SetOpacity(command) => command,
 			CommandType::SetChannels(command) => command,
 			CommandType::Crop(command) => command,
 			CommandType::RestoreSprite(command) => command,

@@ -2,6 +2,30 @@ use crate as document;
 use crate::prelude::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Command)]
+pub struct SetPaletteNodeCommand {
+	pub target: Uuid,
+	pub palette: Option<NodeRef>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Command)]
+pub struct SetOpacityCommand {
+	pub target: Uuid,
+	pub opacity: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Command)]
+pub struct SetChannelsCommand {
+	pub target: Uuid,
+	pub channels: Channel,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Command)]
+pub struct RestoreCanvasGroupCommand {
+	pub target: Uuid,
+	pub children: Vec<CommandType>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Command)]
 pub struct CropCommand {
 	pub target: Uuid,
 	pub offset: Vec2<u32>,
