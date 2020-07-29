@@ -18,13 +18,13 @@ impl Named for Canvas {
 	fn name(&self) -> String {
 		(*self.name).clone()
 	}
-	fn rename(&self, name: String) -> Option<patch::PatchPair> {
+	fn rename(&self, name: String) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::Rename(patch::Rename {
+			CommandType::Rename(RenameCommand {
 				target: self.id,
 				name,
 			}),
-			patch::PatchType::Rename(patch::Rename {
+			CommandType::Rename(RenameCommand {
 				target: self.id,
 				name: (*self.name).clone(),
 			}),
@@ -36,13 +36,13 @@ impl Sized for Canvas {
 	fn size(&self) -> Extent2<u32> {
 		*self.size
 	}
-	fn resize(&self, target: Extent2<u32>) -> Option<patch::PatchPair> {
+	fn resize(&self, target: Extent2<u32>) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::Resize(patch::Resize {
+			CommandType::Resize(ResizeCommand {
 				target: self.id,
 				size: target,
 			}),
-			patch::PatchType::Resize(patch::Resize {
+			CommandType::Resize(ResizeCommand {
 				target: self.id,
 				size: *self.size,
 			}),
@@ -51,14 +51,14 @@ impl Sized for Canvas {
 }
 
 impl Cropable for Canvas {
-	fn crop(&self, offset: Vec2<u32>, size: Extent2<u32>) -> Option<patch::PatchPair> {
+	fn crop(&self, offset: Vec2<u32>, size: Extent2<u32>) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::Crop(patch::Crop {
+			CommandType::Crop(CropCommand {
 				target: self.id,
 				offset,
 				size,
 			}),
-			patch::PatchType::RestoreCanvas(patch::RestoreCanvas {
+			CommandType::RestoreCanvas(RestoreCanvasCommand {
 				target: self.id,
 				channels: self.channels,
 				data: (*self.data).to_owned(),
@@ -71,13 +71,13 @@ impl Displayed for Canvas {
 	fn display(&self) -> bool {
 		self.display
 	}
-	fn set_display(&self, visibility: bool) -> Option<patch::PatchPair> {
+	fn set_display(&self, visibility: bool) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::SetVisible(patch::SetVisible {
+			CommandType::SetVisible(SetVisibleCommand {
 				target: self.id,
 				visibility,
 			}),
-			patch::PatchType::SetVisible(patch::SetVisible {
+			CommandType::SetVisible(SetVisibleCommand {
 				target: self.id,
 				visibility: self.display,
 			}),
@@ -89,13 +89,13 @@ impl Locked for Canvas {
 	fn locked(&self) -> bool {
 		self.locked
 	}
-	fn set_lock(&self, locked: bool) -> Option<patch::PatchPair> {
+	fn set_lock(&self, locked: bool) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::SetLock(patch::SetLock {
+			CommandType::SetLock(SetLockCommand {
 				target: self.id,
 				locked,
 			}),
-			patch::PatchType::SetLock(patch::SetLock {
+			CommandType::SetLock(SetLockCommand {
 				target: self.id,
 				locked: self.locked,
 			}),
@@ -112,29 +112,29 @@ impl HasChannels for Canvas {
 }
 
 impl Canvas {
-	pub fn set_channels(&self, channels: Channel) -> Option<patch::PatchPair> {
+	pub fn set_channels(&self, channels: Channel) -> Option<CommandPair> {
 		if self.channels == channels {
 			None
 		} else {
 			Some((
-				patch::PatchType::SetChannels(patch::SetChannels {
+				CommandType::SetChannels(SetChannelsCommand {
 					target: self.id,
 					channels,
 				}),
-				patch::PatchType::SetChannels(patch::SetChannels {
+				CommandType::SetChannels(SetChannelsCommand {
 					target: self.id,
 					channels: self.channels,
 				}),
 			))
 		}
 	}
-	pub fn set_palette(&self, palette: Option<NodeRef>) -> Option<patch::PatchPair> {
+	pub fn set_palette(&self, palette: Option<NodeRef>) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::SetPalette(patch::SetPalette {
+			CommandType::SetPalette(SetPaletteCommand {
 				target: self.id,
 				palette,
 			}),
-			patch::PatchType::SetPalette(patch::SetPalette {
+			CommandType::SetPalette(SetPaletteCommand {
 				target: self.id,
 				palette: match self.palette.clone().map(|weak| weak.upgrade()) {
 					Some(Some(node)) => Some(node.clone()),
@@ -143,14 +143,14 @@ impl Canvas {
 			}),
 		))
 	}
-	pub fn apply_stencil(&self, offset: Vec2<u32>, stencil: Stencil) -> Option<patch::PatchPair> {
+	pub fn apply_stencil(&self, offset: Vec2<u32>, stencil: Stencil) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::ApplyStencil(patch::ApplyStencil {
+			CommandType::ApplyStencil(ApplyStencilCommand {
 				target: self.id,
 				offset,
 				stencil,
 			}),
-			patch::PatchType::RestoreCanvas(patch::RestoreCanvas {
+			CommandType::RestoreCanvas(RestoreCanvasCommand {
 				target: self.id,
 				channels: self.channels,
 				data: (*self.data).to_owned(),
@@ -159,36 +159,36 @@ impl Canvas {
 	}
 }
 
-impl patch::Patchable for Canvas {
-	fn patch(&self, patch: &patch::PatchType) -> Option<NodeType> {
+impl Executable for Canvas {
+	fn execute(&self, command: &CommandType) -> Option<NodeType> {
 		let mut patched = self.clone();
-		if patch.as_patch().target() == self.id {
-			match patch {
-				patch::PatchType::Rename(patch) => {
-					patched.name = Arc::new(patch.name.clone());
+		if command.as_command().target() == self.id {
+			match command {
+				CommandType::Rename(command) => {
+					patched.name = Arc::new(command.name.clone());
 				}
-				patch::PatchType::SetVisible(patch) => {
-					patched.display = patch.visibility;
+				CommandType::SetVisible(command) => {
+					patched.display = command.visibility;
 				}
-				patch::PatchType::SetLock(patch) => {
-					patched.locked = patch.locked;
+				CommandType::SetLock(command) => {
+					patched.locked = command.locked;
 				}
-				patch::PatchType::SetPalette(patch) => {
-					match &patch.palette {
+				CommandType::SetPalette(command) => {
+					match &command.palette {
 						Some(node) => patched.palette = Some(Arc::downgrade(node)),
 						None => patched.palette = None,
 					};
 				}
-				patch::PatchType::SetChannels(patch) => {
-					patched.channels = patch.channels;
+				CommandType::SetChannels(command) => {
+					patched.channels = command.channels;
 				}
-				patch::PatchType::RestoreCanvas(patch) => {
-					patched.channels = patch.channels;
-					patched.data = Arc::new(patch.data.to_owned());
+				CommandType::RestoreCanvas(command) => {
+					patched.channels = command.channels;
+					patched.data = Arc::new(command.data.to_owned());
 				}
-				patch::PatchType::Resize(_patch) => unimplemented!(),
-				patch::PatchType::Crop(_patch) => unimplemented!(),
-				patch::PatchType::ApplyStencil(_patch) => unimplemented!(),
+				CommandType::Resize(_patch) => unimplemented!(),
+				CommandType::Crop(_patch) => unimplemented!(),
+				CommandType::ApplyStencil(_patch) => unimplemented!(),
 				_ => return None,
 			};
 			Some(NodeType::Canvas(patched))

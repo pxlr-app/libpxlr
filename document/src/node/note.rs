@@ -14,13 +14,13 @@ impl Named for Note {
 	fn name(&self) -> String {
 		(*self.name).clone()
 	}
-	fn rename(&self, name: String) -> Option<patch::PatchPair> {
+	fn rename(&self, name: String) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::Rename(patch::Rename {
+			CommandType::Rename(RenameCommand {
 				target: self.id,
 				name,
 			}),
-			patch::PatchType::Rename(patch::Rename {
+			CommandType::Rename(RenameCommand {
 				target: self.id,
 				name: (*self.name).clone(),
 			}),
@@ -32,13 +32,13 @@ impl Positioned for Note {
 	fn position(&self) -> Vec2<u32> {
 		*self.position
 	}
-	fn translate(&self, position: Vec2<u32>) -> Option<patch::PatchPair> {
+	fn translate(&self, position: Vec2<u32>) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::Translate(patch::Translate {
+			CommandType::Translate(TranslateCommand {
 				target: self.id,
 				position,
 			}),
-			patch::PatchType::Translate(patch::Translate {
+			CommandType::Translate(TranslateCommand {
 				target: self.id,
 				position: *self.position,
 			}),
@@ -52,13 +52,13 @@ impl Displayed for Note {
 	fn display(&self) -> bool {
 		self.display
 	}
-	fn set_display(&self, visibility: bool) -> Option<patch::PatchPair> {
+	fn set_display(&self, visibility: bool) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::SetVisible(patch::SetVisible {
+			CommandType::SetVisible(SetVisibleCommand {
 				target: self.id,
 				visibility,
 			}),
-			patch::PatchType::SetVisible(patch::SetVisible {
+			CommandType::SetVisible(SetVisibleCommand {
 				target: self.id,
 				visibility: self.display,
 			}),
@@ -70,13 +70,13 @@ impl Locked for Note {
 	fn locked(&self) -> bool {
 		self.locked
 	}
-	fn set_lock(&self, locked: bool) -> Option<patch::PatchPair> {
+	fn set_lock(&self, locked: bool) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::SetLock(patch::SetLock {
+			CommandType::SetLock(SetLockCommand {
 				target: self.id,
 				locked,
 			}),
-			patch::PatchType::SetLock(patch::SetLock {
+			CommandType::SetLock(SetLockCommand {
 				target: self.id,
 				locked: self.locked,
 			}),
@@ -86,22 +86,22 @@ impl Locked for Note {
 
 impl Folded for Note {}
 
-impl patch::Patchable for Note {
-	fn patch(&self, patch: &patch::PatchType) -> Option<NodeType> {
-		if patch.as_patch().target() == self.id {
+impl Executable for Note {
+	fn execute(&self, command: &CommandType) -> Option<NodeType> {
+		if command.as_command().target() == self.id {
 			let mut patched = self.clone();
-			match patch {
-				patch::PatchType::Rename(patch) => {
-					patched.name = Arc::new(patch.name.clone());
+			match command {
+				CommandType::Rename(command) => {
+					patched.name = Arc::new(command.name.clone());
 				}
-				patch::PatchType::Translate(patch) => {
-					patched.position = Arc::new(patch.position);
+				CommandType::Translate(command) => {
+					patched.position = Arc::new(command.position);
 				}
-				patch::PatchType::SetVisible(patch) => {
-					patched.display = patch.visibility;
+				CommandType::SetVisible(command) => {
+					patched.display = command.visibility;
 				}
-				patch::PatchType::SetLock(patch) => {
-					patched.locked = patch.locked;
+				CommandType::SetLock(command) => {
+					patched.locked = command.locked;
 				}
 				_ => return None,
 			};

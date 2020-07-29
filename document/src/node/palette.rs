@@ -16,13 +16,13 @@ impl Named for Palette {
 	fn name(&self) -> String {
 		(*self.name).clone()
 	}
-	fn rename(&self, name: String) -> Option<patch::PatchPair> {
+	fn rename(&self, name: String) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::Rename(patch::Rename {
+			CommandType::Rename(RenameCommand {
 				target: self.id,
 				name,
 			}),
-			patch::PatchType::Rename(patch::Rename {
+			CommandType::Rename(RenameCommand {
 				target: self.id,
 				name: (*self.name).clone(),
 			}),
@@ -34,13 +34,13 @@ impl Positioned for Palette {
 	fn position(&self) -> Vec2<u32> {
 		*self.position
 	}
-	fn translate(&self, position: Vec2<u32>) -> Option<patch::PatchPair> {
+	fn translate(&self, position: Vec2<u32>) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::Translate(patch::Translate {
+			CommandType::Translate(TranslateCommand {
 				target: self.id,
 				position,
 			}),
-			patch::PatchType::Translate(patch::Translate {
+			CommandType::Translate(TranslateCommand {
 				target: self.id,
 				position: *self.position,
 			}),
@@ -54,13 +54,13 @@ impl Displayed for Palette {
 	fn display(&self) -> bool {
 		self.display
 	}
-	fn set_display(&self, visibility: bool) -> Option<patch::PatchPair> {
+	fn set_display(&self, visibility: bool) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::SetVisible(patch::SetVisible {
+			CommandType::SetVisible(SetVisibleCommand {
 				target: self.id,
 				visibility,
 			}),
-			patch::PatchType::SetVisible(patch::SetVisible {
+			CommandType::SetVisible(SetVisibleCommand {
 				target: self.id,
 				visibility: self.display,
 			}),
@@ -72,13 +72,13 @@ impl Locked for Palette {
 	fn locked(&self) -> bool {
 		self.locked
 	}
-	fn set_lock(&self, locked: bool) -> Option<patch::PatchPair> {
+	fn set_lock(&self, locked: bool) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::SetLock(patch::SetLock {
+			CommandType::SetLock(SetLockCommand {
 				target: self.id,
 				locked,
 			}),
-			patch::PatchType::SetLock(patch::SetLock {
+			CommandType::SetLock(SetLockCommand {
 				target: self.id,
 				locked: self.locked,
 			}),
@@ -89,31 +89,31 @@ impl Locked for Palette {
 impl Folded for Palette {}
 
 impl Palette {
-	pub fn add_color(&self, color: RGB) -> Option<patch::PatchPair> {
+	pub fn add_color(&self, color: RGB) -> Option<CommandPair> {
 		if self.colors.iter().find(|c| *c == &color).is_some() {
 			None
 		} else {
 			Some((
-				patch::PatchType::AddColor(patch::AddColor {
+				CommandType::AddColor(AddColorCommand {
 					target: self.id,
 					color: color.clone(),
 				}),
-				patch::PatchType::RemoveColor(patch::RemoveColor {
+				CommandType::RemoveColor(RemoveColorCommand {
 					target: self.id,
 					color,
 				}),
 			))
 		}
 	}
-	pub fn remove_color(&self, color: RGB) -> Option<patch::PatchPair> {
+	pub fn remove_color(&self, color: RGB) -> Option<CommandPair> {
 		let color = self.colors.iter().find(|c| *c == &color);
 		match color {
 			Some(color) => Some((
-				patch::PatchType::RemoveColor(patch::RemoveColor {
+				CommandType::RemoveColor(RemoveColorCommand {
 					target: self.id,
 					color: color.clone(),
 				}),
-				patch::PatchType::AddColor(patch::AddColor {
+				CommandType::AddColor(AddColorCommand {
 					target: self.id,
 					color: color.clone(),
 				}),
@@ -121,16 +121,16 @@ impl Palette {
 			None => None,
 		}
 	}
-	pub fn move_color(&self, color: RGB, position: usize) -> Option<patch::PatchPair> {
+	pub fn move_color(&self, color: RGB, position: usize) -> Option<CommandPair> {
 		let old_position = self.colors.iter().position(|c| c == &color);
 		match old_position {
 			Some(old_position) => Some((
-				patch::PatchType::MoveColor(patch::MoveColor {
+				CommandType::MoveColor(MoveColorCommand {
 					target: self.id,
 					color: color.clone(),
 					position,
 				}),
-				patch::PatchType::MoveColor(patch::MoveColor {
+				CommandType::MoveColor(MoveColorCommand {
 					target: self.id,
 					color: color,
 					position: old_position,
@@ -141,9 +141,9 @@ impl Palette {
 	}
 }
 
-impl patch::Patchable for Palette {
-	fn patch(&self, patch: &patch::PatchType) -> Option<NodeType> {
-		if patch.as_patch().target() == self.id {
+impl Executable for Palette {
+	fn execute(&self, command: &CommandType) -> Option<NodeType> {
+		if command.as_command().target() == self.id {
 			let mut patched = Palette {
 				id: self.id,
 				position: self.position.clone(),
@@ -152,31 +152,31 @@ impl patch::Patchable for Palette {
 				name: self.name.clone(),
 				colors: self.colors.clone(),
 			};
-			match patch {
-				patch::PatchType::Rename(patch) => {
-					patched.name = Arc::new(patch.name.clone());
+			match command {
+				CommandType::Rename(command) => {
+					patched.name = Arc::new(command.name.clone());
 				}
-				patch::PatchType::Translate(patch) => {
-					patched.position = Arc::new(patch.position);
+				CommandType::Translate(command) => {
+					patched.position = Arc::new(command.position);
 				}
-				patch::PatchType::SetVisible(patch) => {
-					patched.display = patch.visibility;
+				CommandType::SetVisible(command) => {
+					patched.display = command.visibility;
 				}
-				patch::PatchType::SetLock(patch) => {
-					patched.locked = patch.locked;
+				CommandType::SetLock(command) => {
+					patched.locked = command.locked;
 				}
-				patch::PatchType::AddColor(patch) => {
+				CommandType::AddColor(command) => {
 					let mut colors: Vec<RGB> =
 						patched.colors.iter().map(|color| color.clone()).collect();
-					colors.push(patch.color.clone());
+					colors.push(command.color.clone());
 					patched.colors = Arc::new(colors);
 				}
-				patch::PatchType::RemoveColor(patch) => {
+				CommandType::RemoveColor(command) => {
 					let colors: Vec<RGB> = patched
 						.colors
 						.iter()
 						.filter_map(|color| {
-							if color == &patch.color {
+							if color == &command.color {
 								None
 							} else {
 								Some(color.clone())
@@ -185,15 +185,15 @@ impl patch::Patchable for Palette {
 						.collect();
 					patched.colors = Arc::new(colors);
 				}
-				patch::PatchType::MoveColor(patch) => {
+				CommandType::MoveColor(command) => {
 					let mut colors: Vec<RGB> =
 						patched.colors.iter().map(|color| color.clone()).collect();
-					if let Some(index) = colors.iter().position(|color| color == &patch.color) {
+					if let Some(index) = colors.iter().position(|color| color == &command.color) {
 						let color = colors.remove(index);
-						if patch.position > colors.len() {
+						if command.position > colors.len() {
 							colors.push(color);
 						} else {
-							colors.insert(patch.position, color);
+							colors.insert(command.position, color);
 						}
 						patched.colors = Arc::new(colors);
 					} else {

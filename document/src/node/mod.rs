@@ -15,7 +15,7 @@ pub use note::*;
 pub use palette::*;
 pub use sprite::*;
 
-pub trait Node: Any + Debug + patch::Patchable {
+pub trait Node: Any + Debug + Executable {
 	fn id(&self) -> Uuid;
 }
 impl Downcast for dyn Node {}
@@ -145,7 +145,7 @@ pub trait Named {
 	fn name(&self) -> String {
 		"".into()
 	}
-	fn rename(&self, _name: String) -> Option<patch::PatchPair> {
+	fn rename(&self, _name: String) -> Option<CommandPair> {
 		None
 	}
 }
@@ -153,7 +153,7 @@ pub trait Positioned {
 	fn position(&self) -> Vec2<u32> {
 		Vec2::new(0, 0)
 	}
-	fn translate(&self, _target: Vec2<u32>) -> Option<patch::PatchPair> {
+	fn translate(&self, _target: Vec2<u32>) -> Option<CommandPair> {
 		None
 	}
 }
@@ -161,7 +161,7 @@ pub trait Sized {
 	fn size(&self) -> Extent2<u32> {
 		Extent2::new(0, 0)
 	}
-	fn resize(&self, _target: Extent2<u32>) -> Option<patch::PatchPair> {
+	fn resize(&self, _target: Extent2<u32>) -> Option<CommandPair> {
 		None
 	}
 }
@@ -169,7 +169,7 @@ pub trait Displayed {
 	fn display(&self) -> bool {
 		true
 	}
-	fn set_display(&self, _display: bool) -> Option<patch::PatchPair> {
+	fn set_display(&self, _display: bool) -> Option<CommandPair> {
 		None
 	}
 }
@@ -177,7 +177,7 @@ pub trait Locked {
 	fn locked(&self) -> bool {
 		false
 	}
-	fn set_lock(&self, _locked: bool) -> Option<patch::PatchPair> {
+	fn set_lock(&self, _locked: bool) -> Option<CommandPair> {
 		None
 	}
 }
@@ -185,12 +185,12 @@ pub trait Folded {
 	fn folded(&self) -> bool {
 		false
 	}
-	fn set_fold(&self, _folded: bool) -> Option<patch::PatchPair> {
+	fn set_fold(&self, _folded: bool) -> Option<CommandPair> {
 		None
 	}
 }
 pub trait Cropable {
-	fn crop(&self, _offset: Vec2<u32>, _size: Extent2<u32>) -> Option<patch::PatchPair> {
+	fn crop(&self, _offset: Vec2<u32>, _size: Extent2<u32>) -> Option<CommandPair> {
 		None
 	}
 }

@@ -20,13 +20,13 @@ impl Named for Sprite {
 	fn name(&self) -> String {
 		(*self.name).clone()
 	}
-	fn rename(&self, name: String) -> Option<patch::PatchPair> {
+	fn rename(&self, name: String) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::Rename(patch::Rename {
+			CommandType::Rename(RenameCommand {
 				target: self.id,
 				name,
 			}),
-			patch::PatchType::Rename(patch::Rename {
+			CommandType::Rename(RenameCommand {
 				target: self.id,
 				name: (*self.name).clone(),
 			}),
@@ -38,13 +38,13 @@ impl Positioned for Sprite {
 	fn position(&self) -> Vec2<u32> {
 		*self.position
 	}
-	fn translate(&self, position: Vec2<u32>) -> Option<patch::PatchPair> {
+	fn translate(&self, position: Vec2<u32>) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::Translate(patch::Translate {
+			CommandType::Translate(TranslateCommand {
 				target: self.id,
 				position,
 			}),
-			patch::PatchType::Translate(patch::Translate {
+			CommandType::Translate(TranslateCommand {
 				target: self.id,
 				position: *self.position,
 			}),
@@ -56,13 +56,13 @@ impl Sized for Sprite {
 	fn size(&self) -> Extent2<u32> {
 		*self.size
 	}
-	fn resize(&self, target: Extent2<u32>) -> Option<patch::PatchPair> {
+	fn resize(&self, target: Extent2<u32>) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::Resize(patch::Resize {
+			CommandType::Resize(ResizeCommand {
 				target: self.id,
 				size: target,
 			}),
-			patch::PatchType::Resize(patch::Resize {
+			CommandType::Resize(ResizeCommand {
 				target: self.id,
 				size: *self.size,
 			}),
@@ -74,13 +74,13 @@ impl Displayed for Sprite {
 	fn display(&self) -> bool {
 		self.display
 	}
-	fn set_display(&self, visibility: bool) -> Option<patch::PatchPair> {
+	fn set_display(&self, visibility: bool) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::SetVisible(patch::SetVisible {
+			CommandType::SetVisible(SetVisibleCommand {
 				target: self.id,
 				visibility,
 			}),
-			patch::PatchType::SetVisible(patch::SetVisible {
+			CommandType::SetVisible(SetVisibleCommand {
 				target: self.id,
 				visibility: self.display,
 			}),
@@ -92,13 +92,13 @@ impl Locked for Sprite {
 	fn locked(&self) -> bool {
 		self.locked
 	}
-	fn set_lock(&self, locked: bool) -> Option<patch::PatchPair> {
+	fn set_lock(&self, locked: bool) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::SetLock(patch::SetLock {
+			CommandType::SetLock(SetLockCommand {
 				target: self.id,
 				locked,
 			}),
-			patch::PatchType::SetLock(patch::SetLock {
+			CommandType::SetLock(SetLockCommand {
 				target: self.id,
 				locked: self.locked,
 			}),
@@ -110,13 +110,13 @@ impl Folded for Sprite {
 	fn folded(&self) -> bool {
 		self.folded
 	}
-	fn set_fold(&self, folded: bool) -> Option<patch::PatchPair> {
+	fn set_fold(&self, folded: bool) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::SetFold(patch::SetFold {
+			CommandType::SetFold(SetFoldCommand {
 				target: self.id,
 				folded,
 			}),
-			patch::PatchType::SetFold(patch::SetFold {
+			CommandType::SetFold(SetFoldCommand {
 				target: self.id,
 				folded: self.folded,
 			}),
@@ -125,14 +125,14 @@ impl Folded for Sprite {
 }
 
 impl Cropable for Sprite {
-	fn crop(&self, offset: Vec2<u32>, size: Extent2<u32>) -> Option<patch::PatchPair> {
+	fn crop(&self, offset: Vec2<u32>, size: Extent2<u32>) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::Crop(patch::Crop {
+			CommandType::Crop(CropCommand {
 				target: self.id,
 				offset,
 				size,
 			}),
-			patch::PatchType::RestoreSprite(patch::RestoreSprite {
+			CommandType::RestoreSprite(RestoreSpriteCommand {
 				target: self.id,
 				children: self
 					.children
@@ -153,7 +153,7 @@ impl HasChannels for Sprite {
 }
 
 impl Sprite {
-	pub fn add_child(&self, child: NodeRef) -> Option<patch::PatchPair> {
+	pub fn add_child(&self, child: NodeRef) -> Option<CommandPair> {
 		if self
 			.children
 			.iter()
@@ -164,29 +164,29 @@ impl Sprite {
 			None
 		} else {
 			Some((
-				patch::PatchType::AddChild(patch::AddChild {
+				CommandType::AddChild(AddChildCommand {
 					target: self.id,
 					child: child.clone(),
 				}),
-				patch::PatchType::RemoveChild(patch::RemoveChild {
+				CommandType::RemoveChild(RemoveChildCommand {
 					target: self.id,
 					child_id: child.as_node().id(),
 				}),
 			))
 		}
 	}
-	pub fn remove_child(&self, child_id: Uuid) -> Option<patch::PatchPair> {
+	pub fn remove_child(&self, child_id: Uuid) -> Option<CommandPair> {
 		let child = self
 			.children
 			.iter()
 			.find(|child| child.as_node().id() == child.as_node().id());
 		match child {
 			Some(child) => Some((
-				patch::PatchType::RemoveChild(patch::RemoveChild {
+				CommandType::RemoveChild(RemoveChildCommand {
 					target: self.id,
 					child_id: child_id,
 				}),
-				patch::PatchType::AddChild(patch::AddChild {
+				CommandType::AddChild(AddChildCommand {
 					target: self.id,
 					child: child.clone(),
 				}),
@@ -194,19 +194,19 @@ impl Sprite {
 			None => None,
 		}
 	}
-	pub fn move_child(&self, child_id: Uuid, position: usize) -> Option<patch::PatchPair> {
+	pub fn move_child(&self, child_id: Uuid, position: usize) -> Option<CommandPair> {
 		let old_position = self
 			.children
 			.iter()
 			.position(|child| child.as_node().id() == child_id);
 		match old_position {
 			Some(old_position) => Some((
-				patch::PatchType::MoveChild(patch::MoveChild {
+				CommandType::MoveChild(MoveChildCommand {
 					target: self.id,
 					child_id,
 					position,
 				}),
-				patch::PatchType::MoveChild(patch::MoveChild {
+				CommandType::MoveChild(MoveChildCommand {
 					target: self.id,
 					child_id,
 					position: old_position,
@@ -215,29 +215,29 @@ impl Sprite {
 			None => None,
 		}
 	}
-	pub fn set_channels(&self, channels: Channel) -> Option<patch::PatchPair> {
+	pub fn set_channels(&self, channels: Channel) -> Option<CommandPair> {
 		if self.channels == channels {
 			None
 		} else {
 			Some((
-				patch::PatchType::SetChannels(patch::SetChannels {
+				CommandType::SetChannels(SetChannelsCommand {
 					target: self.id,
 					channels,
 				}),
-				patch::PatchType::SetChannels(patch::SetChannels {
+				CommandType::SetChannels(SetChannelsCommand {
 					target: self.id,
 					channels: self.channels,
 				}),
 			))
 		}
 	}
-	pub fn set_palette(&self, palette: Option<NodeRef>) -> Option<patch::PatchPair> {
+	pub fn set_palette(&self, palette: Option<NodeRef>) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::SetPalette(patch::SetPalette {
+			CommandType::SetPalette(SetPaletteCommand {
 				target: self.id,
 				palette,
 			}),
-			patch::PatchType::SetPalette(patch::SetPalette {
+			CommandType::SetPalette(SetPaletteCommand {
 				target: self.id,
 				palette: match self.palette.clone().map(|weak| weak.upgrade()) {
 					Some(Some(node)) => Some(node.clone()),
@@ -248,38 +248,38 @@ impl Sprite {
 	}
 }
 
-impl patch::Patchable for Sprite {
-	fn patch(&self, patch: &patch::PatchType) -> Option<NodeType> {
+impl Executable for Sprite {
+	fn execute(&self, command: &CommandType) -> Option<NodeType> {
 		let mut patched = self.clone();
-		if patch.as_patch().target() == self.id {
-			match patch {
-				patch::PatchType::Rename(patch) => {
-					patched.name = Arc::new(patch.name.clone());
+		if command.as_command().target() == self.id {
+			match command {
+				CommandType::Rename(command) => {
+					patched.name = Arc::new(command.name.clone());
 				}
-				patch::PatchType::Translate(patch) => {
-					patched.position = Arc::new(patch.position);
+				CommandType::Translate(command) => {
+					patched.position = Arc::new(command.position);
 				}
-				patch::PatchType::SetVisible(patch) => {
-					patched.display = patch.visibility;
+				CommandType::SetVisible(command) => {
+					patched.display = command.visibility;
 				}
-				patch::PatchType::SetLock(patch) => {
-					patched.locked = patch.locked;
+				CommandType::SetLock(command) => {
+					patched.locked = command.locked;
 				}
-				patch::PatchType::SetFold(patch) => {
-					patched.folded = patch.folded;
+				CommandType::SetFold(command) => {
+					patched.folded = command.folded;
 				}
-				patch::PatchType::AddChild(patch) => {
+				CommandType::AddChild(command) => {
 					let mut children: NodeList =
 						patched.children.iter().map(|child| child.clone()).collect();
-					children.push(patch.child.clone());
+					children.push(command.child.clone());
 					patched.children = Arc::new(children);
 				}
-				patch::PatchType::RemoveChild(patch) => {
+				CommandType::RemoveChild(command) => {
 					let children: NodeList = patched
 						.children
 						.iter()
 						.filter_map(|child| {
-							if child.as_node().id() == patch.child_id {
+							if child.as_node().id() == command.child_id {
 								None
 							} else {
 								Some(child.clone())
@@ -288,33 +288,33 @@ impl patch::Patchable for Sprite {
 						.collect();
 					patched.children = Arc::new(children);
 				}
-				patch::PatchType::MoveChild(patch) => {
+				CommandType::MoveChild(command) => {
 					let mut children: NodeList =
 						patched.children.iter().map(|child| child.clone()).collect();
 					if let Some(index) = children
 						.iter()
-						.position(|child| child.as_node().id() == patch.child_id)
+						.position(|child| child.as_node().id() == command.child_id)
 					{
 						let child = children.remove(index);
-						if patch.position > children.len() {
+						if command.position > children.len() {
 							children.push(child);
 						} else {
-							children.insert(patch.position, child);
+							children.insert(command.position, child);
 						}
 						patched.children = Arc::new(children);
 					} else {
 						return None;
 					}
 				}
-				patch::PatchType::SetPalette(patch) => {
+				CommandType::SetPalette(command) => {
 					let children = patched
 						.children
 						.iter()
 						.map(|child| {
-							match child.as_node().patch(&patch::PatchType::SetPalette(
-								patch::SetPalette {
+							match child.as_node().execute(&CommandType::SetPalette(
+								SetPaletteCommand {
 									target: child.as_node().id(),
-									palette: patch.palette.clone(),
+									palette: command.palette.clone(),
 								},
 							)) {
 								Some(new_child) => Arc::new(new_child),
@@ -323,20 +323,20 @@ impl patch::Patchable for Sprite {
 						})
 						.collect();
 					patched.children = Arc::new(children);
-					match &patch.palette {
+					match &command.palette {
 						Some(node) => patched.palette = Some(Arc::downgrade(node)),
 						None => patched.palette = None,
 					};
 				}
-				patch::PatchType::SetChannels(patch) => {
+				CommandType::SetChannels(command) => {
 					let children = patched
 						.children
 						.iter()
 						.map(|child| {
-							match child.as_node().patch(&patch::PatchType::SetChannels(
-								patch::SetChannels {
+							match child.as_node().execute(&CommandType::SetChannels(
+								SetChannelsCommand {
 									target: child.as_node().id(),
-									channels: patch.channels,
+									channels: command.channels,
 								},
 							)) {
 								Some(new_child) => Arc::new(new_child),
@@ -345,7 +345,7 @@ impl patch::Patchable for Sprite {
 						})
 						.collect();
 					patched.children = Arc::new(children);
-					patched.channels = patch.channels;
+					patched.channels = command.channels;
 				}
 				_ => return None,
 			};
@@ -356,7 +356,7 @@ impl patch::Patchable for Sprite {
 				patched
 					.children
 					.iter()
-					.map(|child| match child.as_node().patch(patch) {
+					.map(|child| match child.as_node().execute(command) {
 						Some(child) => {
 							mutated = true;
 							Arc::new(child)

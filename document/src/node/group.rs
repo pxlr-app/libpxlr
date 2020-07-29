@@ -16,13 +16,13 @@ impl Named for Group {
 	fn name(&self) -> String {
 		(*self.name).clone()
 	}
-	fn rename(&self, name: String) -> Option<patch::PatchPair> {
+	fn rename(&self, name: String) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::Rename(patch::Rename {
+			CommandType::Rename(RenameCommand {
 				target: self.id,
 				name,
 			}),
-			patch::PatchType::Rename(patch::Rename {
+			CommandType::Rename(RenameCommand {
 				target: self.id,
 				name: (*self.name).clone(),
 			}),
@@ -34,13 +34,13 @@ impl Positioned for Group {
 	fn position(&self) -> Vec2<u32> {
 		*self.position
 	}
-	fn translate(&self, position: Vec2<u32>) -> Option<patch::PatchPair> {
+	fn translate(&self, position: Vec2<u32>) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::Translate(patch::Translate {
+			CommandType::Translate(TranslateCommand {
 				target: self.id,
 				position,
 			}),
-			patch::PatchType::Translate(patch::Translate {
+			CommandType::Translate(TranslateCommand {
 				target: self.id,
 				position: *self.position,
 			}),
@@ -54,13 +54,13 @@ impl Displayed for Group {
 	fn display(&self) -> bool {
 		self.display
 	}
-	fn set_display(&self, visibility: bool) -> Option<patch::PatchPair> {
+	fn set_display(&self, visibility: bool) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::SetVisible(patch::SetVisible {
+			CommandType::SetVisible(SetVisibleCommand {
 				target: self.id,
 				visibility,
 			}),
-			patch::PatchType::SetVisible(patch::SetVisible {
+			CommandType::SetVisible(SetVisibleCommand {
 				target: self.id,
 				visibility: self.display,
 			}),
@@ -72,13 +72,13 @@ impl Locked for Group {
 	fn locked(&self) -> bool {
 		self.locked
 	}
-	fn set_lock(&self, locked: bool) -> Option<patch::PatchPair> {
+	fn set_lock(&self, locked: bool) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::SetLock(patch::SetLock {
+			CommandType::SetLock(SetLockCommand {
 				target: self.id,
 				locked,
 			}),
-			patch::PatchType::SetLock(patch::SetLock {
+			CommandType::SetLock(SetLockCommand {
 				target: self.id,
 				locked: self.locked,
 			}),
@@ -90,13 +90,13 @@ impl Folded for Group {
 	fn folded(&self) -> bool {
 		self.folded
 	}
-	fn set_fold(&self, folded: bool) -> Option<patch::PatchPair> {
+	fn set_fold(&self, folded: bool) -> Option<CommandPair> {
 		Some((
-			patch::PatchType::SetFold(patch::SetFold {
+			CommandType::SetFold(SetFoldCommand {
 				target: self.id,
 				folded,
 			}),
-			patch::PatchType::SetFold(patch::SetFold {
+			CommandType::SetFold(SetFoldCommand {
 				target: self.id,
 				folded: self.folded,
 			}),
@@ -105,7 +105,7 @@ impl Folded for Group {
 }
 
 impl Group {
-	pub fn add_child(&self, child: NodeRef) -> Option<patch::PatchPair> {
+	pub fn add_child(&self, child: NodeRef) -> Option<CommandPair> {
 		if self
 			.children
 			.iter()
@@ -115,29 +115,29 @@ impl Group {
 			None
 		} else {
 			Some((
-				patch::PatchType::AddChild(patch::AddChild {
+				CommandType::AddChild(AddChildCommand {
 					target: self.id,
 					child: child.clone(),
 				}),
-				patch::PatchType::RemoveChild(patch::RemoveChild {
+				CommandType::RemoveChild(RemoveChildCommand {
 					target: self.id,
 					child_id: child.as_node().id(),
 				}),
 			))
 		}
 	}
-	pub fn remove_child(&self, child_id: Uuid) -> Option<patch::PatchPair> {
+	pub fn remove_child(&self, child_id: Uuid) -> Option<CommandPair> {
 		let child = self
 			.children
 			.iter()
 			.find(|child| child.as_node().id() == child.as_node().id());
 		match child {
 			Some(child) => Some((
-				patch::PatchType::RemoveChild(patch::RemoveChild {
+				CommandType::RemoveChild(RemoveChildCommand {
 					target: self.id,
 					child_id: child_id,
 				}),
-				patch::PatchType::AddChild(patch::AddChild {
+				CommandType::AddChild(AddChildCommand {
 					target: self.id,
 					child: child.clone(),
 				}),
@@ -145,19 +145,19 @@ impl Group {
 			None => None,
 		}
 	}
-	pub fn move_child(&self, child_id: Uuid, position: usize) -> Option<patch::PatchPair> {
+	pub fn move_child(&self, child_id: Uuid, position: usize) -> Option<CommandPair> {
 		let old_position = self
 			.children
 			.iter()
 			.position(|child| child.as_node().id() == child_id);
 		match old_position {
 			Some(old_position) => Some((
-				patch::PatchType::MoveChild(patch::MoveChild {
+				CommandType::MoveChild(MoveChildCommand {
 					target: self.id,
 					child_id,
 					position,
 				}),
-				patch::PatchType::MoveChild(patch::MoveChild {
+				CommandType::MoveChild(MoveChildCommand {
 					target: self.id,
 					child_id,
 					position: old_position,
@@ -168,38 +168,38 @@ impl Group {
 	}
 }
 
-impl patch::Patchable for Group {
-	fn patch(&self, patch: &patch::PatchType) -> Option<NodeType> {
+impl Executable for Group {
+	fn execute(&self, command: &CommandType) -> Option<NodeType> {
 		let mut patched = self.clone();
-		if patch.as_patch().target() == self.id {
-			match patch {
-				patch::PatchType::Rename(patch) => {
-					patched.name = Arc::new(patch.name.clone());
+		if command.as_command().target() == self.id {
+			match command {
+				CommandType::Rename(command) => {
+					patched.name = Arc::new(command.name.clone());
 				}
-				patch::PatchType::Translate(patch) => {
-					patched.position = Arc::new(patch.position);
+				CommandType::Translate(command) => {
+					patched.position = Arc::new(command.position);
 				}
-				patch::PatchType::SetVisible(patch) => {
-					patched.display = patch.visibility;
+				CommandType::SetVisible(command) => {
+					patched.display = command.visibility;
 				}
-				patch::PatchType::SetLock(patch) => {
-					patched.locked = patch.locked;
+				CommandType::SetLock(command) => {
+					patched.locked = command.locked;
 				}
-				patch::PatchType::SetFold(patch) => {
-					patched.folded = patch.folded;
+				CommandType::SetFold(command) => {
+					patched.folded = command.folded;
 				}
-				patch::PatchType::AddChild(patch) => {
+				CommandType::AddChild(command) => {
 					let mut children: NodeList =
 						patched.children.iter().map(|child| child.clone()).collect();
-					children.push(patch.child.clone());
+					children.push(command.child.clone());
 					patched.children = Arc::new(children);
 				}
-				patch::PatchType::RemoveChild(patch) => {
+				CommandType::RemoveChild(command) => {
 					let children: NodeList = patched
 						.children
 						.iter()
 						.filter_map(|child| {
-							if child.as_node().id() == patch.child_id {
+							if child.as_node().id() == command.child_id {
 								None
 							} else {
 								Some(child.clone())
@@ -208,14 +208,14 @@ impl patch::Patchable for Group {
 						.collect();
 					patched.children = Arc::new(children);
 				}
-				patch::PatchType::MoveChild(patch) => {
+				CommandType::MoveChild(command) => {
 					let mut children: NodeList =
 						patched.children.iter().map(|child| child.clone()).collect();
-					let child = children.remove(patch.position);
-					if patch.position > children.len() {
+					let child = children.remove(command.position);
+					if command.position > children.len() {
 						children.push(child);
 					} else {
-						children.insert(patch.position, child);
+						children.insert(command.position, child);
 					}
 					patched.children = Arc::new(children);
 				}
@@ -228,7 +228,7 @@ impl patch::Patchable for Group {
 				patched
 					.children
 					.iter()
-					.map(|child| match child.as_node().patch(patch) {
+					.map(|child| match child.as_node().execute(command) {
 						Some(child) => {
 							mutated = true;
 							Arc::new(child)

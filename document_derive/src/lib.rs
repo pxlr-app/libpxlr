@@ -26,17 +26,17 @@ fn impl_documentnode_macro(ast: &syn::DeriveInput) -> TokenStream {
 	gen.into()
 }
 
-#[proc_macro_derive(Patch)]
-pub fn patch_derive(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(Command)]
+pub fn command_derive(input: TokenStream) -> TokenStream {
 	let ast = syn::parse(input).unwrap();
-	impl_patch_macro(&ast)
+	impl_command_macro(&ast)
 }
 
-fn impl_patch_macro(ast: &syn::DeriveInput) -> TokenStream {
+fn impl_command_macro(ast: &syn::DeriveInput) -> TokenStream {
 	let name = &ast.ident;
 
 	let gen = quote! {
-		impl document::prelude::patch::Patch for #name {
+		impl document::prelude::Command for #name {
 			fn target(&self) -> document::prelude::Uuid {
 				self.target
 			}
