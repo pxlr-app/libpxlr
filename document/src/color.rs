@@ -4,24 +4,27 @@ use nom::number::complete::{le_f32, le_u8};
 use std::fmt::Debug;
 
 pub trait Color: Debug {
-	fn stride() -> usize;
+	fn size() -> usize;
 }
 
 bitflags! {
 	#[derive(Serialize, Deserialize)]
 	pub struct Channel: u8 {
-		const A	= 0b00000001;
+		const I     = 0b00000001;
 		const RGB 	= 0b00000010;
-		const UV 	= 0b00000100;
-		const XYZ 	= 0b00001000;
+		const A		= 0b00000100;
+		const UV 	= 0b00001000;
+		const XYZ 	= 0b00010000;
 	}
 }
 
+#[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
-pub struct A {
-	pub a: u8,
+pub struct I {
+	pub i: u8,
 }
 
+#[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub struct RGB {
 	pub r: u8,
@@ -29,12 +32,20 @@ pub struct RGB {
 	pub b: u8,
 }
 
+#[repr(C)]
+#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
+pub struct A {
+	pub a: u8,
+}
+
+#[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub struct UV {
 	pub u: f32,
 	pub v: f32,
 }
 
+#[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub struct XYZ {
 	pub x: f32,
@@ -43,45 +54,110 @@ pub struct XYZ {
 }
 
 impl Channel {
+	/// Length of the entire channel
 	pub fn len(&self) -> usize {
 		let mut len = 0usize;
 		let bits = self.bits();
-		if bits & 1u8 > 0 {
-			len += A::stride();
+		if bits & Channel::I.bits > 0 {
+			len += I::size();
 		}
-		if bits & 2u8 > 0 {
-			len += RGB::stride();
+		if bits & Channel::RGB.bits > 0 {
+			len += RGB::size();
 		}
-		if bits & 4u8 > 0 {
-			len += UV::stride();
+		if bits & Channel::A.bits > 0 {
+			len += A::size();
 		}
-		if bits & 8u8 > 0 {
-			len += XYZ::stride();
+		if bits & Channel::UV.bits > 0 {
+			len += UV::size();
+		}
+		if bits & Channel::XYZ.bits > 0 {
+			len += XYZ::size();
 		}
 		len
 	}
+
+	/// Retrive the offset to iterate from channel to channel
+	///
+	/// Given a composite channel RGBA, retrive the offset to A.
+	/// Offset is equal to the length of RGB.
+	///
+	/// In a composite channel of RGBAXYZ, retrieve the offset to XYZ.
+	/// Offset is equal to the length of RGB + A.
+	///
+	/// ```
+	/// use document::color::Channel;
+	/// let composite = Channel::RGB | Channel::A | Channel::XYZ;
+	/// assert_eq!(composite.offset(Channel::XYZ), Channel::RGB.len() + Channel::A.len());
+	/// ```
+	///
+	pub fn offset(&self, channel: Channel) -> usize {
+		let mut offset = 0usize;
+		let bits = self.bits();
+		for chan in [
+			Channel::I,
+			Channel::RGB,
+			Channel::A,
+			Channel::UV,
+			Channel::XYZ,
+		]
+		.iter()
+		{
+			if &channel == chan {
+				return offset;
+			}
+			if bits & chan.bits > 0 {
+				offset += chan.len();
+			}
+		}
+		0
+	}
+
+	/// Retrieve the stride to iterate from channel to channel
+	///
+	/// Given a composite channel RGBA, retrieve the stride to loop
+	/// in each RGB. Stride is equal to the length of A.
+	///
+	/// In a composite channel of RGBAXYZ, retrieve the stride to loop
+	/// in each A. Stride is equal to the length of RGB + XYZ
+	///
+	/// ```
+	/// use document::color::Channel;
+	/// let composite = Channel::RGB | Channel::A | Channel::XYZ;
+	/// assert_eq!(composite.stride(Channel::A), Channel::RGB.len() + Channel::XYZ.len());
+	/// ```
+	pub fn stride(&self, channel: Channel) -> usize {
+		let len = self.len();
+		let size = channel.len();
+		len - size
+	}
 }
 
-impl Color for A {
-	fn stride() -> usize {
+impl Color for I {
+	fn size() -> usize {
 		1
 	}
 }
 
 impl Color for RGB {
-	fn stride() -> usize {
+	fn size() -> usize {
 		3
 	}
 }
 
+impl Color for A {
+	fn size() -> usize {
+		1
+	}
+}
+
 impl Color for UV {
-	fn stride() -> usize {
+	fn size() -> usize {
 		8
 	}
 }
 
 impl Color for XYZ {
-	fn stride() -> usize {
+	fn size() -> usize {
 		12
 	}
 }
@@ -100,16 +176,16 @@ impl parser::Write for Channel {
 	}
 }
 
-impl parser::Parse for A {
-	fn parse(bytes: &[u8]) -> nom::IResult<&[u8], A> {
-		let (bytes, a) = le_u8(bytes)?;
-		Ok((bytes, A { a }))
+impl parser::Parse for I {
+	fn parse(bytes: &[u8]) -> nom::IResult<&[u8], I> {
+		let (bytes, i) = le_u8(bytes)?;
+		Ok((bytes, I { i }))
 	}
 }
 
-impl parser::Write for A {
+impl parser::Write for I {
 	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		writer.write_all(&self.a.to_le_bytes())?;
+		writer.write_all(&self.i.to_le_bytes())?;
 		Ok(1)
 	}
 }
@@ -128,6 +204,20 @@ impl parser::Write for RGB {
 		writer.write_all(&self.r.to_le_bytes())?;
 		writer.write_all(&self.g.to_le_bytes())?;
 		writer.write_all(&self.b.to_le_bytes())?;
+		Ok(1)
+	}
+}
+
+impl parser::Parse for A {
+	fn parse(bytes: &[u8]) -> nom::IResult<&[u8], A> {
+		let (bytes, a) = le_u8(bytes)?;
+		Ok((bytes, A { a }))
+	}
+}
+
+impl parser::Write for A {
+	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
+		writer.write_all(&self.a.to_le_bytes())?;
 		Ok(1)
 	}
 }
