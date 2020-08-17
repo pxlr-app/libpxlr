@@ -9,7 +9,6 @@ default = []
 arc = []
 
 [dependencies]
-bytes = "0.5.6"
 bitvec = { version = "0.17.4", features = ["serde"] }
 serde = { version = "1.0.106", features = ["rc"] }
 

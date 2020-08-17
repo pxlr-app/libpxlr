@@ -10,6 +10,7 @@ arc = []
 
 [dependencies]
 bitflags = "1.2.1"
+bytes = "0.5.6"
 chrono = { version = "0.4", features = ["serde"] }
 collections = { path = "../collections" }
 document_derive = { path = "../document_derive" }
