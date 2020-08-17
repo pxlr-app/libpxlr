@@ -10,6 +10,17 @@ pub struct Stencil {
 	pub data: Vec<u8>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PositionnedStencil {
+	pub position: Vec2<u32>,
+	pub stencil: Stencil,
+}
+
+#[derive(Debug)]
+pub enum StencilError {
+	IndexNotInMask,
+}
+
 impl Stencil {
 	pub fn new(size: Extent2<u32>, channels: Channel) -> Stencil {
 		let buffer: Vec<u8> = vec![0u8; (size.w * size.h * channels.len() as u32) as usize];
@@ -30,6 +41,24 @@ impl Stencil {
 			data,
 		}
 	}
+
+	pub fn try_get(&self, index: (&u32, &u32)) -> Result<&[u8], StencilError> {
+		let index = (index.1 * self.size.w + index.0) as usize;
+		self.try_index(index)
+	}
+
+	pub fn try_index(&self, index: usize) -> Result<&[u8], StencilError> {
+		if self.mask[index] {
+			let stride = self.channels.len() as usize;
+			let count: usize = self.mask[..index]
+				.iter()
+				.map(|b| if b == &true { 1usize } else { 0usize })
+				.sum();
+			Ok(&self.data[(count * stride)..((count + 1) * stride)])
+		} else {
+			Err(StencilError::IndexNotInMask)
+		}
+	}
 }
 
 impl std::fmt::Debug for Stencil {
@@ -48,10 +77,10 @@ impl std::fmt::Debug for Stencil {
 	}
 }
 
-impl std::ops::Add for Stencil {
-	type Output = Self;
+impl std::ops::Add for &Stencil {
+	type Output = Stencil;
 
-	fn add(self, other: Self) -> Self {
+	fn add(self, other: Self) -> Self::Output {
 		assert_eq!(self.channels, other.channels);
 		let stride = self.channels.len() as usize;
 		let size = Extent2::new(self.size.w.max(other.size.w), self.size.h.max(other.size.h));
@@ -223,7 +252,7 @@ mod tests {
 			data: vec![2u8, 3],
 		};
 		assert_eq!(format!("{:?}", b), "Stencil (A, ⠊ )");
-		let c = a + b;
+		let c = &a + &b;
 		assert_eq!(*c.mask, bitvec![1, 1, 1, 1]);
 		assert_eq!(*c.data, [1u8, 2, 3, 4]);
 		assert_eq!(format!("{:?}", c), "Stencil (A, ⠛ )");
@@ -242,7 +271,7 @@ mod tests {
 			data: vec![2u8, 4],
 		};
 		assert_eq!(format!("{:?}", b), "Stencil (A, ⠘ )");
-		let c = a + b;
+		let c = &a + &b;
 		assert_eq!(*c.mask, bitvec![1, 1, 1, 1]);
 		assert_eq!(*c.data, [1u8, 2, 3, 4]);
 		assert_eq!(format!("{:?}", c), "Stencil (A, ⠛ )");
@@ -289,5 +318,23 @@ mod tests {
 		assert_eq!(size, 14);
 		let r = Stencil::parse(&buffer.get_ref());
 		assert_eq!(r.is_ok(), true);
+	}
+
+	#[test]
+	fn test_try_get() {
+		let a = Stencil {
+			size: Extent2::new(2, 2),
+			mask: bitvec![Lsb0, u8; 1, 0, 0, 1],
+			channels: Channel::A,
+			data: vec![1u8, 4],
+		};
+		assert_eq!(a.try_index(0).unwrap(), &[1u8][..]);
+		assert!(a.try_index(1).is_err());
+		assert!(a.try_index(2).is_err());
+		assert_eq!(a.try_index(3).unwrap(), &[4u8][..]);
+		assert_eq!(a.try_get((&0, &0)).unwrap(), &[1u8][..]);
+		assert!(a.try_get((&0, &1)).is_err());
+		assert!(a.try_get((&0, &1)).is_err());
+		assert_eq!(a.try_get((&1, &1)).unwrap(), &[4u8][..]);
 	}
 }
