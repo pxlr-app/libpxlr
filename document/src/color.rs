@@ -111,25 +111,6 @@ impl Channel {
 		}
 		0
 	}
-
-	/// Retrieve the stride to iterate from channel to channel
-	///
-	/// Given a composite channel RGBA, retrieve the stride to loop
-	/// in each RGB. Stride is equal to the length of A.
-	///
-	/// In a composite channel of RGBAXYZ, retrieve the stride to loop
-	/// in each A. Stride is equal to the length of RGB + XYZ
-	///
-	/// ```
-	/// use document::color::Channel;
-	/// let composite = Channel::RGB | Channel::A | Channel::XYZ;
-	/// assert_eq!(composite.stride(Channel::A), Channel::RGB.len() + Channel::XYZ.len());
-	/// ```
-	pub fn stride(&self, channel: Channel) -> usize {
-		let len = self.len();
-		let size = channel.len();
-		len - size
-	}
 }
 
 impl Color for I {
