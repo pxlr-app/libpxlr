@@ -53,8 +53,7 @@ impl std::ops::Index<usize> for Canvas {
 			{
 				let x = x - stencil.position.x;
 				let y = y - stencil.position.y;
-				let index = (y + stencil.stencil.size.w * x) as usize;
-				if let Ok(data) = stencil.stencil.try_index(index) {
+				if let Ok(data) = stencil.stencil.try_get((&x, &y)) {
 					return data;
 				}
 			}
@@ -96,5 +95,18 @@ mod tests {
 		assert_eq!(&b[1], &[2u8][..]);
 		assert_eq!(&b[2], &[3u8][..]);
 		assert_eq!(&b[3], &[9u8][..]);
+
+		let stencil = Stencil {
+			size: Extent2::new(2, 2),
+			mask: bitvec![Lsb0, u8; 0, 1, 1, 0],
+			channels: Channel::A,
+			data: vec![11u8, 12],
+		};
+
+		let c = a.apply_stencil(Vec2::new(0, 0), stencil);
+		assert_eq!(&c[0], &[1u8][..]);
+		assert_eq!(&c[1], &[11u8][..]);
+		assert_eq!(&c[2], &[12u8][..]);
+		assert_eq!(&c[3], &[4u8][..]);
 	}
 }
