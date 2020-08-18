@@ -16,6 +16,17 @@ pub enum CanvasError {
 	SizeMismatch,
 }
 
+impl std::error::Error for CanvasError {}
+
+impl std::fmt::Display for CanvasError {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		match *self {
+			CanvasError::ChannelMismatch => write!(f, "Channel mismatch."),
+			CanvasError::SizeMismatch => write!(f, "Size mismatch."),
+		}
+	}
+}
+
 impl Canvas {
 	pub fn new(size: Extent2<u32>, channels: Channel, data: Vec<u8>) -> Self {
 		Canvas {
