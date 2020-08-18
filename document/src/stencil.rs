@@ -21,6 +21,16 @@ pub enum StencilError {
 	IndexNotInMask,
 }
 
+impl std::error::Error for StencilError {}
+
+impl std::fmt::Display for StencilError {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		match *self {
+			StencilError::IndexNotInMask => write!(f, "Index not in mask."),
+		}
+	}
+}
+
 impl Stencil {
 	pub fn new(size: Extent2<u32>, channels: Channel) -> Stencil {
 		let buffer: Vec<u8> = vec![0u8; (size.w * size.h * channels.len() as u32) as usize];
