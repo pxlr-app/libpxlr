@@ -10,6 +10,12 @@ pub struct Canvas {
 	pub stencils: VecDeque<Arc<PositionnedStencil>>,
 }
 
+#[derive(Debug)]
+pub enum CanvasError {
+	ChannelMismatch,
+	SizeMismatch,
+}
+
 impl Canvas {
 	pub fn new(size: Extent2<u32>, channels: Channel, data: Vec<u8>) -> Self {
 		Canvas {
@@ -20,12 +26,31 @@ impl Canvas {
 		}
 	}
 
-	pub fn apply_stencil(&self, position: Vec2<u32>, stencil: Stencil) -> Canvas {
+	pub fn apply_stencil(
+		&self,
+		position: Vec2<u32>,
+		stencil: Stencil,
+	) -> Result<Canvas, CanvasError> {
+		if self.channels != stencil.channels {
+			return Err(CanvasError::ChannelMismatch);
+		}
 		let mut cloned = self.clone();
 		cloned
 			.stencils
 			.push_front(Arc::new(PositionnedStencil { position, stencil }));
-		cloned
+		Ok(cloned)
+	}
+
+	/// Copy the pixel data to new Bytes buffer
+	///
+	/// ```
+	/// use document::prelude::*;
+	/// let canvas = Canvas::new(Extent2::new(2, 2), Channel::A, vec![1u8, 2, 3, 4]);
+	/// let bytes = canvas.copy_to_bytes();
+	/// assert_eq!(&bytes[..], &[1u8, 2, 3, 4][..]);
+	/// ```
+	pub fn copy_to_bytes(&self) -> Bytes {
+		Bytes::from(self.into_iter().flatten().map(|b| *b).collect::<Vec<u8>>())
 	}
 }
 
@@ -62,11 +87,33 @@ impl std::ops::Index<usize> for Canvas {
 	}
 }
 
-impl std::ops::Add<Stencil> for &Canvas {
-	type Output = Canvas;
+pub struct CanvasIterator<'a> {
+	canvas: &'a Canvas,
+	index: usize,
+}
 
-	fn add(self, other: Stencil) -> Self::Output {
-		self.apply_stencil(Vec2::new(0, 0), other)
+impl<'a> Iterator for CanvasIterator<'a> {
+	type Item = &'a [u8];
+
+	fn next(&mut self) -> Option<&'a [u8]> {
+		if self.index < (self.canvas.size.w * self.canvas.size.h) as usize {
+			let index = self.index;
+			self.index += 1;
+			return Some(&self.canvas[index]);
+		}
+		return None;
+	}
+}
+
+impl<'a> IntoIterator for &'a Canvas {
+	type Item = &'a [u8];
+	type IntoIter = CanvasIterator<'a>;
+
+	fn into_iter(self) -> Self::IntoIter {
+		CanvasIterator {
+			canvas: self,
+			index: 0,
+		}
 	}
 }
 
@@ -76,7 +123,7 @@ mod tests {
 	use collections::bitvec;
 
 	#[test]
-	fn test_canvas_index() {
+	fn test_index() {
 		let a = Canvas::new(Extent2::new(2, 2), Channel::A, vec![1u8, 2, 3, 4]);
 		assert_eq!(&a[0], &[1u8][..]);
 		assert_eq!(&a[1], &[2u8][..]);
@@ -90,7 +137,7 @@ mod tests {
 			data: vec![8u8, 9],
 		};
 
-		let b = a.apply_stencil(Vec2::new(0, 0), stencil);
+		let b = a.apply_stencil(Vec2::new(0, 0), stencil).unwrap();
 		assert_eq!(&b[0], &[8u8][..]);
 		assert_eq!(&b[1], &[2u8][..]);
 		assert_eq!(&b[2], &[3u8][..]);
@@ -103,10 +150,22 @@ mod tests {
 			data: vec![11u8, 12],
 		};
 
-		let c = a.apply_stencil(Vec2::new(0, 0), stencil);
+		let c = a.apply_stencil(Vec2::new(0, 0), stencil).unwrap();
 		assert_eq!(&c[0], &[1u8][..]);
 		assert_eq!(&c[1], &[11u8][..]);
 		assert_eq!(&c[2], &[12u8][..]);
 		assert_eq!(&c[3], &[4u8][..]);
+	}
+
+	#[test]
+	fn test_iter() {
+		let a = Canvas::new(Extent2::new(2, 2), Channel::A, vec![1u8, 2, 3, 4]);
+
+		let mut i = a.into_iter();
+		assert_eq!(i.next(), Some(&[1u8][..]));
+		assert_eq!(i.next(), Some(&[2u8][..]));
+		assert_eq!(i.next(), Some(&[3u8][..]));
+		assert_eq!(i.next(), Some(&[4u8][..]));
+		assert_eq!(i.next(), None);
 	}
 }
