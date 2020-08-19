@@ -3,9 +3,74 @@ use bitflags::bitflags;
 use nom::number::complete::{le_f32, le_u8};
 use std::fmt::Debug;
 
-pub trait Color: Debug {
-	fn size() -> usize;
+trait Color {
+	const COMPONENTS: u8;
+	const SIZE: usize;
+
+	fn to_slice(&self) -> &[u8];
+	fn to_slice_mut(&mut self) -> &mut [u8];
+	fn from_slice(slice: &[u8]) -> &Self;
+	fn from_slice_mut(slice: &mut [u8]) -> &mut Self;
 }
+
+macro_rules! define_color {
+	($name:ident, $channels:expr, $type:ty, $reader:expr, ($($comp:ident),+)) => {
+		#[repr(C)]
+		#[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize)]
+		pub struct $name {
+			$(pub $comp: $type),+
+		}
+
+		impl $name {
+			pub fn new($($comp: $type),+) -> Self {
+				Self { $($comp: $comp,)+ }
+			}
+		}
+
+		impl Color for $name {
+			const COMPONENTS: u8 = $channels;
+			const SIZE: usize = $channels * std::mem::size_of::<$type>();
+
+			fn to_slice(&self) -> &[u8] {
+				unsafe { std::slice::from_raw_parts(self as *const $name as *const u8, std::mem::size_of::<$name>()) }
+			}
+
+			fn to_slice_mut(&mut self) -> &mut [u8] {
+				unsafe { std::slice::from_raw_parts_mut(self as *mut $name as *mut u8, std::mem::size_of::<$name>()) }
+			}
+
+			fn from_slice(slice: &[u8]) -> &Self {
+				assert_eq!(slice.len(), $name::SIZE);
+				unsafe { &*(slice.as_ptr() as *const $name) }
+			}
+
+			fn from_slice_mut(slice: &mut [u8]) -> &mut Self {
+				assert_eq!(slice.len(), $name::SIZE);
+				unsafe { &mut *(slice.as_ptr() as *mut $name) }
+			}
+		}
+
+		impl parser::Parse for $name {
+			fn parse(bytes: &[u8]) -> nom::IResult<&[u8], $name> {
+				$(let (bytes, $comp) = $reader(bytes)?;)+
+				Ok((bytes, $name::new($($comp,)+)))
+			}
+		}
+
+		impl parser::Write for $name {
+			fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
+				$(writer.write_all(&self.$comp.to_le_bytes())?;)+
+				Ok($name::SIZE)
+			}
+		}
+	};
+}
+
+define_color!(I, 1, u8, le_u8, (i));
+define_color!(RGB, 3, u8, le_u8, (r, g, b));
+define_color!(A, 1, u8, le_u8, (a));
+define_color!(UV, 2, f32, le_f32, (u, v));
+define_color!(XYZ, 3, f32, le_f32, (x, y, z));
 
 bitflags! {
 	#[derive(Serialize, Deserialize)]
@@ -18,60 +83,25 @@ bitflags! {
 	}
 }
 
-#[repr(C)]
-#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
-pub struct I {
-	pub i: u8,
-}
-
-#[repr(C)]
-#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
-pub struct RGB {
-	pub r: u8,
-	pub g: u8,
-	pub b: u8,
-}
-
-#[repr(C)]
-#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
-pub struct A {
-	pub a: u8,
-}
-
-#[repr(C)]
-#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
-pub struct UV {
-	pub u: f32,
-	pub v: f32,
-}
-
-#[repr(C)]
-#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
-pub struct XYZ {
-	pub x: f32,
-	pub y: f32,
-	pub z: f32,
-}
-
 impl Channel {
 	/// Length of the entire channel
 	pub fn len(&self) -> usize {
 		let mut len = 0usize;
 		let bits = self.bits();
 		if bits & Channel::I.bits > 0 {
-			len += I::size();
+			len += I::SIZE;
 		}
 		if bits & Channel::RGB.bits > 0 {
-			len += RGB::size();
+			len += RGB::SIZE;
 		}
 		if bits & Channel::A.bits > 0 {
-			len += A::size();
+			len += A::SIZE;
 		}
 		if bits & Channel::UV.bits > 0 {
-			len += UV::size();
+			len += UV::SIZE;
 		}
 		if bits & Channel::XYZ.bits > 0 {
-			len += XYZ::size();
+			len += XYZ::SIZE;
 		}
 		len
 	}
@@ -113,36 +143,6 @@ impl Channel {
 	}
 }
 
-impl Color for I {
-	fn size() -> usize {
-		1
-	}
-}
-
-impl Color for RGB {
-	fn size() -> usize {
-		3
-	}
-}
-
-impl Color for A {
-	fn size() -> usize {
-		1
-	}
-}
-
-impl Color for UV {
-	fn size() -> usize {
-		8
-	}
-}
-
-impl Color for XYZ {
-	fn size() -> usize {
-		12
-	}
-}
-
 impl parser::Parse for Channel {
 	fn parse(bytes: &[u8]) -> nom::IResult<&[u8], Channel> {
 		let (bytes, bits) = le_u8(bytes)?;
@@ -153,86 +153,6 @@ impl parser::Parse for Channel {
 impl parser::Write for Channel {
 	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
 		writer.write_all(&self.bits().to_le_bytes())?;
-		Ok(1)
-	}
-}
-
-impl parser::Parse for I {
-	fn parse(bytes: &[u8]) -> nom::IResult<&[u8], I> {
-		let (bytes, i) = le_u8(bytes)?;
-		Ok((bytes, I { i }))
-	}
-}
-
-impl parser::Write for I {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		writer.write_all(&self.i.to_le_bytes())?;
-		Ok(1)
-	}
-}
-
-impl parser::Parse for RGB {
-	fn parse(bytes: &[u8]) -> nom::IResult<&[u8], RGB> {
-		let (bytes, r) = le_u8(bytes)?;
-		let (bytes, g) = le_u8(bytes)?;
-		let (bytes, b) = le_u8(bytes)?;
-		Ok((bytes, RGB { r, g, b }))
-	}
-}
-
-impl parser::Write for RGB {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		writer.write_all(&self.r.to_le_bytes())?;
-		writer.write_all(&self.g.to_le_bytes())?;
-		writer.write_all(&self.b.to_le_bytes())?;
-		Ok(1)
-	}
-}
-
-impl parser::Parse for A {
-	fn parse(bytes: &[u8]) -> nom::IResult<&[u8], A> {
-		let (bytes, a) = le_u8(bytes)?;
-		Ok((bytes, A { a }))
-	}
-}
-
-impl parser::Write for A {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		writer.write_all(&self.a.to_le_bytes())?;
-		Ok(1)
-	}
-}
-
-impl parser::Parse for UV {
-	fn parse(bytes: &[u8]) -> nom::IResult<&[u8], UV> {
-		let (bytes, u) = le_f32(bytes)?;
-		let (bytes, v) = le_f32(bytes)?;
-		Ok((bytes, UV { u, v }))
-	}
-}
-
-impl parser::Write for UV {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		writer.write_all(&self.u.to_le_bytes())?;
-		writer.write_all(&self.v.to_le_bytes())?;
-		Ok(1)
-	}
-}
-
-impl parser::Parse for XYZ {
-	fn parse(bytes: &[u8]) -> nom::IResult<&[u8], XYZ> {
-		let (bytes, x) = le_f32(bytes)?;
-		let (bytes, y) = le_f32(bytes)?;
-		let (bytes, z) = le_f32(bytes)?;
-		Ok((bytes, XYZ { x, y, z }))
-	}
-}
-
-impl parser::Write for XYZ {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		writer.write_all(&self.x.to_le_bytes())?;
-		writer.write_all(&self.y.to_le_bytes())?;
-		writer.write_all(&self.z.to_le_bytes())?;
 		Ok(1)
 	}
 }
