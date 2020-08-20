@@ -72,12 +72,9 @@ define_color!(UV, 2, f32, le_f32, (u, v));
 define_color!(XYZ, 3, f32, le_f32, (x, y, z));
 
 #[derive(Serialize, Deserialize)]
-pub struct Pixel<'data> {
-	components: u8,
-	data: &'data [u8],
-}
+pub struct Pixel;
 
-impl<'data> Pixel<'data> {
+impl Pixel {
 	pub const I: u8 = 0b00000001;
 	pub const RGB: u8 = 0b00000010;
 	pub const A: u8 = 0b00000100;
@@ -153,30 +150,41 @@ impl<'data> Pixel<'data> {
 		offset
 	}
 
-	pub fn from_slice(components: u8, data: &'data [u8]) -> Self {
-		Self { components, data }
-	}
-
-	pub fn size(&self) -> usize {
-		Self::size_of(self.components)
-	}
-
 	/// Retrieve I component as I color
 	///
 	/// ```
 	/// use document::color::*;
 	/// let color = I::new(1);
-	/// let pixel = Pixel::from_slice(Pixel::I, &color.to_slice());
-	/// assert!(pixel.i().is_some());
-	/// assert_eq!(pixel.i().unwrap(), &color);
+	/// let buffer = color.to_slice();
+	/// assert!(Pixel::i(Pixel::I, buffer).is_some());
+	/// assert_eq!(Pixel::i(Pixel::I, buffer).unwrap(), &color);
 	/// ```
-	pub fn i(&self) -> Option<&I> {
-		if self.components & Pixel::I == 0 {
+	pub fn i(components: u8, data: &[u8]) -> Option<&I> {
+		if components & Pixel::I == 0 {
 			None
 		} else {
-			let offset = Pixel::offset_of(self.components, Pixel::I);
+			let offset = Pixel::offset_of(components, Pixel::I);
 			let size = I::SIZE;
-			Some(I::from_slice(&self.data[offset..offset + size]))
+			Some(I::from_slice(&data[offset..offset + size]))
+		}
+	}
+
+	/// Retrieve mutable I component as I color
+	///
+	/// ```
+	/// use document::color::*;
+	/// let mut color = I::new(1);
+	/// let mut buffer = color.to_slice_mut();
+	/// assert!(Pixel::i_mut(Pixel::I, buffer).is_some());
+	/// assert_eq!(Pixel::i_mut(Pixel::I, buffer).unwrap(), &I::new(1));
+	/// ```
+	pub fn i_mut(components: u8, data: &mut [u8]) -> Option<&mut I> {
+		if components & Pixel::I == 0 {
+			None
+		} else {
+			let offset = Pixel::offset_of(components, Pixel::I);
+			let size = I::SIZE;
+			Some(I::from_slice_mut(&mut data[offset..offset + size]))
 		}
 	}
 
@@ -185,17 +193,36 @@ impl<'data> Pixel<'data> {
 	/// ```
 	/// use document::color::*;
 	/// let color = RGB::new(1, 2, 3);
-	/// let pixel = Pixel::from_slice(Pixel::RGB, &color.to_slice());
-	/// assert!(pixel.rgb().is_some());
-	/// assert_eq!(pixel.rgb().unwrap(), &color);
+	/// let buffer = color.to_slice();
+	/// assert!(Pixel::rgb(Pixel::RGB, buffer).is_some());
+	/// assert_eq!(Pixel::rgb(Pixel::RGB, buffer).unwrap(), &color);
 	/// ```
-	pub fn rgb(&self) -> Option<&RGB> {
-		if self.components & Pixel::RGB == 0 {
+	pub fn rgb(components: u8, data: &[u8]) -> Option<&RGB> {
+		if components & Pixel::RGB == 0 {
 			None
 		} else {
-			let offset = Pixel::offset_of(self.components, Pixel::RGB);
+			let offset = Pixel::offset_of(components, Pixel::RGB);
 			let size = RGB::SIZE;
-			Some(RGB::from_slice(&self.data[offset..offset + size]))
+			Some(RGB::from_slice(&data[offset..offset + size]))
+		}
+	}
+
+	/// Retrieve mutable RGB components as RGB color
+	///
+	/// ```
+	/// use document::color::*;
+	/// let mut color = RGB::new(1, 2, 3);
+	/// let mut buffer = color.to_slice_mut();
+	/// assert!(Pixel::rgb_mut(Pixel::RGB, buffer).is_some());
+	/// assert_eq!(Pixel::rgb_mut(Pixel::RGB, buffer).unwrap(), &RGB::new(1, 2, 3));
+	/// ```
+	pub fn rgb_mut(components: u8, data: &mut [u8]) -> Option<&mut RGB> {
+		if components & Pixel::RGB == 0 {
+			None
+		} else {
+			let offset = Pixel::offset_of(components, Pixel::RGB);
+			let size = RGB::SIZE;
+			Some(RGB::from_slice_mut(&mut data[offset..offset + size]))
 		}
 	}
 
@@ -204,17 +231,36 @@ impl<'data> Pixel<'data> {
 	/// ```
 	/// use document::color::*;
 	/// let color = A::new(1);
-	/// let pixel = Pixel::from_slice(Pixel::A, &color.to_slice());
-	/// assert!(pixel.a().is_some());
-	/// assert_eq!(pixel.a().unwrap(), &color);
+	/// let buffer = color.to_slice();
+	/// assert!(Pixel::a(Pixel::A, buffer).is_some());
+	/// assert_eq!(Pixel::a(Pixel::A, buffer).unwrap(), &color);
 	/// ```
-	pub fn a(&self) -> Option<&A> {
-		if self.components & Pixel::A == 0 {
+	pub fn a(components: u8, data: &[u8]) -> Option<&A> {
+		if components & Pixel::A == 0 {
 			None
 		} else {
-			let offset = Pixel::offset_of(self.components, Pixel::A);
+			let offset = Pixel::offset_of(components, Pixel::A);
 			let size = A::SIZE;
-			Some(A::from_slice(&self.data[offset..offset + size]))
+			Some(A::from_slice(&data[offset..offset + size]))
+		}
+	}
+
+	/// Retrieve mutable A component as A color
+	///
+	/// ```
+	/// use document::color::*;
+	/// let mut color = A::new(1);
+	/// let mut buffer = color.to_slice_mut();
+	/// assert!(Pixel::a_mut(Pixel::A, buffer).is_some());
+	/// assert_eq!(Pixel::a_mut(Pixel::A, buffer).unwrap(), &A::new(1));
+	/// ```
+	pub fn a_mut(components: u8, data: &mut [u8]) -> Option<&mut A> {
+		if components & Pixel::A == 0 {
+			None
+		} else {
+			let offset = Pixel::offset_of(components, Pixel::A);
+			let size = A::SIZE;
+			Some(A::from_slice_mut(&mut data[offset..offset + size]))
 		}
 	}
 
@@ -223,17 +269,36 @@ impl<'data> Pixel<'data> {
 	/// ```
 	/// use document::color::*;
 	/// let color = UV::new(1., 2.);
-	/// let pixel = Pixel::from_slice(Pixel::UV, &color.to_slice());
-	/// assert!(pixel.uv().is_some());
-	/// assert_eq!(pixel.uv().unwrap(), &color);
+	/// let buffer = color.to_slice();
+	/// assert!(Pixel::uv(Pixel::UV, buffer).is_some());
+	/// assert_eq!(Pixel::uv(Pixel::UV, buffer).unwrap(), &color);
 	/// ```
-	pub fn uv(&self) -> Option<&UV> {
-		if self.components & Pixel::UV == 0 {
+	pub fn uv(components: u8, data: &[u8]) -> Option<&UV> {
+		if components & Pixel::UV == 0 {
 			None
 		} else {
-			let offset = Pixel::offset_of(self.components, Pixel::UV);
+			let offset = Pixel::offset_of(components, Pixel::UV);
 			let size = UV::SIZE;
-			Some(UV::from_slice(&self.data[offset..offset + size]))
+			Some(UV::from_slice(&data[offset..offset + size]))
+		}
+	}
+
+	/// Retrieve mutable UV components as UV color
+	///
+	/// ```
+	/// use document::color::*;
+	/// let mut color = UV::new(1., 2.);
+	/// let mut buffer = color.to_slice_mut();
+	/// assert!(Pixel::uv_mut(Pixel::UV, buffer).is_some());
+	/// assert_eq!(Pixel::uv_mut(Pixel::UV, buffer).unwrap(), &UV::new(1., 2.));
+	/// ```
+	pub fn uv_mut(components: u8, data: &mut [u8]) -> Option<&mut UV> {
+		if components & Pixel::UV == 0 {
+			None
+		} else {
+			let offset = Pixel::offset_of(components, Pixel::UV);
+			let size = UV::SIZE;
+			Some(UV::from_slice_mut(&mut data[offset..offset + size]))
 		}
 	}
 
@@ -242,17 +307,36 @@ impl<'data> Pixel<'data> {
 	/// ```
 	/// use document::color::*;
 	/// let color = XYZ::new(1., 2., 3.);
-	/// let pixel = Pixel::from_slice(Pixel::XYZ, &color.to_slice());
-	/// assert!(pixel.xyz().is_some());
-	/// assert_eq!(pixel.xyz().unwrap(), &color);
+	/// let buffer = color.to_slice();
+	/// assert!(Pixel::xyz(Pixel::XYZ, buffer).is_some());
+	/// assert_eq!(Pixel::xyz(Pixel::XYZ, buffer).unwrap(), &color);
 	/// ```
-	pub fn xyz(&self) -> Option<&XYZ> {
-		if self.components & Pixel::XYZ == 0 {
+	pub fn xyz(components: u8, data: &[u8]) -> Option<&XYZ> {
+		if components & Pixel::XYZ == 0 {
 			None
 		} else {
-			let offset = Pixel::offset_of(self.components, Pixel::XYZ);
+			let offset = Pixel::offset_of(components, Pixel::XYZ);
 			let size = XYZ::SIZE;
-			Some(XYZ::from_slice(&self.data[offset..offset + size]))
+			Some(XYZ::from_slice(&data[offset..offset + size]))
+		}
+	}
+
+	/// Retrieve mutable XYZ components as XYZ color
+	///
+	/// ```
+	/// use document::color::*;
+	/// let mut color = XYZ::new(1., 2., 3.);
+	/// let mut buffer = color.to_slice_mut();
+	/// assert!(Pixel::xyz_mut(Pixel::XYZ, buffer).is_some());
+	/// assert_eq!(Pixel::xyz_mut(Pixel::XYZ, buffer).unwrap(), &XYZ::new(1., 2., 3.));
+	/// ```
+	pub fn xyz_mut(components: u8, data: &mut [u8]) -> Option<&mut XYZ> {
+		if components & Pixel::XYZ == 0 {
+			None
+		} else {
+			let offset = Pixel::offset_of(components, Pixel::XYZ);
+			let size = XYZ::SIZE;
+			Some(XYZ::from_slice_mut(&mut data[offset..offset + size]))
 		}
 	}
 }
@@ -263,15 +347,44 @@ mod tests {
 
 	#[test]
 	fn test_components() {
-		let pixel = Pixel::from_slice(
-			Pixel::I | Pixel::RGB | Pixel::A | Pixel::UV,
-			&[1, 1, 2, 3, 2, 0, 0, 128, 63, 0, 0, 0, 64],
+		let channels = Pixel::I | Pixel::RGB | Pixel::A | Pixel::UV;
+		let buffer: &[u8] = &[1, 1, 2, 3, 2, 0, 0, 128, 63, 0, 0, 0, 64];
+		assert_eq!(Pixel::size_of(channels), 13);
+		assert_eq!(Pixel::i(channels, &buffer).unwrap(), &I::new(1));
+		assert_eq!(Pixel::rgb(channels, &buffer).unwrap(), &RGB::new(1, 2, 3));
+		assert_eq!(Pixel::a(channels, &buffer).unwrap(), &A::new(2));
+		assert_eq!(Pixel::uv(channels, &buffer).unwrap(), &UV::new(1., 2.));
+		assert!(Pixel::xyz(channels, &buffer).is_none());
+
+		let mut buffer: &mut [u8] = &mut [1, 1, 2, 3, 2, 0, 0, 128, 63, 0, 0, 0, 64];
+		assert_eq!(Pixel::size_of(channels), 13);
+		assert_eq!(Pixel::i_mut(channels, &mut buffer).unwrap(), &I::new(1));
+		assert_eq!(
+			Pixel::rgb_mut(channels, &mut buffer).unwrap(),
+			&RGB::new(1, 2, 3)
 		);
-		assert_eq!(pixel.size(), 13);
-		assert_eq!(pixel.i().unwrap(), &I::new(1));
-		assert_eq!(pixel.rgb().unwrap(), &RGB::new(1, 2, 3));
-		assert_eq!(pixel.a().unwrap(), &A::new(2));
-		assert_eq!(pixel.uv().unwrap(), &UV::new(1., 2.));
-		assert!(pixel.xyz().is_none());
+		assert_eq!(Pixel::a_mut(channels, &mut buffer).unwrap(), &A::new(2));
+		assert_eq!(
+			Pixel::uv_mut(channels, &mut buffer).unwrap(),
+			&UV::new(1., 2.)
+		);
+		assert!(Pixel::xyz_mut(channels, &mut buffer).is_none());
+	}
+
+	#[test]
+	fn test_components_mut() {
+		let channels = Pixel::I | Pixel::RGB | Pixel::A | Pixel::UV;
+		let buffer: &mut [u8] = &mut [1, 1, 2, 3, 2, 0, 0, 128, 63, 0, 0, 0, 64];
+		{
+			let mut rgb = Pixel::rgb_mut(channels, buffer).unwrap();
+			rgb.r = 4;
+			assert_eq!(rgb, &RGB::new(4, 2, 3));
+		}
+		{
+			let mut uv = Pixel::uv_mut(channels, buffer).unwrap();
+			uv.u = 3.;
+			assert_eq!(uv, &UV::new(3., 2.));
+		}
+		assert_eq!(buffer, &[1, 4, 2, 3, 2, 0, 0, 64, 64, 0, 0, 0, 64]);
 	}
 }
