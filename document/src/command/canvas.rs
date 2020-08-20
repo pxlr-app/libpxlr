@@ -14,9 +14,9 @@ pub struct SetOpacityCommand {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Command)]
-pub struct SetChannelsCommand {
+pub struct SetComponentsCommand {
 	pub target: Uuid,
-	pub channels: Channel,
+	pub components: u8,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Command)]
@@ -34,7 +34,7 @@ pub struct CropCommand {
 #[derive(Debug, Clone, Serialize, Deserialize, Command)]
 pub struct RestoreCanvasCommand {
 	pub target: Uuid,
-	pub channels: Channel,
+	pub components: u8,
 	pub data: Vec<u8>,
 }
 
