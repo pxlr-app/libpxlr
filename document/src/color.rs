@@ -62,6 +62,12 @@ macro_rules! define_color {
 				Ok($name::SIZE)
 			}
 		}
+
+		impl std::convert::AsRef<[u8]> for $name {
+			fn as_ref(&self) -> &[u8] {
+				self.to_slice()
+			}
+		}
 	};
 }
 
