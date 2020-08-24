@@ -197,8 +197,8 @@ pub trait Cropable {
 		None
 	}
 }
-pub trait HasComponents {
-	fn components(&self) -> u8;
+pub trait HasChannels {
+	fn channels(&self) -> Channel;
 }
 pub trait Transparent {
 	fn opacity(&self) -> f32 {
@@ -212,7 +212,7 @@ pub trait DocumentNode: Node + Named + Positioned + Sized + Displayed + Locked +
 impl Downcast for dyn DocumentNode {}
 
 pub trait SpriteNode:
-	Node + Named + Sized + Cropable + Displayed + Locked + Folded + HasComponents + Transparent
+	Node + Named + Sized + Cropable + Displayed + Locked + Folded + HasChannels + Transparent
 {
 }
 impl Downcast for dyn SpriteNode {}

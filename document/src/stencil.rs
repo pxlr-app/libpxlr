@@ -6,7 +6,7 @@ use nom::{multi::many_m_n, number::complete::le_u8};
 pub struct Stencil {
 	pub size: Extent2<u32>,
 	pub mask: BitVec<Lsb0, u8>,
-	pub components: u8,
+	pub channels: Channel,
 	pub data: Vec<u8>,
 }
 
@@ -32,15 +32,15 @@ impl std::fmt::Display for StencilError {
 }
 
 impl Stencil {
-	pub fn new(size: Extent2<u32>, components: u8) -> Stencil {
+	pub fn new(size: Extent2<u32>, channels: Channel) -> Stencil {
 		let buffer: Vec<u8> =
-			vec![0u8; size.w as usize * size.h as usize * Pixel::size_of(components)];
-		Stencil::from_buffer(size, components, &buffer)
+			vec![0u8; size.w as usize * size.h as usize * Channel::size_of(channels)];
+		Stencil::from_buffer(size, channels, &buffer)
 	}
 
-	pub fn from_buffer(size: Extent2<u32>, components: u8, buffer: &[u8]) -> Stencil {
+	pub fn from_buffer(size: Extent2<u32>, channels: Channel, buffer: &[u8]) -> Stencil {
 		assert_eq!(
-			size.w as usize * size.h as usize * Pixel::size_of(components),
+			size.w as usize * size.h as usize * Channel::size_of(channels),
 			buffer.len()
 		);
 		let mask = bitvec![Lsb0, u8; 1; (size.w * size.h) as usize];
@@ -48,7 +48,7 @@ impl Stencil {
 		Stencil {
 			size,
 			mask,
-			components,
+			channels,
 			data,
 		}
 	}
@@ -60,7 +60,7 @@ impl Stencil {
 
 	pub fn try_index(&self, index: usize) -> Result<&[u8], StencilError> {
 		if self.mask[index] {
-			let stride = Pixel::size_of(self.components);
+			let stride = Channel::size_of(self.channels);
 			let count: usize = self.mask[..index]
 				.iter()
 				.map(|b| if b == &true { 1usize } else { 0usize })
@@ -91,8 +91,8 @@ impl std::ops::Add for &Stencil {
 	type Output = Stencil;
 
 	fn add(self, other: Self) -> Self::Output {
-		assert_eq!(self.components, other.components);
-		let stride = Pixel::size_of(self.components);
+		assert_eq!(self.channels, other.channels);
+		let stride = Channel::size_of(self.channels);
 		let size = Extent2::new(self.size.w.max(other.size.w), self.size.h.max(other.size.h));
 		let mut mask = bitvec![Lsb0, u8; 0; (size.w * size.h) as usize];
 		let mut data: Vec<u8> = Vec::with_capacity((size.w * size.h * stride as u32) as usize);
@@ -135,7 +135,7 @@ impl std::ops::Add for &Stencil {
 		Stencil {
 			size,
 			mask,
-			components: self.components,
+			channels: self.channels,
 			data,
 		}
 	}
@@ -184,7 +184,7 @@ impl<'a> IntoIterator for &'a Stencil {
 			data_offset: 0,
 			width: self.size.w,
 			mask: &self.mask,
-			data_stride: Pixel::size_of(self.components),
+			data_stride: Channel::size_of(self.channels),
 			data: &self.data,
 		}
 	}
@@ -196,15 +196,16 @@ impl parser::Parse for Stencil {
 		let len = (((size.w * size.h) + 8 - 1) / 8) as usize;
 		let (bytes, buffer) = many_m_n(len, len, le_u8)(bytes)?;
 		let mask: BitVec<Lsb0, u8> = buffer.into();
-		let (bytes, components) = le_u8(bytes)?;
-		let len = (size.w * size.h * Pixel::size_of(components) as u32) as usize;
+		let (bytes, channels) = le_u8(bytes)?;
+		let channels = Channel::from_bits(channels).unwrap();
+		let len = (size.w * size.h * Channel::size_of(channels) as u32) as usize;
 		let (bytes, data) = many_m_n(len, len, le_u8)(bytes)?;
 		Ok((
 			bytes,
 			Stencil {
 				size,
 				mask,
-				components,
+				channels,
 				data,
 			},
 		))
@@ -218,7 +219,7 @@ impl parser::Write for Stencil {
 		let buffer = self.mask.as_slice();
 		writer.write(&buffer)?;
 		size += buffer.len();
-		writer.write(&self.components.to_le_bytes())?;
+		writer.write(&self.channels.bits().to_le_bytes())?;
 		let buffer = self.data.as_slice();
 		writer.write(&buffer)?;
 		size += buffer.len();
@@ -234,16 +235,16 @@ mod tests {
 
 	#[test]
 	fn test_from_buffer() {
-		let s = Stencil::from_buffer(Extent2::new(2, 2), Pixel::A, &[1u8, 2, 3, 4]);
+		let s = Stencil::from_buffer(Extent2::new(2, 2), Channel::A, &[1u8, 2, 3, 4]);
 		assert_eq!(*s.mask, bitvec![1, 1, 1, 1]);
 		assert_eq!(*s.data, [1u8, 2, 3, 4]);
 	}
 
 	#[test]
 	fn test_debug() {
-		let s = Stencil::new(Extent2::new(3, 1), Pixel::A);
+		let s = Stencil::new(Extent2::new(3, 1), Channel::A);
 		assert_eq!(format!("{:?}", s), "Stencil ( ⠉⠁ )");
-		let s = Stencil::new(Extent2::new(1, 3), Pixel::A);
+		let s = Stencil::new(Extent2::new(1, 3), Channel::A);
 		assert_eq!(format!("{:?}", s), "Stencil ( ⠇ )");
 	}
 
@@ -252,14 +253,14 @@ mod tests {
 		let a = Stencil {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 1, 0, 0, 1],
-			components: Pixel::A,
+			channels: Channel::A,
 			data: vec![1u8, 4],
 		};
 		assert_eq!(format!("{:?}", a), "Stencil ( ⠑ )");
 		let b = Stencil {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 0, 1, 1, 0],
-			components: Pixel::A,
+			channels: Channel::A,
 			data: vec![2u8, 3],
 		};
 		assert_eq!(format!("{:?}", b), "Stencil ( ⠊ )");
@@ -271,14 +272,14 @@ mod tests {
 		let a = Stencil {
 			size: Extent2::new(1, 2),
 			mask: bitvec![Lsb0, u8; 1, 1],
-			components: Pixel::A,
+			channels: Channel::A,
 			data: vec![1u8, 3],
 		};
 		assert_eq!(format!("{:?}", a), "Stencil ( ⠃ )");
 		let b = Stencil {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 0, 1, 0, 1],
-			components: Pixel::A,
+			channels: Channel::A,
 			data: vec![2u8, 4],
 		};
 		assert_eq!(format!("{:?}", b), "Stencil ( ⠘ )");
@@ -293,7 +294,7 @@ mod tests {
 		let a = Stencil {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 1, 1, 1, 1],
-			components: Pixel::A,
+			channels: Channel::A,
 			data: vec![1u8, 2, 3, 4],
 		};
 		let mut i = a.into_iter();
@@ -306,7 +307,7 @@ mod tests {
 		let a = Stencil {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 1, 0, 0, 1],
-			components: Pixel::A,
+			channels: Channel::A,
 			data: vec![1u8, 4],
 		};
 		let mut i = a.into_iter();
@@ -321,7 +322,7 @@ mod tests {
 		let a = Stencil {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 1, 1, 1, 1],
-			components: Pixel::A,
+			channels: Channel::A,
 			data: vec![1u8, 2, 3, 4],
 		};
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
@@ -336,7 +337,7 @@ mod tests {
 		let a = Stencil {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 1, 0, 0, 1],
-			components: Pixel::A,
+			channels: Channel::A,
 			data: vec![1u8, 4],
 		};
 		assert_eq!(a.try_index(0).unwrap(), &[1u8][..]);

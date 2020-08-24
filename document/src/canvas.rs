@@ -5,7 +5,7 @@ use std::collections::VecDeque;
 #[derive(Debug, Clone)]
 pub struct Canvas {
 	pub size: Extent2<u32>,
-	pub components: u8,
+	pub channels: Channel,
 	pub data: Bytes,
 	pub stencils: VecDeque<Arc<PositionnedStencil>>,
 }
@@ -28,10 +28,10 @@ impl std::fmt::Display for CanvasError {
 }
 
 impl Canvas {
-	pub fn new(size: Extent2<u32>, components: u8, data: Vec<u8>) -> Self {
+	pub fn new(size: Extent2<u32>, channels: Channel, data: Vec<u8>) -> Self {
 		Canvas {
 			size,
-			components,
+			channels,
 			data: Bytes::from(data),
 			stencils: VecDeque::new(),
 		}
@@ -42,7 +42,7 @@ impl Canvas {
 		position: Vec2<u32>,
 		stencil: Stencil,
 	) -> Result<Canvas, CanvasError> {
-		if self.components != stencil.components {
+		if self.channels != stencil.channels {
 			return Err(CanvasError::ComponentMismatch);
 		}
 		let mut cloned = self.clone();
@@ -56,7 +56,7 @@ impl Canvas {
 	///
 	/// ```
 	/// use document::prelude::*;
-	/// let canvas = Canvas::new(Extent2::new(2, 2), Pixel::A, vec![1u8, 2, 3, 4]);
+	/// let canvas = Canvas::new(Extent2::new(2, 2), Channel::A, vec![1u8, 2, 3, 4]);
 	/// let bytes = canvas.copy_to_bytes();
 	/// assert_eq!(&bytes[..], &[1u8, 2, 3, 4][..]);
 	/// ```
@@ -78,7 +78,7 @@ impl std::ops::Index<usize> for Canvas {
 	type Output = [u8];
 
 	fn index(&self, index: usize) -> &Self::Output {
-		let stride = Pixel::size_of(self.components);
+		let stride = Channel::size_of(self.channels);
 		let x = index as u32 % self.size.w;
 		let y = index as u32 / self.size.w;
 		for stencil in self.stencils.iter() {
@@ -135,7 +135,7 @@ mod tests {
 
 	#[test]
 	fn test_index() {
-		let a = Canvas::new(Extent2::new(2, 2), Pixel::A, vec![1u8, 2, 3, 4]);
+		let a = Canvas::new(Extent2::new(2, 2), Channel::A, vec![1u8, 2, 3, 4]);
 		assert_eq!(&a[0], &[1u8][..]);
 		assert_eq!(&a[1], &[2u8][..]);
 		assert_eq!(&a[2], &[3u8][..]);
@@ -144,7 +144,7 @@ mod tests {
 		let stencil = Stencil {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 1, 0, 0, 1],
-			components: Pixel::A,
+			channels: Channel::A,
 			data: vec![8u8, 9],
 		};
 
@@ -157,7 +157,7 @@ mod tests {
 		let stencil = Stencil {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 0, 1, 1, 0],
-			components: Pixel::A,
+			channels: Channel::A,
 			data: vec![11u8, 12],
 		};
 
@@ -170,7 +170,7 @@ mod tests {
 
 	#[test]
 	fn test_iter() {
-		let a = Canvas::new(Extent2::new(2, 2), Pixel::A, vec![1u8, 2, 3, 4]);
+		let a = Canvas::new(Extent2::new(2, 2), Channel::A, vec![1u8, 2, 3, 4]);
 
 		let mut i = a.into_iter();
 		assert_eq!(i.next(), Some(&[1u8][..]));

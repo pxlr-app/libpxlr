@@ -8,7 +8,7 @@ pub struct CanvasGroupNode {
 	pub position: Arc<Vec2<u32>>,
 	pub size: Arc<Extent2<u32>>,
 	pub opacity: f32,
-	pub components: u8,
+	pub channels: Channel,
 	pub palette: Option<Weak<NodeType>>,
 	pub display: bool,
 	pub locked: bool,
@@ -165,9 +165,9 @@ impl Transparent for CanvasGroupNode {
 	}
 }
 
-impl HasComponents for CanvasGroupNode {
-	fn components(&self) -> u8 {
-		self.components
+impl HasChannels for CanvasGroupNode {
+	fn channels(&self) -> Channel {
+		self.channels
 	}
 }
 
@@ -178,7 +178,7 @@ impl CanvasGroupNode {
 			.iter()
 			.find(|child| child.as_node().id() == child.as_node().id())
 			.is_some() || child.as_spritenode().is_none()
-			|| child.as_spritenode().unwrap().components() != self.components
+			|| child.as_spritenode().unwrap().channels() != self.channels
 		{
 			None
 		} else {
@@ -234,18 +234,18 @@ impl CanvasGroupNode {
 			None => None,
 		}
 	}
-	pub fn set_components(&self, components: u8) -> Option<CommandPair> {
-		if self.components == components {
+	pub fn set_channels(&self, channels: Channel) -> Option<CommandPair> {
+		if self.channels == channels {
 			None
 		} else {
 			Some((
 				CommandType::SetComponents(SetComponentsCommand {
 					target: self.id,
-					components,
+					channels,
 				}),
 				CommandType::SetComponents(SetComponentsCommand {
 					target: self.id,
-					components: self.components,
+					channels: self.channels,
 				}),
 			))
 		}
@@ -358,7 +358,7 @@ impl Executable for CanvasGroupNode {
 							match child.as_node().execute(&CommandType::SetComponents(
 								SetComponentsCommand {
 									target: child.as_node().id(),
-									components: command.components,
+									channels: command.channels,
 								},
 							)) {
 								Some(new_child) => Arc::new(new_child),
@@ -367,7 +367,7 @@ impl Executable for CanvasGroupNode {
 						})
 						.collect();
 					patched.children = Arc::new(children);
-					patched.components = command.components;
+					patched.channels = command.channels;
 				}
 				_ => return None,
 			};
@@ -405,7 +405,8 @@ impl parser::v0::ParseNode for CanvasGroupNode {
 	) -> parser::Result<&'bytes [u8], NodeRef> {
 		use parser::Parse;
 		let (bytes, opacity) = le_f32(bytes)?;
-		let (bytes, components) = le_u8(bytes)?;
+		let (bytes, channels) = le_u8(bytes)?;
+		let channels = Channel::from_bits(channels).unwrap();
 		let (bytes, has_palette) = le_u8(bytes)?;
 		let (bytes, palette) = if has_palette == 1 {
 			let (bytes, palette_id) = Uuid::parse(bytes)?;
@@ -424,7 +425,7 @@ impl parser::v0::ParseNode for CanvasGroupNode {
 				position: Arc::new(row.position),
 				size: Arc::new(row.size),
 				opacity: opacity,
-				components: components,
+				channels: channels,
 				palette: palette,
 				display: row.display,
 				locked: row.locked,
@@ -446,7 +447,7 @@ impl parser::v0::WriteNode for CanvasGroupNode {
 		use parser::Write;
 		let mut size = 5usize;
 		writer.write(&self.opacity.to_le_bytes())?;
-		writer.write(&self.components.to_le_bytes())?;
+		writer.write(&self.channels.bits().to_le_bytes())?;
 		if let Some(Some(palette)) = self.palette.clone().map(|weak| weak.upgrade()) {
 			size += writer.write(&1u8.to_le_bytes())?;
 			size += palette.as_node().id().write(writer)?;

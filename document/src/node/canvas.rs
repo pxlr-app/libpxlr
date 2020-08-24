@@ -14,7 +14,7 @@ pub struct CanvasNode {
 	pub locked: bool,
 	pub name: Arc<String>,
 	pub opacity: f32,
-	pub components: u8,
+	pub channels: Channel,
 	pub data: Arc<Vec<u8>>,
 }
 
@@ -64,7 +64,7 @@ impl Cropable for CanvasNode {
 			}),
 			CommandType::RestoreCanvas(RestoreCanvasCommand {
 				target: self.id,
-				components: self.components,
+				channels: self.channels,
 				data: (*self.data).to_owned(),
 			}),
 		))
@@ -127,25 +127,25 @@ impl Transparent for CanvasNode {
 	}
 }
 
-impl HasComponents for CanvasNode {
-	fn components(&self) -> u8 {
-		self.components
+impl HasChannels for CanvasNode {
+	fn channels(&self) -> Channel {
+		self.channels
 	}
 }
 
 impl CanvasNode {
-	pub fn set_components(&self, components: u8) -> Option<CommandPair> {
-		if self.components == components {
+	pub fn set_channels(&self, channels: Channel) -> Option<CommandPair> {
+		if self.channels == channels {
 			None
 		} else {
 			Some((
 				CommandType::SetComponents(SetComponentsCommand {
 					target: self.id,
-					components,
+					channels,
 				}),
 				CommandType::SetComponents(SetComponentsCommand {
 					target: self.id,
-					components: self.components,
+					channels: self.channels,
 				}),
 			))
 		}
@@ -174,7 +174,7 @@ impl CanvasNode {
 			}),
 			CommandType::RestoreCanvas(RestoreCanvasCommand {
 				target: self.id,
-				components: self.components,
+				channels: self.channels,
 				data: (*self.data).to_owned(),
 			}),
 		))
@@ -205,10 +205,10 @@ impl Executable for CanvasNode {
 					patched.opacity = command.opacity;
 				}
 				CommandType::SetComponents(command) => {
-					patched.components = command.components;
+					patched.channels = command.channels;
 				}
 				CommandType::RestoreCanvas(command) => {
-					patched.components = command.components;
+					patched.channels = command.channels;
 					patched.data = Arc::new(command.data.to_owned());
 				}
 				CommandType::Resize(_patch) => unimplemented!(),
@@ -232,7 +232,8 @@ impl parser::v0::ParseNode for CanvasNode {
 	) -> parser::Result<&'bytes [u8], NodeRef> {
 		use parser::Parse;
 		let (bytes, opacity) = le_f32(bytes)?;
-		let (bytes, components) = le_u8(bytes)?;
+		let (bytes, channels) = le_u8(bytes)?;
+		let channels = Channel::from_bits(channels).unwrap();
 		let (bytes, has_palette) = le_u8(bytes)?;
 		let (bytes, palette) = if has_palette == 1 {
 			let (bytes, palette_id) = Uuid::parse(bytes)?;
@@ -256,7 +257,7 @@ impl parser::v0::ParseNode for CanvasNode {
 				locked: row.locked,
 				name: Arc::new(row.name.clone()),
 				opacity: opacity,
-				components: components,
+				channels: channels,
 				data: Arc::new(data.to_owned()),
 			})),
 		))
@@ -273,7 +274,7 @@ impl parser::v0::WriteNode for CanvasNode {
 		use parser::Write;
 		let mut size = 5usize;
 		writer.write(&self.opacity.to_le_bytes())?;
-		writer.write(&self.components.to_le_bytes())?;
+		writer.write(&self.channels.bits().to_le_bytes())?;
 		if let Some(Some(palette)) = self.palette.clone().map(|weak| weak.upgrade()) {
 			size += writer.write(&1u8.to_le_bytes())?;
 			size += palette.as_node().id().write(writer)?;
