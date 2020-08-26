@@ -3,6 +3,8 @@ use bitflags::bitflags;
 use nom::number::complete::{le_f32, le_u8};
 use std::fmt::Debug;
 
+pub type Pixel = [u8];
+
 pub trait Color {
 	const COMPONENTS: u8;
 	const SIZE: usize;
@@ -91,7 +93,8 @@ bitflags! {
 
 impl Channel {
 	/// Size of all channels of a Channel
-	pub fn size_of(channels: Channel) -> usize {
+	pub fn size(&self) -> usize {
+		let channels = *self;
 		let mut size = 0usize;
 		if channels & Channel::I == Channel::I {
 			size += I::SIZE;
@@ -122,9 +125,10 @@ impl Channel {
 	/// ```
 	/// use document::color::*;
 	/// let channels = Channel::RGB | Channel::A | Channel::XYZ;
-	/// assert_eq!(Channel::offset_of(channels, Channel::XYZ), RGB::SIZE + A::SIZE);
+	/// assert_eq!(channels.offset_of(Channel::XYZ), RGB::SIZE + A::SIZE);
 	/// ```
-	pub fn offset_of(channels: Channel, channel: Channel) -> usize {
+	pub fn offset_of(&self, channel: Channel) -> usize {
+		let channels = *self;
 		let mut offset = 0usize;
 		if channel == Channel::I {
 			return offset;
@@ -165,16 +169,16 @@ impl Channel {
 	/// use document::color::*;
 	/// let color = I::new(1);
 	/// let buffer = color.to_slice();
-	/// assert!(Channel::i(Channel::I, buffer).is_some());
-	/// assert_eq!(Channel::i(Channel::I, buffer).unwrap(), &color);
+	/// assert!(Channel::I.i(buffer).is_some());
+	/// assert_eq!(Channel::I.i(buffer).unwrap(), &color);
 	/// ```
-	pub fn i(channels: Channel, data: &[u8]) -> Option<&I> {
-		if channels & Channel::I != Channel::I {
+	pub fn i<'p>(&self, pixel: &'p Pixel) -> Option<&'p I> {
+		if *self & Channel::I != Channel::I {
 			None
 		} else {
-			let offset = Channel::offset_of(channels, Channel::I);
+			let offset = self.offset_of(Channel::I);
 			let size = I::SIZE;
-			Some(I::from_slice(&data[offset..offset + size]))
+			Some(I::from_slice(&pixel[offset..offset + size]))
 		}
 	}
 
@@ -184,16 +188,16 @@ impl Channel {
 	/// use document::color::*;
 	/// let mut color = I::new(1);
 	/// let mut buffer = color.to_slice_mut();
-	/// assert!(Channel::i_mut(Channel::I, buffer).is_some());
-	/// assert_eq!(Channel::i_mut(Channel::I, buffer).unwrap(), &I::new(1));
+	/// assert!(Channel::I.i_mut(buffer).is_some());
+	/// assert_eq!(Channel::I.i_mut(buffer).unwrap(), &I::new(1));
 	/// ```
-	pub fn i_mut(channels: Channel, data: &mut [u8]) -> Option<&mut I> {
-		if channels & Channel::I != Channel::I {
+	pub fn i_mut<'p>(&self, pixel: &'p mut Pixel) -> Option<&'p mut I> {
+		if *self & Channel::I != Channel::I {
 			None
 		} else {
-			let offset = Channel::offset_of(channels, Channel::I);
+			let offset = self.offset_of(Channel::I);
 			let size = I::SIZE;
-			Some(I::from_slice_mut(&mut data[offset..offset + size]))
+			Some(I::from_slice_mut(&mut pixel[offset..offset + size]))
 		}
 	}
 
@@ -203,16 +207,16 @@ impl Channel {
 	/// use document::color::*;
 	/// let color = RGB::new(1, 2, 3);
 	/// let buffer = color.to_slice();
-	/// assert!(Channel::rgb(Channel::RGB, buffer).is_some());
-	/// assert_eq!(Channel::rgb(Channel::RGB, buffer).unwrap(), &color);
+	/// assert!(Channel::RGB.rgb(buffer).is_some());
+	/// assert_eq!(Channel::RGB.rgb(buffer).unwrap(), &color);
 	/// ```
-	pub fn rgb(channels: Channel, data: &[u8]) -> Option<&RGB> {
-		if channels & Channel::RGB != Channel::RGB {
+	pub fn rgb<'p>(&self, pixel: &'p Pixel) -> Option<&'p RGB> {
+		if *self & Channel::RGB != Channel::RGB {
 			None
 		} else {
-			let offset = Channel::offset_of(channels, Channel::RGB);
+			let offset = self.offset_of(Channel::RGB);
 			let size = RGB::SIZE;
-			Some(RGB::from_slice(&data[offset..offset + size]))
+			Some(RGB::from_slice(&pixel[offset..offset + size]))
 		}
 	}
 
@@ -222,16 +226,16 @@ impl Channel {
 	/// use document::color::*;
 	/// let mut color = RGB::new(1, 2, 3);
 	/// let mut buffer = color.to_slice_mut();
-	/// assert!(Channel::rgb_mut(Channel::RGB, buffer).is_some());
-	/// assert_eq!(Channel::rgb_mut(Channel::RGB, buffer).unwrap(), &RGB::new(1, 2, 3));
+	/// assert!(Channel::RGB.rgb_mut(buffer).is_some());
+	/// assert_eq!(Channel::RGB.rgb_mut(buffer).unwrap(), &RGB::new(1, 2, 3));
 	/// ```
-	pub fn rgb_mut(channels: Channel, data: &mut [u8]) -> Option<&mut RGB> {
-		if channels & Channel::RGB != Channel::RGB {
+	pub fn rgb_mut<'p>(&self, pixel: &'p mut Pixel) -> Option<&'p mut RGB> {
+		if *self & Channel::RGB != Channel::RGB {
 			None
 		} else {
-			let offset = Channel::offset_of(channels, Channel::RGB);
+			let offset = self.offset_of(Channel::RGB);
 			let size = RGB::SIZE;
-			Some(RGB::from_slice_mut(&mut data[offset..offset + size]))
+			Some(RGB::from_slice_mut(&mut pixel[offset..offset + size]))
 		}
 	}
 
@@ -241,16 +245,16 @@ impl Channel {
 	/// use document::color::*;
 	/// let color = A::new(1);
 	/// let buffer = color.to_slice();
-	/// assert!(Channel::a(Channel::A, buffer).is_some());
-	/// assert_eq!(Channel::a(Channel::A, buffer).unwrap(), &color);
+	/// assert!(Channel::A.a(buffer).is_some());
+	/// assert_eq!(Channel::A.a(buffer).unwrap(), &color);
 	/// ```
-	pub fn a(channels: Channel, data: &[u8]) -> Option<&A> {
-		if channels & Channel::A != Channel::A {
+	pub fn a<'p>(&self, pixel: &'p Pixel) -> Option<&'p A> {
+		if *self & Channel::A != Channel::A {
 			None
 		} else {
-			let offset = Channel::offset_of(channels, Channel::A);
+			let offset = self.offset_of(Channel::A);
 			let size = A::SIZE;
-			Some(A::from_slice(&data[offset..offset + size]))
+			Some(A::from_slice(&pixel[offset..offset + size]))
 		}
 	}
 
@@ -260,16 +264,16 @@ impl Channel {
 	/// use document::color::*;
 	/// let mut color = A::new(1);
 	/// let mut buffer = color.to_slice_mut();
-	/// assert!(Channel::a_mut(Channel::A, buffer).is_some());
-	/// assert_eq!(Channel::a_mut(Channel::A, buffer).unwrap(), &A::new(1));
+	/// assert!(Channel::A.a_mut(buffer).is_some());
+	/// assert_eq!(Channel::A.a_mut(buffer).unwrap(), &A::new(1));
 	/// ```
-	pub fn a_mut(channels: Channel, data: &mut [u8]) -> Option<&mut A> {
-		if channels & Channel::A != Channel::A {
+	pub fn a_mut<'p>(&self, pixel: &'p mut Pixel) -> Option<&'p mut A> {
+		if *self & Channel::A != Channel::A {
 			None
 		} else {
-			let offset = Channel::offset_of(channels, Channel::A);
+			let offset = self.offset_of(Channel::A);
 			let size = A::SIZE;
-			Some(A::from_slice_mut(&mut data[offset..offset + size]))
+			Some(A::from_slice_mut(&mut pixel[offset..offset + size]))
 		}
 	}
 
@@ -279,16 +283,16 @@ impl Channel {
 	/// use document::color::*;
 	/// let color = UV::new(1., 2.);
 	/// let buffer = color.to_slice();
-	/// assert!(Channel::uv(Channel::UV, buffer).is_some());
-	/// assert_eq!(Channel::uv(Channel::UV, buffer).unwrap(), &color);
+	/// assert!(Channel::UV.uv(buffer).is_some());
+	/// assert_eq!(Channel::UV.uv(buffer).unwrap(), &color);
 	/// ```
-	pub fn uv(channels: Channel, data: &[u8]) -> Option<&UV> {
-		if channels & Channel::UV != Channel::UV {
+	pub fn uv<'p>(&self, pixel: &'p Pixel) -> Option<&'p UV> {
+		if *self & Channel::UV != Channel::UV {
 			None
 		} else {
-			let offset = Channel::offset_of(channels, Channel::UV);
+			let offset = self.offset_of(Channel::UV);
 			let size = UV::SIZE;
-			Some(UV::from_slice(&data[offset..offset + size]))
+			Some(UV::from_slice(&pixel[offset..offset + size]))
 		}
 	}
 
@@ -298,16 +302,16 @@ impl Channel {
 	/// use document::color::*;
 	/// let mut color = UV::new(1., 2.);
 	/// let mut buffer = color.to_slice_mut();
-	/// assert!(Channel::uv_mut(Channel::UV, buffer).is_some());
-	/// assert_eq!(Channel::uv_mut(Channel::UV, buffer).unwrap(), &UV::new(1., 2.));
+	/// assert!(Channel::UV.uv_mut(buffer).is_some());
+	/// assert_eq!(Channel::UV.uv_mut(buffer).unwrap(), &UV::new(1., 2.));
 	/// ```
-	pub fn uv_mut(channels: Channel, data: &mut [u8]) -> Option<&mut UV> {
-		if channels & Channel::UV != Channel::UV {
+	pub fn uv_mut<'p>(&self, pixel: &'p mut Pixel) -> Option<&'p mut UV> {
+		if *self & Channel::UV != Channel::UV {
 			None
 		} else {
-			let offset = Channel::offset_of(channels, Channel::UV);
+			let offset = self.offset_of(Channel::UV);
 			let size = UV::SIZE;
-			Some(UV::from_slice_mut(&mut data[offset..offset + size]))
+			Some(UV::from_slice_mut(&mut pixel[offset..offset + size]))
 		}
 	}
 
@@ -317,16 +321,16 @@ impl Channel {
 	/// use document::color::*;
 	/// let color = XYZ::new(1., 2., 3.);
 	/// let buffer = color.to_slice();
-	/// assert!(Channel::xyz(Channel::XYZ, buffer).is_some());
-	/// assert_eq!(Channel::xyz(Channel::XYZ, buffer).unwrap(), &color);
+	/// assert!(Channel::XYZ.xyz(buffer).is_some());
+	/// assert_eq!(Channel::XYZ.xyz(buffer).unwrap(), &color);
 	/// ```
-	pub fn xyz(channels: Channel, data: &[u8]) -> Option<&XYZ> {
-		if channels & Channel::XYZ != Channel::XYZ {
+	pub fn xyz<'p>(&self, pixel: &'p Pixel) -> Option<&'p XYZ> {
+		if *self & Channel::XYZ != Channel::XYZ {
 			None
 		} else {
-			let offset = Channel::offset_of(channels, Channel::XYZ);
+			let offset = self.offset_of(Channel::XYZ);
 			let size = XYZ::SIZE;
-			Some(XYZ::from_slice(&data[offset..offset + size]))
+			Some(XYZ::from_slice(&pixel[offset..offset + size]))
 		}
 	}
 
@@ -336,16 +340,16 @@ impl Channel {
 	/// use document::color::*;
 	/// let mut color = XYZ::new(1., 2., 3.);
 	/// let mut buffer = color.to_slice_mut();
-	/// assert!(Channel::xyz_mut(Channel::XYZ, buffer).is_some());
-	/// assert_eq!(Channel::xyz_mut(Channel::XYZ, buffer).unwrap(), &XYZ::new(1., 2., 3.));
+	/// assert!(Channel::XYZ.xyz_mut(buffer).is_some());
+	/// assert_eq!(Channel::XYZ.xyz_mut(buffer).unwrap(), &XYZ::new(1., 2., 3.));
 	/// ```
-	pub fn xyz_mut(channels: Channel, data: &mut [u8]) -> Option<&mut XYZ> {
-		if channels & Channel::XYZ != Channel::XYZ {
+	pub fn xyz_mut<'p>(&self, pixel: &'p mut Pixel) -> Option<&'p mut XYZ> {
+		if *self & Channel::XYZ != Channel::XYZ {
 			None
 		} else {
-			let offset = Channel::offset_of(channels, Channel::XYZ);
+			let offset = self.offset_of(Channel::XYZ);
 			let size = XYZ::SIZE;
-			Some(XYZ::from_slice_mut(&mut data[offset..offset + size]))
+			Some(XYZ::from_slice_mut(&mut pixel[offset..offset + size]))
 		}
 	}
 }
@@ -357,40 +361,42 @@ mod tests {
 	#[test]
 	fn test_channels() {
 		let channels = Channel::I | Channel::RGB | Channel::A | Channel::UV;
-		let buffer: &[u8] = &[1, 1, 2, 3, 2, 0, 0, 128, 63, 0, 0, 0, 64];
-		assert_eq!(Channel::size_of(channels), 13);
-		assert_eq!(Channel::i(channels, &buffer).unwrap(), &I::new(1));
-		assert_eq!(Channel::rgb(channels, &buffer).unwrap(), &RGB::new(1, 2, 3));
-		assert_eq!(Channel::a(channels, &buffer).unwrap(), &A::new(2));
-		assert_eq!(Channel::uv(channels, &buffer).unwrap(), &UV::new(1., 2.));
-		assert!(Channel::xyz(channels, &buffer).is_none());
+		let buffer: &Pixel = &[1, 1, 2, 3, 2, 0, 0, 128, 63, 0, 0, 0, 64];
+		assert_eq!(channels.size(), 13);
+		assert_eq!(channels.i(&buffer).unwrap(), &I::new(1));
+		assert_eq!(channels.rgb(&buffer).unwrap(), &RGB::new(1, 2, 3));
+		assert_eq!(channels.a(&buffer).unwrap(), &A::new(2));
+		assert_eq!(channels.uv(&buffer).unwrap(), &UV::new(1., 2.));
+		assert!(channels.xyz(&buffer).is_none());
 
-		let mut buffer: &mut [u8] = &mut [1, 1, 2, 3, 2, 0, 0, 128, 63, 0, 0, 0, 64];
-		assert_eq!(Channel::size_of(channels), 13);
-		assert_eq!(Channel::i_mut(channels, &mut buffer).unwrap(), &I::new(1));
-		assert_eq!(
-			Channel::rgb_mut(channels, &mut buffer).unwrap(),
-			&RGB::new(1, 2, 3)
-		);
-		assert_eq!(Channel::a_mut(channels, &mut buffer).unwrap(), &A::new(2));
-		assert_eq!(
-			Channel::uv_mut(channels, &mut buffer).unwrap(),
-			&UV::new(1., 2.)
-		);
-		assert!(Channel::xyz_mut(channels, &mut buffer).is_none());
+		let mut buffer: &mut Pixel = &mut [1, 1, 2, 3, 2, 0, 0, 128, 63, 0, 0, 0, 64];
+		assert_eq!(channels.size(), 13);
+		assert_eq!(channels.i_mut(&mut buffer).unwrap(), &I::new(1));
+		assert_eq!(channels.rgb_mut(&mut buffer).unwrap(), &RGB::new(1, 2, 3));
+		assert_eq!(channels.a_mut(&mut buffer).unwrap(), &A::new(2));
+		assert_eq!(channels.uv_mut(&mut buffer).unwrap(), &UV::new(1., 2.));
+		assert!(channels.xyz_mut(&mut buffer).is_none());
 	}
 
 	#[test]
 	fn test_channels_mut() {
 		let channels = Channel::I | Channel::RGB | Channel::A | Channel::UV;
-		let buffer: &mut [u8] = &mut [1, 1, 2, 3, 2, 0, 0, 128, 63, 0, 0, 0, 64];
+
+		let mut buffer: Vec<u8> = vec![0u8; channels.size()];
+		*channels.i_mut(&mut buffer[..]).unwrap() = I::new(1);
+		*channels.rgb_mut(&mut buffer[..]).unwrap() = RGB::new(1, 2, 3);
+		*channels.a_mut(&mut buffer[..]).unwrap() = A::new(2);
+		*channels.uv_mut(&mut buffer[..]).unwrap() = UV::new(1., 2.);
+		assert_eq!(buffer, &[1, 1, 2, 3, 2, 0, 0, 128, 63, 0, 0, 0, 64][..]);
+
+		let buffer: &mut Pixel = &mut [1, 1, 2, 3, 2, 0, 0, 128, 63, 0, 0, 0, 64];
 		{
-			let mut rgb = Channel::rgb_mut(channels, buffer).unwrap();
+			let mut rgb = channels.rgb_mut(buffer).unwrap();
 			rgb.r = 4;
 			assert_eq!(rgb, &RGB::new(4, 2, 3));
 		}
 		{
-			let mut uv = Channel::uv_mut(channels, buffer).unwrap();
+			let mut uv = channels.uv_mut(buffer).unwrap();
 			uv.u = 3.;
 			assert_eq!(uv, &UV::new(3., 2.));
 		}

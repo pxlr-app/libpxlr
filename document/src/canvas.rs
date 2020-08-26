@@ -66,7 +66,7 @@ impl Canvas {
 }
 
 impl std::ops::Index<(&u32, &u32)> for Canvas {
-	type Output = [u8];
+	type Output = Pixel;
 
 	fn index(&self, index: (&u32, &u32)) -> &Self::Output {
 		let index = (index.1 + self.size.w * index.0) as usize;
@@ -75,10 +75,10 @@ impl std::ops::Index<(&u32, &u32)> for Canvas {
 }
 
 impl std::ops::Index<usize> for Canvas {
-	type Output = [u8];
+	type Output = Pixel;
 
 	fn index(&self, index: usize) -> &Self::Output {
-		let stride = Channel::size_of(self.channels);
+		let stride = self.channels.size();
 		let x = index as u32 % self.size.w;
 		let y = index as u32 / self.size.w;
 		for stencil in self.stencils.iter() {
@@ -104,9 +104,9 @@ pub struct CanvasIterator<'a> {
 }
 
 impl<'a> Iterator for CanvasIterator<'a> {
-	type Item = &'a [u8];
+	type Item = &'a Pixel;
 
-	fn next(&mut self) -> Option<&'a [u8]> {
+	fn next(&mut self) -> Option<&'a Pixel> {
 		if self.index < (self.canvas.size.w * self.canvas.size.h) as usize {
 			let index = self.index;
 			self.index += 1;
@@ -117,7 +117,7 @@ impl<'a> Iterator for CanvasIterator<'a> {
 }
 
 impl<'a> IntoIterator for &'a Canvas {
-	type Item = &'a [u8];
+	type Item = &'a Pixel;
 	type IntoIter = CanvasIterator<'a>;
 
 	fn into_iter(self) -> Self::IntoIter {

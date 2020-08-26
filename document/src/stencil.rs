@@ -33,14 +33,13 @@ impl std::fmt::Display for StencilError {
 
 impl Stencil {
 	pub fn new(size: Extent2<u32>, channels: Channel) -> Stencil {
-		let buffer: Vec<u8> =
-			vec![0u8; size.w as usize * size.h as usize * Channel::size_of(channels)];
+		let buffer: Vec<u8> = vec![0u8; size.w as usize * size.h as usize * channels.size()];
 		Stencil::from_buffer(size, channels, &buffer)
 	}
 
 	pub fn from_buffer(size: Extent2<u32>, channels: Channel, buffer: &[u8]) -> Stencil {
 		assert_eq!(
-			size.w as usize * size.h as usize * Channel::size_of(channels),
+			size.w as usize * size.h as usize * channels.size(),
 			buffer.len()
 		);
 		let mask = bitvec![Lsb0, u8; 1; (size.w * size.h) as usize];
@@ -53,14 +52,14 @@ impl Stencil {
 		}
 	}
 
-	pub fn try_get(&self, index: (&u32, &u32)) -> Result<&[u8], StencilError> {
+	pub fn try_get(&self, index: (&u32, &u32)) -> Result<&Pixel, StencilError> {
 		let index = (index.1 * self.size.w + index.0) as usize;
 		self.try_index(index)
 	}
 
-	pub fn try_index(&self, index: usize) -> Result<&[u8], StencilError> {
+	pub fn try_index(&self, index: usize) -> Result<&Pixel, StencilError> {
 		if self.mask[index] {
-			let stride = Channel::size_of(self.channels);
+			let stride = self.channels.size();
 			let count: usize = self.mask[..index]
 				.iter()
 				.map(|b| if b == &true { 1usize } else { 0usize })
@@ -92,7 +91,7 @@ impl std::ops::Add for &Stencil {
 
 	fn add(self, other: Self) -> Self::Output {
 		assert_eq!(self.channels, other.channels);
-		let stride = Channel::size_of(self.channels);
+		let stride = self.channels.size();
 		let size = Extent2::new(self.size.w.max(other.size.w), self.size.h.max(other.size.h));
 		let mut mask = bitvec![Lsb0, u8; 0; (size.w * size.h) as usize];
 		let mut data: Vec<u8> = Vec::with_capacity((size.w * size.h * stride as u32) as usize);
@@ -151,9 +150,9 @@ pub struct StencilIterator<'a> {
 }
 
 impl<'a> Iterator for StencilIterator<'a> {
-	type Item = (u32, u32, &'a [u8]);
+	type Item = (u32, u32, &'a Pixel);
 
-	fn next(&mut self) -> Option<(u32, u32, &'a [u8])> {
+	fn next(&mut self) -> Option<(u32, u32, &'a Pixel)> {
 		while self.bit_offset < self.mask.len() {
 			let bit_offset = self.bit_offset;
 			self.bit_offset += 1;
@@ -175,7 +174,7 @@ impl<'a> Iterator for StencilIterator<'a> {
 }
 
 impl<'a> IntoIterator for &'a Stencil {
-	type Item = (u32, u32, &'a [u8]);
+	type Item = (u32, u32, &'a Pixel);
 	type IntoIter = StencilIterator<'a>;
 
 	fn into_iter(self) -> Self::IntoIter {
@@ -184,7 +183,7 @@ impl<'a> IntoIterator for &'a Stencil {
 			data_offset: 0,
 			width: self.size.w,
 			mask: &self.mask,
-			data_stride: Channel::size_of(self.channels),
+			data_stride: self.channels.size(),
 			data: &self.data,
 		}
 	}
@@ -198,7 +197,7 @@ impl parser::Parse for Stencil {
 		let mask: BitVec<Lsb0, u8> = buffer.into();
 		let (bytes, channels) = le_u8(bytes)?;
 		let channels = Channel::from_bits(channels).unwrap();
-		let len = (size.w * size.h * Channel::size_of(channels) as u32) as usize;
+		let len = (size.w * size.h * channels.size() as u32) as usize;
 		let (bytes, data) = many_m_n(len, len, le_u8)(bytes)?;
 		Ok((
 			bytes,
