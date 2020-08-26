@@ -1,4 +1,4 @@
-pub use bitvec::prelude::*;
+use bitvec::prelude::*;
 
 pub fn braille_fmt<O: BitOrder, S: BitStore>(bitvec: &BitVec<O, S>) -> String {
 	let l = bitvec.len();
