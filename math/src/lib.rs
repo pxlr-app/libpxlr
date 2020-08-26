@@ -10,5 +10,3 @@ pub use vek::transform::repr_c::*;
 pub use vek::transition::*;
 pub use vek::vec::repr_c::*;
 pub use vek::vec::ShuffleMask4;
-pub mod blend;
-pub mod interpolation;
