@@ -176,10 +176,22 @@ impl Channel {
 		if *self & Channel::I != Channel::I {
 			None
 		} else {
-			let offset = self.offset_of(Channel::I);
-			let size = I::SIZE;
-			Some(I::from_slice(&pixel[offset..offset + size]))
+			Some(unsafe { self.unsafe_i(&pixel) })
 		}
+	}
+
+	/// Retrieve I channel as I color
+	///
+	/// ```
+	/// use document::color::*;
+	/// let color = I::new(1);
+	/// let buffer = color.to_slice();
+	/// unsafe { assert_eq!(Channel::I.unsafe_i(buffer), &color); }
+	/// ```
+	pub unsafe fn unsafe_i<'p>(&self, pixel: &'p Pixel) -> &'p I {
+		let offset = self.offset_of(Channel::I);
+		let size = I::SIZE;
+		I::from_slice(&pixel[offset..offset + size])
 	}
 
 	/// Retrieve mutable I channel as I color
@@ -195,10 +207,22 @@ impl Channel {
 		if *self & Channel::I != Channel::I {
 			None
 		} else {
-			let offset = self.offset_of(Channel::I);
-			let size = I::SIZE;
-			Some(I::from_slice_mut(&mut pixel[offset..offset + size]))
+			Some(unsafe { self.unsafe_i_mut(pixel) })
 		}
+	}
+
+	/// Retrieve I channel as I color
+	///
+	/// ```
+	/// use document::color::*;
+	/// let mut color = I::new(1);
+	/// let mut buffer = color.to_slice_mut();
+	/// unsafe { assert_eq!(Channel::I.unsafe_i_mut(buffer), &I::new(1)); }
+	/// ```
+	pub unsafe fn unsafe_i_mut<'p>(&self, pixel: &'p mut Pixel) -> &'p mut I {
+		let offset = self.offset_of(Channel::I);
+		let size = I::SIZE;
+		I::from_slice_mut(&mut pixel[offset..offset + size])
 	}
 
 	/// Retrieve RGB channels as RGB color
@@ -214,10 +238,22 @@ impl Channel {
 		if *self & Channel::RGB != Channel::RGB {
 			None
 		} else {
-			let offset = self.offset_of(Channel::RGB);
-			let size = RGB::SIZE;
-			Some(RGB::from_slice(&pixel[offset..offset + size]))
+			Some(unsafe { self.unsafe_rgb(pixel) })
 		}
+	}
+
+	/// Retrieve RGB channel as RGB color
+	///
+	/// ```
+	/// use document::color::*;
+	/// let color = RGB::new(1, 2, 3);
+	/// let buffer = color.to_slice();
+	/// unsafe { assert_eq!(Channel::RGB.unsafe_rgb(buffer), &color); }
+	/// ```
+	pub unsafe fn unsafe_rgb<'p>(&self, pixel: &'p Pixel) -> &'p RGB {
+		let offset = self.offset_of(Channel::RGB);
+		let size = RGB::SIZE;
+		RGB::from_slice(&pixel[offset..offset + size])
 	}
 
 	/// Retrieve mutable RGB channels as RGB color
@@ -233,10 +269,22 @@ impl Channel {
 		if *self & Channel::RGB != Channel::RGB {
 			None
 		} else {
-			let offset = self.offset_of(Channel::RGB);
-			let size = RGB::SIZE;
-			Some(RGB::from_slice_mut(&mut pixel[offset..offset + size]))
+			Some(unsafe { self.unsafe_rgb_mut(pixel) })
 		}
+	}
+
+	/// Retrieve RGB channel as RGB color
+	///
+	/// ```
+	/// use document::color::*;
+	/// let mut color = RGB::new(1, 2, 3);
+	/// let mut buffer = color.to_slice_mut();
+	/// unsafe { assert_eq!(Channel::RGB.unsafe_rgb_mut(buffer), &RGB::new(1, 2, 3)); }
+	/// ```
+	pub unsafe fn unsafe_rgb_mut<'p>(&self, pixel: &'p mut Pixel) -> &'p mut RGB {
+		let offset = self.offset_of(Channel::RGB);
+		let size = RGB::SIZE;
+		RGB::from_slice_mut(&mut pixel[offset..offset + size])
 	}
 
 	/// Retrieve A channel as A color
@@ -252,10 +300,22 @@ impl Channel {
 		if *self & Channel::A != Channel::A {
 			None
 		} else {
-			let offset = self.offset_of(Channel::A);
-			let size = A::SIZE;
-			Some(A::from_slice(&pixel[offset..offset + size]))
+			Some(unsafe { self.unsafe_a(pixel) })
 		}
+	}
+
+	/// Retrieve A channel as A color
+	///
+	/// ```
+	/// use document::color::*;
+	/// let color = A::new(1);
+	/// let buffer = color.to_slice();
+	/// unsafe { assert_eq!(Channel::A.unsafe_a(buffer), &color); }
+	/// ```
+	pub unsafe fn unsafe_a<'p>(&self, pixel: &'p Pixel) -> &'p A {
+		let offset = self.offset_of(Channel::A);
+		let size = A::SIZE;
+		A::from_slice(&pixel[offset..offset + size])
 	}
 
 	/// Retrieve mutable A channel as A color
@@ -271,10 +331,22 @@ impl Channel {
 		if *self & Channel::A != Channel::A {
 			None
 		} else {
-			let offset = self.offset_of(Channel::A);
-			let size = A::SIZE;
-			Some(A::from_slice_mut(&mut pixel[offset..offset + size]))
+			Some(unsafe { self.unsafe_a_mut(pixel) })
 		}
+	}
+
+	/// Retrieve A channel as A color
+	///
+	/// ```
+	/// use document::color::*;
+	/// let mut color = A::new(1);
+	/// let mut buffer = color.to_slice_mut();
+	/// unsafe { assert_eq!(Channel::A.unsafe_a_mut(buffer), &A::new(1)); }
+	/// ```
+	pub unsafe fn unsafe_a_mut<'p>(&self, pixel: &'p mut Pixel) -> &'p mut A {
+		let offset = self.offset_of(Channel::A);
+		let size = A::SIZE;
+		A::from_slice_mut(&mut pixel[offset..offset + size])
 	}
 
 	/// Retrieve UV channels as UV color
@@ -290,10 +362,22 @@ impl Channel {
 		if *self & Channel::UV != Channel::UV {
 			None
 		} else {
-			let offset = self.offset_of(Channel::UV);
-			let size = UV::SIZE;
-			Some(UV::from_slice(&pixel[offset..offset + size]))
+			Some(unsafe { self.unsafe_uv(pixel) })
 		}
+	}
+
+	/// Retrieve UV channel as UV color
+	///
+	/// ```
+	/// use document::color::*;
+	/// let color = UV::new(1., 2.);
+	/// let buffer = color.to_slice();
+	/// unsafe { assert_eq!(Channel::UV.unsafe_uv(buffer), &color); }
+	/// ```
+	pub unsafe fn unsafe_uv<'p>(&self, pixel: &'p Pixel) -> &'p UV {
+		let offset = self.offset_of(Channel::UV);
+		let size = UV::SIZE;
+		UV::from_slice(&pixel[offset..offset + size])
 	}
 
 	/// Retrieve mutable UV channels as UV color
@@ -309,10 +393,22 @@ impl Channel {
 		if *self & Channel::UV != Channel::UV {
 			None
 		} else {
-			let offset = self.offset_of(Channel::UV);
-			let size = UV::SIZE;
-			Some(UV::from_slice_mut(&mut pixel[offset..offset + size]))
+			Some(unsafe { self.unsafe_uv_mut(pixel) })
 		}
+	}
+
+	/// Retrieve UV channel as UV color
+	///
+	/// ```
+	/// use document::color::*;
+	/// let mut color = UV::new(1., 2.);
+	/// let mut buffer = color.to_slice_mut();
+	/// unsafe { assert_eq!(Channel::UV.unsafe_uv_mut(buffer), &UV::new(1., 2.)); }
+	/// ```
+	pub unsafe fn unsafe_uv_mut<'p>(&self, pixel: &'p mut Pixel) -> &'p mut UV {
+		let offset = self.offset_of(Channel::UV);
+		let size = UV::SIZE;
+		UV::from_slice_mut(&mut pixel[offset..offset + size])
 	}
 
 	/// Retrieve XYZ channels as XYZ color
@@ -328,10 +424,22 @@ impl Channel {
 		if *self & Channel::XYZ != Channel::XYZ {
 			None
 		} else {
-			let offset = self.offset_of(Channel::XYZ);
-			let size = XYZ::SIZE;
-			Some(XYZ::from_slice(&pixel[offset..offset + size]))
+			Some(unsafe { self.unsafe_xyz(pixel) })
 		}
+	}
+
+	/// Retrieve XYZ channel as XYZ color
+	///
+	/// ```
+	/// use document::color::*;
+	/// let color = XYZ::new(1., 2., 3.);
+	/// let buffer = color.to_slice();
+	/// unsafe { assert_eq!(Channel::XYZ.unsafe_xyz(buffer), &color); }
+	/// ```
+	pub unsafe fn unsafe_xyz<'p>(&self, pixel: &'p Pixel) -> &'p XYZ {
+		let offset = self.offset_of(Channel::XYZ);
+		let size = XYZ::SIZE;
+		XYZ::from_slice(&pixel[offset..offset + size])
 	}
 
 	/// Retrieve mutable XYZ channels as XYZ color
@@ -347,10 +455,22 @@ impl Channel {
 		if *self & Channel::XYZ != Channel::XYZ {
 			None
 		} else {
-			let offset = self.offset_of(Channel::XYZ);
-			let size = XYZ::SIZE;
-			Some(XYZ::from_slice_mut(&mut pixel[offset..offset + size]))
+			Some(unsafe { self.unsafe_xyz_mut(pixel) })
 		}
+	}
+
+	/// Retrieve XYZ channel as XYZ color
+	///
+	/// ```
+	/// use document::color::*;
+	/// let mut color = XYZ::new(1., 2., 3.);
+	/// let mut buffer = color.to_slice_mut();
+	/// unsafe { assert_eq!(Channel::XYZ.unsafe_xyz_mut(buffer), &XYZ::new(1., 2., 3.)); }
+	/// ```
+	pub unsafe fn unsafe_xyz_mut<'p>(&self, pixel: &'p mut Pixel) -> &'p mut XYZ {
+		let offset = self.offset_of(Channel::XYZ);
+		let size = XYZ::SIZE;
+		XYZ::from_slice_mut(&mut pixel[offset..offset + size])
 	}
 }
 
