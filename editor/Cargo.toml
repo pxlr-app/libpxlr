@@ -4,12 +4,16 @@ version = "0.1.0"
 authors = ["Michael Grenier <michael@grenier.dev>"]
 edition = "2018"
 
+[features]
+default = [ "rayon" ]
+
 [dependencies]
 collections = { path = "../collections" }
 document = { path = "../document" }
 math = { path = "../math" }
 uuid = { version = "0.8", features = ["serde", "stdweb", "v4"] }
 chrono = { version = "0.4", features = ["serde"] }
+rayon = { version = "1", optional = true }
 sha2 = "0.8.1"
 serde = { version = "1.0.106", features = ["rc"] }
 bincode = "1.2.1"

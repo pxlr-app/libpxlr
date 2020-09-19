@@ -4,5 +4,6 @@ members = [
 	"collections",
 	"document",
 	"document_derive",
+	"editor",
 	"math",
 ]

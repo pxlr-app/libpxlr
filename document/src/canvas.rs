@@ -69,7 +69,7 @@ impl std::ops::Index<(&u32, &u32)> for Canvas {
 	type Output = Pixel;
 
 	fn index(&self, index: (&u32, &u32)) -> &Self::Output {
-		let index = (index.1 + self.size.w * index.0) as usize;
+		let index = (index.0 + self.size.w * index.1) as usize;
 		self.index(index)
 	}
 }

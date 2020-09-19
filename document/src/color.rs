@@ -1,9 +1,11 @@
 use crate::prelude::*;
 use bitflags::bitflags;
+use math::{Lerp, Vec2, Vec3};
 use nom::number::complete::{le_f32, le_u8};
 use std::fmt::Debug;
 
 pub type Pixel = [u8];
+pub type Pixels = [u8];
 
 pub trait Color {
 	const COMPONENTS: u8;
@@ -79,6 +81,60 @@ define_color!(RGB, 3, u8, le_u8, (r, g, b));
 define_color!(A, 1, u8, le_u8, (a));
 define_color!(UV, 2, f32, le_f32, (u, v));
 define_color!(XYZ, 3, f32, le_f32, (x, y, z));
+
+impl Lerp<f32> for &I {
+	type Output = I;
+
+	fn lerp_unclamped(from: Self, to: Self, factor: f32) -> Self::Output {
+		if factor.round() == 0f32 {
+			*from
+		} else {
+			*to
+		}
+	}
+}
+
+impl Lerp<f32> for &RGB {
+	type Output = RGB;
+
+	fn lerp_unclamped(from: Self, to: Self, factor: f32) -> Self::Output {
+		// TODO : Lerp over HSL color space instead
+		let vf = Vec3::new(from.r as f32, from.g as f32, from.b as f32);
+		let vt = Vec3::new(to.r as f32, to.g as f32, to.b as f32);
+		let vr = Vec3::lerp(vf, vt, factor);
+		RGB::new(vr.x as u8, vr.y as u8, vr.z as u8)
+	}
+}
+
+impl Lerp<f32> for &A {
+	type Output = A;
+
+	fn lerp_unclamped(from: Self, to: Self, factor: f32) -> Self::Output {
+		A::new(f32::lerp(from.a as f32, to.a as f32, factor).round() as u8)
+	}
+}
+
+impl Lerp<f32> for &UV {
+	type Output = UV;
+
+	fn lerp_unclamped(from: Self, to: Self, factor: f32) -> Self::Output {
+		let vf = Vec2::new(from.u, from.v);
+		let vt = Vec2::new(to.u, to.v);
+		let vr = Vec2::lerp(vf, vt, factor);
+		UV::new(vr.x, vr.y)
+	}
+}
+
+impl Lerp<f32> for &XYZ {
+	type Output = XYZ;
+
+	fn lerp_unclamped(from: Self, to: Self, factor: f32) -> Self::Output {
+		let vf = Vec3::new(from.x, from.y, from.z);
+		let vt = Vec3::new(to.x, to.y, to.z);
+		let vr = Vec3::slerp(vf, vt, factor);
+		XYZ::new(vr.x, vr.y, vr.z)
+	}
+}
 
 bitflags! {
 	#[derive(Serialize, Deserialize)]

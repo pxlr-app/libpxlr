@@ -15,7 +15,7 @@ pub mod prelude {
 		any::*, canvas::*, color::*, command::*, file::*, node::*, parser, stencil::*,
 	};
 	pub use document_derive::*;
-	pub use math::{Extent2, Vec2};
+	pub use math::{Extent2, Mat3, Vec2};
 	pub use serde::{Deserialize, Serialize};
 	pub use std::io;
 	#[cfg(not(feature = "arc"))]

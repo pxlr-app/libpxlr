@@ -1,4 +1,7 @@
 #![allow(dead_code)]
 
-pub mod history;
-pub mod tool;
+pub mod blend;
+pub mod canvas;
+// pub mod history;
+pub mod interpolation;
+// pub mod tool;
