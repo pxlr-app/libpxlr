@@ -1,8 +1,14 @@
 [package]
-name = "cli"
+name = "editor_cli"
 version = "0.1.0"
 authors = ["Michael Grenier <michael@grenier.dev>"]
 edition = "2018"
 
+[dev-dependencies.cargo-husky]
+version = "1"
+default-features = false
+features = ["user-hooks"]
+
 [dependencies]
-image = "0.23.3"
+editor = { path = "../editor" }
+freeimage-sys = { path = "../freeimage-sys" }
