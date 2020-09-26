@@ -18,11 +18,15 @@ pub trait Color {
 }
 
 macro_rules! define_color {
-	($name:ident, $channels:expr, $type:ty, $reader:expr, ($($comp:ident),+)) => {
+	($name:ident, $fn:ident, $channels:expr, $type:ty, $reader:expr, ($($comp:ident),+)) => {
 		#[repr(C)]
 		#[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize)]
 		pub struct $name {
 			$(pub $comp: $type),+
+		}
+
+		pub fn $fn($($comp: $type),+) -> $name {
+			$name::new($($comp,)+)
 		}
 
 		impl $name {
@@ -76,11 +80,11 @@ macro_rules! define_color {
 	};
 }
 
-define_color!(I, 1, u8, le_u8, (i));
-define_color!(RGB, 3, u8, le_u8, (r, g, b));
-define_color!(A, 1, u8, le_u8, (a));
-define_color!(UV, 2, f32, le_f32, (u, v));
-define_color!(XYZ, 3, f32, le_f32, (x, y, z));
+define_color!(I, i, 1, u8, le_u8, (i));
+define_color!(RGB, rgb, 3, u8, le_u8, (r, g, b));
+define_color!(A, a, 1, u8, le_u8, (a));
+define_color!(UV, uv, 2, f32, le_f32, (u, v));
+define_color!(XYZ, xyz, 3, f32, le_f32, (x, y, z));
 
 impl Lerp<f32> for &I {
 	type Output = I;
