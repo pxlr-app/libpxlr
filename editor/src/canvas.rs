@@ -1,9 +1,10 @@
-use crate::{blend::Blend, interpolation::Interpolation};
+use crate::{
+	blend::{Blend, Compose},
+	interpolation::Interpolation,
+};
 use document::prelude::*;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
-
-// https://github.com/image-rs/imageproc/blob/master/src/geometric_transformations.rs
 
 pub fn transform_into<'src, 'dst>(
 	transform: &Mat3<f32>,
@@ -36,19 +37,115 @@ pub fn transform_into<'src, 'dst>(
 	});
 }
 
-// pub fn blend_into<
-// 	'srca,
-// 	'srcb,
-// 	'dest,
-// >(
-// 	_size: Extent2<u32>,
-// 	_blend_mode: &Blend,
-// 	_channels: Channel,
-// 	_source_a: &'srca Pixels,
-// 	_source_b: &'srcb Pixels,
-// 	_dest: &'dst mut Pixel,
-// ) {
-// }
+fn blend_into_inner<'frt, 'bck, 'dst>(
+	blend_mode: Blend,
+	compose_op: Compose,
+	channels: Channel,
+	frt: &'frt Pixel,
+	bck: &'bck Pixel,
+	dst: &'dst mut Pixel,
+) {
+	let stride = channels.size();
+	assert!(frt.len() == stride);
+	assert!(bck.len() == stride);
+	assert!(dst.len() == stride);
+
+	// Without alpha channel, no blend occur
+	if channels & Channel::A != Channel::A {
+		dst.copy_from_slice(frt);
+	} else {
+		if channels & Channel::I == Channel::I {
+			unsafe {
+				*channels.unsafe_i_mut(dst) = *channels.unsafe_i(frt);
+			}
+		}
+		if channels & Channel::UV == Channel::UV {
+			unsafe {
+				*channels.unsafe_uv_mut(dst) = *channels.unsafe_uv(frt);
+			}
+		}
+		if channels & Channel::XYZ == Channel::XYZ {
+			unsafe {
+				*channels.unsafe_xyz_mut(dst) = *channels.unsafe_xyz(frt);
+			}
+		}
+
+		let fa = unsafe { channels.unsafe_a(frt).a as f32 / 255f32 };
+		let ba = unsafe { channels.unsafe_a(bck).a as f32 / 255f32 };
+		let oa = fa + ba * (1. - fa);
+
+		unsafe {
+			*channels.unsafe_a_mut(dst) = A::new((oa * 255_f32).round() as u8);
+		}
+
+		if channels & Channel::RGB == Channel::RGB {
+			let (fr, fg, fb) = unsafe {
+				let RGB { r, g, b } = channels.unsafe_rgb(frt);
+				(*r as f32 / 255f32, *g as f32 / 255f32, *b as f32 / 255f32)
+			};
+			let (br, bg, bb) = unsafe {
+				let RGB { r, g, b } = channels.unsafe_rgb(bck);
+				(*r as f32 / 255f32, *g as f32 / 255f32, *b as f32 / 255f32)
+			};
+
+			#[allow(non_snake_case)]
+			let (Fa, Fb) = compose_op.compose(fa, ba);
+
+			// Apply blend
+			let or = (1. - ba) * fr + ba * blend_mode.blend(br, fr);
+			let og = (1. - ba) * fg + ba * blend_mode.blend(bg, fg);
+			let ob = (1. - ba) * fb + ba * blend_mode.blend(bb, fb);
+			// Compose
+			let or = fa * Fa * or + ba * Fb * br;
+			let og = fa * Fa * og + ba * Fb * bg;
+			let ob = fa * Fa * ob + ba * Fb * bb;
+
+			unsafe {
+				*channels.unsafe_rgb_mut(dst) = RGB::new(
+					(or * 255_f32).round() as u8,
+					(og * 255_f32).round() as u8,
+					(ob * 255_f32).round() as u8,
+				);
+			}
+		}
+	}
+}
+
+pub fn blend_into<'frt, 'bck, 'dst>(
+	blend_mode: Blend,
+	compose_op: Compose,
+	size: &Extent2<u32>,
+	channels: Channel,
+	frt: &'frt Pixels,
+	bck: &'bck Pixels,
+	dst: &'dst mut Pixels,
+) {
+	let stride = channels.size();
+	assert!(frt.len() == size.w as usize * size.h as usize * stride);
+	assert!(bck.len() == size.w as usize * size.h as usize * stride);
+	assert!(dst.len() == size.w as usize * size.h as usize * stride);
+
+	let pitch = size.w as usize * stride;
+
+	#[cfg(feature = "rayon")]
+	let chunks = dst.par_chunks_mut(pitch);
+	#[cfg(not(feature = "rayon"))]
+	let chunks = dst.chunks_mut(pitch);
+
+	chunks.enumerate().for_each(|(y, row)| {
+		for (x, slice) in row.chunks_mut(stride).enumerate() {
+			let index = x + y * size.w as usize;
+			blend_into_inner(
+				blend_mode,
+				compose_op,
+				channels,
+				&frt[(index * stride)..((index + 1) * stride)],
+				&bck[(index * stride)..((index + 1) * stride)],
+				slice,
+			);
+		}
+	});
+}
 
 #[cfg(test)]
 mod tests {
@@ -161,5 +258,53 @@ mod tests {
 		} else {
 			Err(())
 		}
+	}
+
+	#[test]
+	fn test_normal() {
+		let (channel, width, height, red) = load_pixels(&Path::new("tests/red.png")).unwrap();
+		let (_, _, _, green) = load_pixels(&Path::new("tests/green.png")).unwrap();
+		let (_, _, _, blue) = load_pixels(&Path::new("tests/blue.png")).unwrap();
+		let size = Extent2::new(width, height);
+		let mut rg = vec![0u8; red.len()];
+		let mut out = vec![0u8; red.len()];
+		let blend_mode = Blend::Normal;
+		let compose_op = Compose::DestinationOver;
+		#[rustfmt::skip]
+		blend_into(blend_mode, compose_op, &size, channel, &red[..], &green[..], &mut rg[..]);
+		#[rustfmt::skip]
+		blend_into(blend_mode, compose_op, &size, channel, &rg[..], &blue[..], &mut out[..]);
+		save_pixels(
+			&Path::new("tests/blended-normal.png"),
+			channel,
+			width,
+			height,
+			&out[..],
+		)
+		.unwrap();
+	}
+
+	#[test]
+	fn test_screen() {
+		let (channel, width, height, red) = load_pixels(&Path::new("tests/red.png")).unwrap();
+		let (_, _, _, green) = load_pixels(&Path::new("tests/green.png")).unwrap();
+		let (_, _, _, blue) = load_pixels(&Path::new("tests/blue.png")).unwrap();
+		let size = Extent2::new(width, height);
+		let mut rg = vec![0u8; red.len()];
+		let mut out = vec![0u8; red.len()];
+		let blend_mode = Blend::Screen;
+		let compose_op = Compose::Lighter;
+		#[rustfmt::skip]
+		blend_into(blend_mode, compose_op, &size, channel, &red[..], &green[..], &mut rg[..]);
+		#[rustfmt::skip]
+		blend_into(blend_mode, compose_op, &size, channel, &rg[..], &blue[..], &mut out[..]);
+		save_pixels(
+			&Path::new("tests/blended-screen.png"),
+			channel,
+			width,
+			height,
+			&out[..],
+		)
+		.unwrap();
 	}
 }
