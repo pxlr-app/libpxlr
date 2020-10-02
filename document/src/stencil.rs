@@ -34,21 +34,20 @@ impl std::fmt::Display for StencilError {
 impl Stencil {
 	pub fn new(size: Extent2<u32>, channels: Channel) -> Stencil {
 		let buffer: Vec<u8> = vec![0u8; size.w as usize * size.h as usize * channels.size()];
-		Stencil::from_buffer(size, channels, &buffer)
+		Stencil::from_buffer(size, channels, buffer)
 	}
 
-	pub fn from_buffer(size: Extent2<u32>, channels: Channel, buffer: &[u8]) -> Stencil {
+	pub fn from_buffer(size: Extent2<u32>, channels: Channel, buffer: Vec<u8>) -> Stencil {
 		assert_eq!(
 			size.w as usize * size.h as usize * channels.size(),
 			buffer.len()
 		);
 		let mask = bitvec![Lsb0, u8; 1; (size.w * size.h) as usize];
-		let data = buffer.to_vec();
 		Stencil {
 			size,
 			mask,
 			channels,
-			data,
+			data: buffer,
 		}
 	}
 
@@ -280,7 +279,7 @@ mod tests {
 
 	#[test]
 	fn test_from_buffer() {
-		let s = Stencil::from_buffer(Extent2::new(2, 2), Channel::A, &[1u8, 2, 3, 4]);
+		let s = Stencil::from_buffer(Extent2::new(2, 2), Channel::A, vec![1u8, 2, 3, 4]);
 		assert_eq!(*s.mask, bitvec![1, 1, 1, 1]);
 		assert_eq!(*s.data, [1u8, 2, 3, 4]);
 	}
