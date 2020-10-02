@@ -5,7 +5,7 @@ authors = ["Michael Grenier <michael@grenier.dev>"]
 edition = "2018"
 
 [features]
-default = []
+default = [ "arc", "rayon" ]
 arc = []
 
 [dependencies]
@@ -16,6 +16,7 @@ collections = { path = "../collections" }
 document_derive = { path = "../document_derive" }
 math = { path = "../math" }
 nom = "5"
+rayon = { version = "1", optional = true }
 serde = { version = "1.0.106", features = ["rc"] }
 uuid = { version = "0.8", features = ["serde", "stdweb", "v4"] }
 

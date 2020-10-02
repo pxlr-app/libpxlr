@@ -1,8 +1,4 @@
-use crate::{
-	blend::{Blend, Compose},
-	interpolation::Interpolation,
-};
-use document::prelude::*;
+use crate::prelude::*;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
 
@@ -37,7 +33,7 @@ pub fn transform_into<'src, 'dst>(
 	});
 }
 
-fn blend_into_inner<'frt, 'bck, 'dst>(
+pub fn blend_pixel_into<'frt, 'bck, 'dst>(
 	blend_mode: Blend,
 	compose_op: Compose,
 	channels: Channel,
@@ -135,7 +131,7 @@ pub fn blend_into<'frt, 'bck, 'dst>(
 	chunks.enumerate().for_each(|(y, row)| {
 		for (x, slice) in row.chunks_mut(stride).enumerate() {
 			let index = x + y * size.w as usize;
-			blend_into_inner(
+			blend_pixel_into(
 				blend_mode,
 				compose_op,
 				channels,

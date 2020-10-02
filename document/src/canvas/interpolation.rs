@@ -1,4 +1,4 @@
-use document::prelude::*;
+use crate::prelude::*;
 
 #[inline(always)]
 fn lerp_pixel(channel: Channel, from: &Pixel, to: &Pixel, weight: f32, dst: &mut Pixel) {

@@ -255,6 +255,7 @@ dependencies = [
  "image",
  "math",
  "nom",
+ "rayon",
  "ron",
  "serde",
  "serde_json",

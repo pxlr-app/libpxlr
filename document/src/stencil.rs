@@ -200,14 +200,7 @@ impl<'a> IntoIterator for &'a Stencil {
 	type IntoIter = StencilIterator<'a>;
 
 	fn into_iter(self) -> Self::IntoIter {
-		StencilIterator {
-			bit_offset: 0,
-			data_offset: 0,
-			width: self.size.w,
-			mask: &self.mask,
-			data_stride: self.channels.size(),
-			data: &self.data,
-		}
+		self.iter()
 	}
 }
 
