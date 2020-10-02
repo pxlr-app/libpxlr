@@ -69,6 +69,28 @@ impl Stencil {
 			Err(StencilError::IndexNotInMask)
 		}
 	}
+
+	pub fn iter(&self) -> StencilIterator {
+		StencilIterator {
+			bit_offset: 0,
+			data_offset: 0,
+			width: self.size.w,
+			mask: &self.mask,
+			data_stride: self.channels.size(),
+			data: &self.data,
+		}
+	}
+
+	pub fn iter_mut(&mut self) -> StencilMutIterator {
+		StencilMutIterator {
+			bit_offset: 0,
+			data_offset: 0,
+			width: self.size.w,
+			mask: &self.mask,
+			data_stride: self.channels.size(),
+			data: &mut self.data,
+		}
+	}
 }
 
 impl std::fmt::Debug for Stencil {
@@ -189,6 +211,37 @@ impl<'a> IntoIterator for &'a Stencil {
 	}
 }
 
+pub struct StencilMutIterator<'a> {
+	bit_offset: usize,
+	data_offset: usize,
+	width: u32,
+	mask: &'a BitVec<Lsb0, u8>,
+	data_stride: usize,
+	data: &'a mut Vec<u8>,
+}
+
+impl<'a> Iterator for StencilMutIterator<'a> {
+	type Item = (u32, u32, &'a mut Pixel);
+
+	fn next<'b>(&'b mut self) -> Option<(u32, u32, &'a mut Pixel)> {
+		while self.bit_offset < self.mask.len() {
+			let bit_offset = self.bit_offset;
+			self.bit_offset += 1;
+			let bit = self.mask[bit_offset];
+			if bit {
+				let x = bit_offset % self.width as usize;
+				let y = (bit_offset / self.width as usize) | 0;
+				self.data_offset += 1;
+				let data: &'b mut [u8] = &mut self.data[(self.data_offset - 1 * self.data_stride)
+					..(self.data_offset * self.data_stride)];
+				let data = unsafe { std::mem::transmute::<&'b mut [u8], &'a mut [u8]>(data) };
+				return Some((x as u32, y as u32, data));
+			}
+		}
+		return None;
+	}
+}
+
 impl parser::Parse for Stencil {
 	fn parse(bytes: &[u8]) -> nom::IResult<&[u8], Stencil> {
 		let (bytes, size) = Extent2::parse(bytes)?;
@@ -296,7 +349,7 @@ mod tests {
 			channels: Channel::A,
 			data: vec![1u8, 2, 3, 4],
 		};
-		let mut i = a.into_iter();
+		let mut i = a.iter();
 		assert_eq!(i.next(), Some((0, 0, &[1u8][..])));
 		assert_eq!(i.next(), Some((1, 0, &[2u8][..])));
 		assert_eq!(i.next(), Some((0, 1, &[3u8][..])));
@@ -309,10 +362,23 @@ mod tests {
 			channels: Channel::A,
 			data: vec![1u8, 4],
 		};
-		let mut i = a.into_iter();
+		let mut i = a.iter();
 		assert_eq!(i.next(), Some((0, 0, &[1u8][..])));
 		assert_eq!(i.next(), Some((1, 1, &[4u8][..])));
 		assert_eq!(i.next(), None);
+	}
+
+	#[test]
+	fn test_iter_mut() {
+		let mut a = Stencil {
+			size: Extent2::new(2, 2),
+			mask: bitvec![Lsb0, u8; 1, 1, 1, 1],
+			channels: Channel::A,
+			data: vec![1u8, 2, 3, 4],
+		};
+		let mut i = a.iter_mut();
+		i.next().unwrap().2.copy_from_slice(&[10u8][..]);
+		assert_eq!(a.data[0], 10u8);
 	}
 
 	#[test]
