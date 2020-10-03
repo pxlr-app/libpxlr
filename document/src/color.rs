@@ -174,6 +174,11 @@ impl Channel {
 		size
 	}
 
+	/// Return an empty pixel for channels
+	pub fn default_pixel(&self) -> Vec<u8> {
+		vec![0u8; self.size()]
+	}
+
 	/// Offset of channel in a Channel
 	///
 	/// Given a Channel with RGBA channels, retrive the offset of channel A.
