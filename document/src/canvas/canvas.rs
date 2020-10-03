@@ -1,11 +1,12 @@
 use crate::prelude::*;
 use bytes::Bytes;
-use std::collections::VecDeque;
+use std::{collections::VecDeque, ops::Index};
 
 #[derive(Debug, Clone)]
 pub struct Canvas {
 	pub size: Extent2<u32>,
 	pub channels: Channel,
+	empty_pixel: Vec<u8>,
 	pub stencils: VecDeque<Arc<CanvasStencil>>,
 }
 
@@ -36,13 +37,14 @@ impl Canvas {
 		Canvas {
 			size,
 			channels,
+			empty_pixel: channels.default_pixel(),
 			stencils: VecDeque::new(),
 		}
 	}
 
 	/// Create a canvas from pixel buffer
 	pub fn from_buffer(size: Extent2<u32>, channels: Channel, data: Vec<u8>) -> Self {
-		let stencil = Stencil::from_buffer(size, channels, &data[..]);
+		let stencil = Stencil::from_buffer(size, channels, data);
 		let size = stencil.size.clone();
 		Self::new(size, channels)
 			.apply_stencil(Vec2::new(0, 0), stencil)
@@ -113,30 +115,27 @@ impl Canvas {
 		Bytes::from(self.into_iter().flatten().map(|b| *b).collect::<Vec<u8>>())
 	}
 
-	/// Try to retrieve a pixel from the canvas at location `(x, y)`.
-	pub fn try_get_at(&self, x: u32, y: u32) -> Option<&Pixel> {
-		let index = (x + self.size.w * y) as usize;
-		self.try_get(index)
-	}
-
-	/// Try to retrieve a pixel from the canvas at index.
-	pub fn try_get(&self, index: usize) -> Option<&Pixel> {
-		let x = index as u32 % self.size.w;
-		let y = index as u32 / self.size.w;
-		for stencil in self.stencils.iter() {
-			if x >= stencil.position.x
-				&& x <= stencil.position.x + stencil.stencil.size.w
-				&& y >= stencil.position.y
-				&& y <= stencil.position.y + stencil.stencil.size.h
-			{
-				let x = x - stencil.position.x;
-				let y = y - stencil.position.y;
-				if let Ok(pixel) = stencil.stencil.try_get((&x, &y)) {
-					return Some(pixel);
-				}
-			}
-		}
-		return None;
+	/// Resize canvas
+	pub fn resize(&self, size: Extent2<u32>, interpolation: Interpolation) -> Self {
+		use math::Vec3;
+		// TODO find a way to not copy buffer...
+		let current = self.copy_to_bytes();
+		let mut resized = vec![0u8; size.w as usize * size.h as usize * self.channels.size()];
+		let transform = Mat3::scaling_3d(Vec3::new(
+			self.size.w as f32 / size.w as f32,
+			self.size.h as f32 / size.h as f32,
+			1.,
+		));
+		transform_into(
+			&transform,
+			&interpolation,
+			&size,
+			self.channels,
+			&current[..],
+			&mut resized[..],
+		);
+		drop(current);
+		Self::from_buffer(size, self.channels, resized)
 	}
 }
 
@@ -152,7 +151,7 @@ impl<'a> Iterator for CanvasIterator<'a> {
 		if self.index < (self.canvas.size.w * self.canvas.size.h) as usize {
 			let index = self.index;
 			self.index += 1;
-			return self.canvas.try_get(index);
+			return Some(&self.canvas[index]);
 		}
 		return None;
 	}
@@ -164,6 +163,38 @@ impl<'a> IntoIterator for &'a Canvas {
 
 	fn into_iter(self) -> Self::IntoIter {
 		self.iter()
+	}
+}
+
+impl Index<(u32, u32)> for Canvas {
+	type Output = Pixel;
+
+	fn index(&self, index: (u32, u32)) -> &Self::Output {
+		let index = (index.0 + self.size.w * index.1) as usize;
+		self.index(index)
+	}
+}
+
+impl Index<usize> for Canvas {
+	type Output = Pixel;
+
+	fn index(&self, index: usize) -> &Self::Output {
+		let x = index as u32 % self.size.w;
+		let y = index as u32 / self.size.w;
+		for stencil in self.stencils.iter() {
+			if x >= stencil.position.x
+				&& x <= stencil.position.x + stencil.stencil.size.w
+				&& y >= stencil.position.y
+				&& y <= stencil.position.y + stencil.stencil.size.h
+			{
+				let x = x - stencil.position.x;
+				let y = y - stencil.position.y;
+				if let Ok(pixel) = stencil.stencil.try_get((&x, &y)) {
+					return pixel;
+				}
+			}
+		}
+		&self.empty_pixel
 	}
 }
 
@@ -184,10 +215,10 @@ mod tests {
 		};
 
 		let b = a.apply_stencil(Vec2::new(0, 0), stencil).unwrap();
-		assert_eq!(b.try_get(0).unwrap(), &[8u8][..]);
-		assert_eq!(b.try_get(1), None);
-		assert_eq!(b.try_get(2), None);
-		assert_eq!(b.try_get(3).unwrap(), &[9u8][..]);
+		assert_eq!(b[0], [8u8][..]);
+		assert_eq!(b[1], [0u8][..]);
+		assert_eq!(b[2], [0u8][..]);
+		assert_eq!(b[3], [9u8][..]);
 
 		let stencil = Stencil {
 			size: Extent2::new(2, 2),
@@ -197,10 +228,10 @@ mod tests {
 		};
 
 		let c = a.apply_stencil(Vec2::new(0, 0), stencil).unwrap();
-		assert_eq!(c.try_get(0), None);
-		assert_eq!(c.try_get(1).unwrap(), &[11u8][..]);
-		assert_eq!(c.try_get(2).unwrap(), &[12u8][..]);
-		assert_eq!(c.try_get(3), None);
+		assert_eq!(c[0], [0u8][..]);
+		assert_eq!(c[1], [11u8][..]);
+		assert_eq!(c[2], [12u8][..]);
+		assert_eq!(c[3], [0u8][..]);
 	}
 
 	#[test]
