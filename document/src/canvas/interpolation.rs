@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use std::ops::Index;
 
 #[inline(always)]
 fn lerp_pixel(channel: Channel, from: &Pixel, to: &Pixel, weight: f32, dst: &mut Pixel) {
@@ -131,24 +132,23 @@ pub enum Interpolation {
 	// Bicubic,
 }
 
+#[inline(always)]
+fn index(x: f32, y: f32, w: u32) -> usize {
+	(x as u32 + w * y as u32) as usize
+}
+
 impl Interpolation {
 	#[inline(always)]
-	pub fn interpolate_into<'src, 'dst>(
+	pub fn interpolate_into<'src, 'dst, Src: Index<usize, Output = Pixel>>(
 		&self,
 		pos: &Vec2<f32>,
 		channels: Channel,
 		size: &Extent2<u32>,
-		src: &'src Pixels,
+		src: &'src Src,
 		dst: &'dst mut Pixel,
 	) {
-		#[inline(always)]
-		fn get_pixel(stride: usize, data: &Pixels, x: f32, y: f32, w: u32) -> &Pixel {
-			let index = (x as u32 + w * y as u32) as usize;
-			return &data[(index * stride)..((index + 1) * stride)];
-		}
-
 		let stride = channels.size();
-		assert!(src.len() == size.w as usize * size.h as usize * stride);
+		// assert!(src.len() == size.w as usize * size.h as usize * stride);
 		assert!(dst.len() == stride);
 		match self {
 			Interpolation::Nearest => {
@@ -156,7 +156,7 @@ impl Interpolation {
 				let y = pos.y.round();
 
 				if x >= 0f32 && x < size.w as f32 && y >= 0f32 && y < size.h as f32 {
-					dst.copy_from_slice(get_pixel(stride, &src, x, y, size.w));
+					dst.copy_from_slice(&src[index(x, y, size.w)]);
 				}
 			}
 			Interpolation::Bilinear => {
@@ -171,10 +171,10 @@ impl Interpolation {
 					let vw = pos.y - t;
 					let mut tmp = vec![0u8; stride * 2];
 					let (tl, tr, bl, br) = (
-						get_pixel(stride, &src, l, t, size.w),
-						get_pixel(stride, &src, r, t, size.w),
-						get_pixel(stride, &src, l, b, size.w),
-						get_pixel(stride, &src, r, b, size.w),
+						&src[index(l, t, size.w)],
+						&src[index(r, t, size.w)],
+						&src[index(l, b, size.w)],
+						&src[index(r, b, size.w)],
 					);
 					lerp_pixel(channels, tl, tr, hw, &mut tmp[0..stride]);
 					lerp_pixel(channels, bl, br, hw, &mut tmp[stride..]);
