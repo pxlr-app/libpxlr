@@ -1,19 +1,20 @@
 use crate::prelude::*;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
+use std::ops::Index;
 
-pub fn transform_into<'src, 'dst>(
+pub fn transform_into<'src, 'dst, Src: Index<usize, Output = Pixel> + Send + Sync>(
 	transform: &Mat3<f32>,
 	interpolation: &Interpolation,
 	size: &Extent2<u32>,
 	channels: Channel,
-	src: &'src Pixels,
+	src: &'src Src,
 	dst: &'dst mut Pixels,
 ) {
 	use math::{Mat4, Vec4};
 
 	let stride = channels.size();
-	assert!(src.len() == size.w as usize * size.h as usize * stride);
+	// assert!(src.len() == size.w as usize * size.h as usize * stride);
 	assert!(dst.len() == size.w as usize * size.h as usize * stride);
 
 	let pitch = size.w as usize * stride;
@@ -161,26 +162,28 @@ mod tests {
 		let (channel, width, height, pixels) =
 			load_pixels(&Path::new("tests/character.png")).unwrap();
 		let size = Extent2::new(width, height);
+		let len = pixels.len();
+		let canvas = Canvas::from_buffer(size, channel, pixels);
 
-		let mut out = vec![0u8; pixels.len()];
+		let mut out = vec![0u8; len];
 		let matrix = Mat3::translation_2d(Vec2::new(width as f32 / 2f32, height as f32 / 2f32));
-		transform_into(&matrix, &inter, &size, channel, &pixels[..], &mut out[..]);
+		transform_into(&matrix, &inter, &size, channel, &canvas, &mut out[..]);
 		#[rustfmt::skip]
 		save_pixels(&Path::new(&format!("tests/transform-{}-translated.png", suffix)), channel, width, height, &out[..]).unwrap();
 
-		let mut out = vec![0u8; pixels.len()];
+		let mut out = vec![0u8; len];
 		let matrix = Mat3::translation_2d(Vec2::new(width as f32 / -2f32 + 0.5, 0.))
 			.scaled_3d(Vec3::new(-1., 1., 1.))
 			.translated_2d(Vec2::new(width as f32 / 2f32 - 0.5, 0.));
-		transform_into(&matrix, &inter, &size, channel, &pixels[..], &mut out[..]);
+		transform_into(&matrix, &inter, &size, channel, &canvas, &mut out[..]);
 		#[rustfmt::skip]
 		save_pixels(&Path::new(&format!("tests/transform-{}-fliped.png", suffix)), channel, width, height, &out[..]).unwrap();
 
-		let mut out = vec![0u8; pixels.len()];
+		let mut out = vec![0u8; len];
 		let matrix = Mat3::translation_2d(Vec2::new(width as f32 / -2f32, height as f32 / -2f32))
 			.scaled_3d(Vec3::new(0.5, 0.5, 1.))
 			.translated_2d(Vec2::new(width as f32 / 2f32, height as f32 / 2f32));
-		transform_into(&matrix, &inter, &size, channel, &pixels[..], &mut out[..]);
+		transform_into(&matrix, &inter, &size, channel, &canvas, &mut out[..]);
 		#[rustfmt::skip]
 		save_pixels(&Path::new(&format!("tests/transform-{}-0.5x.png", suffix)), channel, width, height, &out[..]).unwrap();
 	}

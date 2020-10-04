@@ -118,8 +118,6 @@ impl Canvas {
 	/// Resize canvas
 	pub fn resize(&self, size: Extent2<u32>, interpolation: Interpolation) -> Self {
 		use math::Vec3;
-		// TODO find a way to not copy buffer...
-		let current = self.copy_to_bytes();
 		let mut resized = vec![0u8; size.w as usize * size.h as usize * self.channels.size()];
 		let transform = Mat3::scaling_3d(Vec3::new(
 			self.size.w as f32 / size.w as f32,
@@ -131,10 +129,9 @@ impl Canvas {
 			&interpolation,
 			&size,
 			self.channels,
-			&current[..],
+			self,
 			&mut resized[..],
 		);
-		drop(current);
 		Self::from_buffer(size, self.channels, resized)
 	}
 }
