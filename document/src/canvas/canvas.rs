@@ -120,13 +120,29 @@ impl Canvas {
 		use math::Vec3;
 		let mut resized = vec![0u8; size.w as usize * size.h as usize * self.channels.size()];
 		let transform = Mat3::scaling_3d(Vec3::new(
-			self.size.w as f32 / size.w as f32,
-			self.size.h as f32 / size.h as f32,
+			size.w as f32 / self.size.w as f32,
+			size.h as f32 / self.size.h as f32,
 			1.,
 		));
 		transform_into(
 			&transform,
 			&interpolation,
+			&size,
+			self.channels,
+			self,
+			&mut resized[..],
+		);
+		Self::from_buffer(size, self.channels, resized)
+	}
+
+	/// Crop canvas
+	pub fn crop(&self, region: Rect<i32, u32>) -> Self {
+		let size = Extent2::new(region.w, region.h);
+		let mut resized = vec![0u8; size.w as usize * size.h as usize * self.channels.size()];
+		let transform = Mat3::translation_2d(Vec2::new(-region.x as f32, -region.y as f32));
+		transform_into(
+			&transform,
+			&Interpolation::Nearest,
 			&size,
 			self.channels,
 			self,
