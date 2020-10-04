@@ -185,7 +185,7 @@ impl<'a> Iterator for StencilIterator<'a> {
 				return Some((
 					x as u32,
 					y as u32,
-					&self.data[(self.data_offset - 1 * self.data_stride)
+					&self.data[(self.data_offset.wrapping_sub(1) * self.data_stride)
 						..(self.data_offset * self.data_stride)],
 				));
 			}
@@ -224,7 +224,8 @@ impl<'a> Iterator for StencilMutIterator<'a> {
 				let x = bit_offset % self.width as usize;
 				let y = (bit_offset / self.width as usize) | 0;
 				self.data_offset += 1;
-				let data: &'b mut [u8] = &mut self.data[(self.data_offset - 1 * self.data_stride)
+				let data: &'b mut [u8] = &mut self.data[(self.data_offset.wrapping_sub(1)
+					* self.data_stride)
 					..(self.data_offset * self.data_stride)];
 				let data = unsafe { std::mem::transmute::<&'b mut [u8], &'a mut [u8]>(data) };
 				return Some((x as u32, y as u32, data));
