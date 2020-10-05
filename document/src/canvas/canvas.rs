@@ -12,7 +12,7 @@ pub struct Canvas {
 
 #[derive(Debug, Clone)]
 pub struct CanvasStencil {
-	pub position: Vec2<u32>,
+	pub position: Vec2<i32>,
 	pub stencil: Stencil,
 }
 
@@ -29,6 +29,13 @@ impl std::fmt::Display for CanvasError {
 			CanvasError::ChannelMismatch => write!(f, "Channel mismatch."),
 		}
 	}
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum FlipAxis {
+	Horizontal,
+	Vertical,
+	Both,
 }
 
 impl Canvas {
@@ -54,7 +61,7 @@ impl Canvas {
 	/// Apply a stencil on this canvas
 	pub fn apply_stencil(
 		&self,
-		position: Vec2<u32>,
+		position: Vec2<i32>,
 		stencil: Stencil,
 	) -> Result<Canvas, CanvasError> {
 		self.apply_stencil_with_blend(position, stencil, Blend::Normal, Compose::Lighter)
@@ -64,7 +71,7 @@ impl Canvas {
 	/// of previous stencils.
 	pub fn apply_stencil_with_blend(
 		&self,
-		position: Vec2<u32>,
+		position: Vec2<i32>,
 		mut stencil: Stencil,
 		blend_mode: Blend,
 		compose_op: Compose,
@@ -75,16 +82,18 @@ impl Canvas {
 		let mut cloned = self.clone();
 		for (x, y, dst) in stencil.iter_mut() {
 			for stencil in self.stencils.iter().rev() {
-				if x >= stencil.position.x
-					&& x <= stencil.position.x + stencil.stencil.size.w
-					&& y >= stencil.position.y
-					&& y <= stencil.position.y + stencil.stencil.size.h
+				if x as i32 >= stencil.position.x
+					&& x as i32 <= stencil.position.x + stencil.stencil.size.w as i32
+					&& y as i32 >= stencil.position.y
+					&& y as i32 <= stencil.position.y + stencil.stencil.size.h as i32
 				{
-					let x = x - stencil.position.x;
-					let y = y - stencil.position.y;
-					if let Ok(bck) = stencil.stencil.try_get((&x, &y)) {
-						let frt = unsafe { std::mem::transmute::<&mut [u8], &[u8]>(dst) };
-						blend_pixel_into(blend_mode, compose_op, self.channels, frt, bck, dst);
+					let x = x as i32 - stencil.position.x;
+					let y = y as i32 - stencil.position.y;
+					if x >= 0 && y >= 0 {
+						if let Ok(bck) = stencil.stencil.try_get((&(x as u32), &(y as u32))) {
+							let frt = unsafe { std::mem::transmute::<&mut [u8], &[u8]>(dst) };
+							blend_pixel_into(blend_mode, compose_op, self.channels, frt, bck, dst);
+						}
 					}
 				}
 			}
@@ -115,6 +124,12 @@ impl Canvas {
 		Bytes::from(self.into_iter().flatten().map(|b| *b).collect::<Vec<u8>>())
 	}
 
+	/// Flatten canvas
+	pub fn flatten(&self) -> Self {
+		let data = self.copy_to_bytes().to_vec();
+		Self::from_buffer(self.size, self.channels, data)
+	}
+
 	/// Resize canvas
 	pub fn resize(&self, size: Extent2<u32>, interpolation: Interpolation) -> Self {
 		use math::Vec3;
@@ -137,18 +152,68 @@ impl Canvas {
 
 	/// Crop canvas
 	pub fn crop(&self, region: Rect<i32, u32>) -> Self {
-		let size = Extent2::new(region.w, region.h);
-		let mut resized = vec![0u8; size.w as usize * size.h as usize * self.channels.size()];
-		let transform = Mat3::translation_2d(Vec2::new(-region.x as f32, -region.y as f32));
+		let mut canvas = self.clone();
+		let outer: Rect<i32, i32> = Rect::new(region.x, region.y, region.w as i32, region.h as i32);
+
+		canvas.size = region.extent();
+		canvas.stencils = canvas
+			.stencils
+			.drain(..)
+			.filter_map(|stencil| {
+				let inner = Rect::new(
+					stencil.position.x as i32,
+					stencil.position.y as i32,
+					stencil.stencil.size.w as i32,
+					stencil.stencil.size.h as i32,
+				);
+				if outer.contains_rect(inner) {
+					let mut cloned = (*stencil).clone();
+					cloned.position.x -= outer.x;
+					cloned.position.y -= outer.y;
+					Some(Arc::new(cloned))
+				} else {
+					None
+				}
+			})
+			.collect();
+
+		canvas
+	}
+
+	/// Flip canvas
+	pub fn flip(&self, axis: FlipAxis) -> Self {
+		use math::Vec3;
+		let mut resized =
+			vec![0u8; self.size.w as usize * self.size.h as usize * self.channels.size()];
+		let (offset, scaled) = match axis {
+			FlipAxis::Horizontal => (
+				Vec2::new(self.size.w as f32 / -2f32 + 0.5, 0.),
+				Vec3::new(-1., 1., 1.),
+			),
+			FlipAxis::Vertical => (
+				Vec2::new(0., self.size.h as f32 / -2f32 + 0.5),
+				Vec3::new(1., -1., 1.),
+			),
+			FlipAxis::Both => (
+				Vec2::new(
+					self.size.w as f32 / -2f32 + 0.5,
+					self.size.h as f32 / -2f32 + 0.5,
+				),
+				Vec3::new(-1., -1., 1.),
+			),
+		};
+		let transform = Mat3::translation_2d(offset)
+			.scaled_3d(scaled)
+			.translated_2d(-offset);
 		transform_into(
 			&transform,
 			&Interpolation::Nearest,
-			&size,
+			&self.size,
 			self.channels,
 			self,
 			&mut resized[..],
 		);
-		Self::from_buffer(size, self.channels, resized)
+		Self::from_buffer(self.size, self.channels, resized)
 	}
 }
 
@@ -195,15 +260,17 @@ impl Index<usize> for Canvas {
 		let x = index as u32 % self.size.w;
 		let y = index as u32 / self.size.w;
 		for stencil in self.stencils.iter() {
-			if x >= stencil.position.x
-				&& x <= stencil.position.x + stencil.stencil.size.w
-				&& y >= stencil.position.y
-				&& y <= stencil.position.y + stencil.stencil.size.h
+			if x as i32 >= stencil.position.x
+				&& x as i32 <= stencil.position.x + stencil.stencil.size.w as i32
+				&& y as i32 >= stencil.position.y
+				&& y as i32 <= stencil.position.y + stencil.stencil.size.h as i32
 			{
-				let x = x - stencil.position.x;
-				let y = y - stencil.position.y;
-				if let Ok(pixel) = stencil.stencil.try_get((&x, &y)) {
-					return pixel;
+				let x = x as i32 - stencil.position.x;
+				let y = y as i32 - stencil.position.y;
+				if x >= 0 && y >= 0 {
+					if let Ok(pixel) = stencil.stencil.try_get((&(x as u32), &(y as u32))) {
+						return pixel;
+					}
 				}
 			}
 		}
