@@ -128,7 +128,7 @@ impl Canvas {
 		}
 	}
 
-	/// Copy the pixel data to new Bytes buffer
+	/// Copy canvas to new Bytes buffer
 	///
 	/// ```
 	/// use document::prelude::*;
@@ -137,7 +137,24 @@ impl Canvas {
 	/// assert_eq!(&bytes[..], &[1u8, 2, 3, 4][..]);
 	/// ```
 	pub fn copy_to_bytes(&self) -> Bytes {
-		Bytes::from(self.into_iter().flatten().map(|b| *b).collect::<Vec<u8>>())
+		Bytes::from(self.iter().flatten().map(|b| *b).collect::<Vec<u8>>())
+	}
+
+	/// Copy region to new Bytes buffer
+	///
+	/// ```
+	/// use document::prelude::*;
+	/// let canvas = Canvas::from_buffer(Extent2::new(2, 2), Channel::A, vec![1u8, 2, 3, 4]);
+	/// let bytes = canvas.copy_region_to_bytes(Rect::new(1, 0, 1, 2)).unwrap();
+	/// assert_eq!(&bytes[..], &[2u8, 4][..]);
+	/// ```
+	pub fn copy_region_to_bytes(&self, region: Rect<u32, u32>) -> Result<Bytes, CanvasError> {
+		Ok(Bytes::from(
+			self.iter_region(region)?
+				.flatten()
+				.map(|b| *b)
+				.collect::<Vec<u8>>(),
+		))
 	}
 
 	/// Flatten canvas
