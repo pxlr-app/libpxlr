@@ -19,6 +19,7 @@ pub struct CanvasStencil {
 #[derive(Debug)]
 pub enum CanvasError {
 	ChannelMismatch,
+	RegionNotContained,
 }
 
 impl std::error::Error for CanvasError {}
@@ -27,6 +28,7 @@ impl std::fmt::Display for CanvasError {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match *self {
 			CanvasError::ChannelMismatch => write!(f, "Channel mismatch."),
+			CanvasError::RegionNotContained => write!(f, "Region not contained in this Canvas"),
 		}
 	}
 }
@@ -108,7 +110,21 @@ impl Canvas {
 	pub fn iter(&self) -> CanvasIterator {
 		CanvasIterator {
 			canvas: self,
+			region: Rect::new(0, 0, self.size.w, self.size.h),
 			index: 0,
+		}
+	}
+
+	/// Iterate part of the canvas
+	pub fn iter_region(&self, region: Rect<u32, u32>) -> Result<CanvasIterator, CanvasError> {
+		if region.x + region.w > self.size.w || region.y + region.h > self.size.h {
+			Err(CanvasError::RegionNotContained)
+		} else {
+			Ok(CanvasIterator {
+				canvas: self,
+				region,
+				index: 0,
+			})
 		}
 	}
 
@@ -219,6 +235,7 @@ impl Canvas {
 
 pub struct CanvasIterator<'a> {
 	canvas: &'a Canvas,
+	region: Rect<u32, u32>,
 	index: usize,
 }
 
@@ -226,10 +243,11 @@ impl<'a> Iterator for CanvasIterator<'a> {
 	type Item = &'a Pixel;
 
 	fn next(&mut self) -> Option<&'a Pixel> {
-		if self.index < (self.canvas.size.w * self.canvas.size.h) as usize {
-			let index = self.index;
+		if self.index < (self.region.w * self.region.h) as usize {
+			let x = self.index % self.region.w as usize + self.region.x as usize;
+			let y = self.index / self.region.w as usize + self.region.y as usize;
 			self.index += 1;
-			return Some(&self.canvas[index]);
+			return Some(&self.canvas[(x as u32, y as u32)]);
 		}
 		return None;
 	}
@@ -329,6 +347,11 @@ mod tests {
 		assert_eq!(i.next(), Some(&[1u8][..]));
 		assert_eq!(i.next(), Some(&[2u8][..]));
 		assert_eq!(i.next(), Some(&[3u8][..]));
+		assert_eq!(i.next(), Some(&[4u8][..]));
+		assert_eq!(i.next(), None);
+
+		let mut i = b.iter_region(Rect::new(1, 0, 1, 2)).unwrap();
+		assert_eq!(i.next(), Some(&[2u8][..]));
 		assert_eq!(i.next(), Some(&[4u8][..]));
 		assert_eq!(i.next(), None);
 	}
