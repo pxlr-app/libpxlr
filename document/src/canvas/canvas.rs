@@ -184,6 +184,14 @@ impl Canvas {
 	}
 
 	/// Crop canvas
+	///
+	/// ```
+	/// use document::prelude::*;
+	/// let canvas = Canvas::from_buffer(Extent2::new(2, 2), Channel::A, vec![1u8, 2, 3, 4]);
+	/// let canvas = canvas.crop(Rect::new(1, 0, 1, 2));
+	/// let bytes = canvas.copy_to_bytes();
+	/// assert_eq!(&bytes[..], &[2u8, 4][..]);
+	/// ```
 	pub fn crop(&self, region: Rect<i32, u32>) -> Self {
 		let mut canvas = self.clone();
 		let outer: Rect<i32, i32> = Rect::new(region.x, region.y, region.w as i32, region.h as i32);
@@ -199,7 +207,7 @@ impl Canvas {
 					stencil.stencil.size.w as i32,
 					stencil.stencil.size.h as i32,
 				);
-				if outer.contains_rect(inner) {
+				if outer.contains_rect(inner) || outer.collides_with_rect(inner) {
 					let mut cloned = (*stencil).clone();
 					cloned.position.x -= outer.x;
 					cloned.position.y -= outer.y;
@@ -214,11 +222,29 @@ impl Canvas {
 	}
 
 	/// Flip canvas
+	///
+	/// ```
+	/// use document::prelude::*;
+	/// let canvas = Canvas::from_buffer(Extent2::new(2, 2), Channel::A, vec![1u8, 2, 3, 4]);
+	/// let canvas = canvas.flip(FlipAxis::Vertical);
+	/// let bytes = canvas.copy_to_bytes();
+	/// assert_eq!(&bytes[..], &[3u8, 4, 1, 2][..]);
+	///
+	/// let canvas = Canvas::from_buffer(Extent2::new(2, 2), Channel::A, vec![1u8, 2, 3, 4]);
+	/// let canvas = canvas.flip(FlipAxis::Horizontal);
+	/// let bytes = canvas.copy_to_bytes();
+	/// assert_eq!(&bytes[..], &[2u8, 1, 4, 3][..]);
+	///
+	/// let canvas = Canvas::from_buffer(Extent2::new(2, 2), Channel::A, vec![1u8, 2, 3, 4]);
+	/// let canvas = canvas.flip(FlipAxis::Both);
+	/// let bytes = canvas.copy_to_bytes();
+	/// assert_eq!(&bytes[..], &[4u8, 3, 2, 1][..]);
+	/// ```
 	pub fn flip(&self, axis: FlipAxis) -> Self {
 		use math::Vec3;
 		let mut resized =
 			vec![0u8; self.size.w as usize * self.size.h as usize * self.channels.size()];
-		let (offset, scaled) = match axis {
+		let (centered, scaling) = match axis {
 			FlipAxis::Horizontal => (
 				Vec2::new(self.size.w as f32 / -2f32 + 0.5, 0.),
 				Vec3::new(-1., 1., 1.),
@@ -235,13 +261,47 @@ impl Canvas {
 				Vec3::new(-1., -1., 1.),
 			),
 		};
-		let transform = Mat3::translation_2d(offset)
-			.scaled_3d(scaled)
-			.translated_2d(-offset);
+		let transform = Mat3::translation_2d(centered)
+			.scaled_3d(scaling)
+			.translated_2d(-centered);
 		transform_into(
 			&transform,
 			&Interpolation::Nearest,
 			&self.size,
+			self.channels,
+			self,
+			&mut resized[..],
+		);
+		Self::from_buffer(self.size, self.channels, resized)
+	}
+
+	/// Rotate canvas
+	///
+	/// ```
+	/// use document::prelude::*;
+	/// let canvas = Canvas::from_buffer(Extent2::new(2, 2), Channel::A, vec![1u8, 2, 3, 4]);
+	/// let canvas = canvas.rotate(90. * std::f32::consts::PI / 180.);
+	/// let bytes = canvas.copy_to_bytes();
+	/// assert_eq!(&bytes[..], &[3u8, 1, 4, 2][..]);
+	/// ```
+	pub fn rotate(&self, radians: f32) -> Self {
+		use math::Vec3;
+		let size =
+			Mat3::rotation_z(radians) * Vec3::new(self.size.w as f32, self.size.h as f32, 1.);
+		let size = Extent2::new(size.x.round().abs() as u32, size.y.round().abs() as u32);
+		let mut resized = vec![0u8; size.w as usize * size.h as usize * self.channels.size()];
+		let centered = Vec2::new(
+			self.size.w as f32 / -2f32 + 0.5,
+			self.size.h as f32 / -2f32 + 0.5,
+		);
+		let transform = Mat3::translation_2d(centered)
+			.rotated_z(radians)
+			.translated_2d(-centered);
+		assert!(size.w > 0);
+		transform_into(
+			&transform,
+			&Interpolation::Nearest,
+			&size,
 			self.channels,
 			self,
 			&mut resized[..],
