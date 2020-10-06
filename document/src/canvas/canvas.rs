@@ -280,11 +280,11 @@ impl Canvas {
 	/// ```
 	/// use document::prelude::*;
 	/// let canvas = Canvas::from_buffer(Extent2::new(2, 2), Channel::A, vec![1u8, 2, 3, 4]);
-	/// let canvas = canvas.rotate(90. * std::f32::consts::PI / 180.);
+	/// let canvas = canvas.rotate(90. * std::f32::consts::PI / 180., Interpolation::Nearest);
 	/// let bytes = canvas.copy_to_bytes();
 	/// assert_eq!(&bytes[..], &[3u8, 1, 4, 2][..]);
 	/// ```
-	pub fn rotate(&self, radians: f32) -> Self {
+	pub fn rotate(&self, radians: f32, interpolation: Interpolation) -> Self {
 		use math::Vec3;
 		let size =
 			Mat3::rotation_z(radians) * Vec3::new(self.size.w as f32, self.size.h as f32, 1.);
@@ -297,10 +297,9 @@ impl Canvas {
 		let transform = Mat3::translation_2d(centered)
 			.rotated_z(radians)
 			.translated_2d(-centered);
-		assert!(size.w > 0);
 		transform_into(
 			&transform,
-			&Interpolation::Nearest,
+			&interpolation,
 			&size,
 			self.channels,
 			self,
