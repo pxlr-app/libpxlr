@@ -1,19 +1,63 @@
 use crate::prelude::*;
 use bytes::Bytes;
-use std::{collections::VecDeque, ops::Index};
+use rstar::{Envelope, Point, PointDistance, RTree, RTreeObject, AABB};
+use std::ops::Index;
 
 #[derive(Debug, Clone)]
-pub struct Canvas {
-	pub size: Extent2<u32>,
-	pub channels: Channel,
-	empty_pixel: Vec<u8>,
-	pub stencils: VecDeque<Arc<CanvasStencil>>,
-}
-
-#[derive(Debug, Clone)]
-pub struct CanvasStencil {
+struct CanvasBrush {
 	pub position: Vec2<i32>,
 	pub stencil: Stencil,
+}
+
+#[derive(Debug)]
+struct CanvasNode {
+	pub brush: Arc<CanvasBrush>,
+}
+
+impl RTreeObject for CanvasNode {
+	type Envelope = AABB<[i32; 2]>;
+
+	fn envelope(&self) -> Self::Envelope {
+		AABB::from_corners(
+			[self.brush.position.x, self.brush.position.y],
+			[
+				self.brush.position.x + self.brush.stencil.size.w as i32,
+				self.brush.position.y + self.brush.stencil.size.h as i32,
+			],
+		)
+	}
+}
+
+impl PointDistance for CanvasNode {
+	fn distance_2(
+		&self,
+		point: &<Self::Envelope as Envelope>::Point,
+	) -> <<Self::Envelope as Envelope>::Point as Point>::Scalar {
+		let min = (self as &dyn RTreeObject<Envelope = AABB<[i32; 2]>>)
+			.envelope()
+			.min_point(point);
+		let sub = [min[0] - point[0], min[1] - point[1]];
+		sub[0] * sub[0] + sub[1] * sub[1]
+	}
+
+	fn contains_point(&self, point: &<Self::Envelope as Envelope>::Point) -> bool {
+		(self as &dyn RTreeObject<Envelope = AABB<[i32; 2]>>)
+			.envelope()
+			.contains_point(point)
+	}
+
+	fn distance_2_if_less_or_equal(
+		&self,
+		point: &<Self::Envelope as Envelope>::Point,
+		max_distance_2: <<Self::Envelope as Envelope>::Point as Point>::Scalar,
+	) -> Option<<<Self::Envelope as Envelope>::Point as Point>::Scalar> {
+		let distance_2 = self.distance_2(point);
+		if distance_2 <= max_distance_2 {
+			Some(distance_2)
+		} else {
+			None
+		}
+	}
 }
 
 #[derive(Debug)]
@@ -40,6 +84,15 @@ pub enum FlipAxis {
 	Both,
 }
 
+#[derive(Debug, Clone)]
+pub struct Canvas {
+	pub size: Extent2<u32>,
+	pub channels: Channel,
+	empty_pixel: Vec<u8>,
+	rtree: Arc<RTree<CanvasNode>>,
+	brushes: Vec<Arc<CanvasBrush>>,
+}
+
 impl Canvas {
 	/// Create an empty canvas of specific size
 	pub fn new(size: Extent2<u32>, channels: Channel) -> Self {
@@ -47,7 +100,8 @@ impl Canvas {
 			size,
 			channels,
 			empty_pixel: channels.default_pixel(),
-			stencils: VecDeque::new(),
+			brushes: Vec::new(),
+			rtree: Arc::new(RTree::new()),
 		}
 	}
 
@@ -83,27 +137,34 @@ impl Canvas {
 		}
 		let mut cloned = self.clone();
 		for (x, y, dst) in stencil.iter_mut() {
-			for stencil in self.stencils.iter().rev() {
-				if x as i32 >= stencil.position.x
-					&& x as i32 <= stencil.position.x + stencil.stencil.size.w as i32
-					&& y as i32 >= stencil.position.y
-					&& y as i32 <= stencil.position.y + stencil.stencil.size.h as i32
-				{
-					let x = x as i32 - stencil.position.x;
-					let y = y as i32 - stencil.position.y;
-					if x >= 0 && y >= 0 {
-						if let Ok(bck) = stencil.stencil.try_get((&(x as u32), &(y as u32))) {
-							let frt = unsafe { std::mem::transmute::<&mut [u8], &[u8]>(dst) };
-							blend_pixel_into(blend_mode, compose_op, self.channels, frt, bck, dst);
-						}
+			for node in self.rtree.locate_all_at_point(&[x as i32, y as i32]) {
+				let x = x as i32 - node.brush.position.x;
+				let y = y as i32 - node.brush.position.y;
+				if x >= 0 && y >= 0 {
+					if let Ok(bck) = node.brush.stencil.try_get((&(x as u32), &(y as u32))) {
+						let frt = unsafe { std::mem::transmute::<&mut [u8], &[u8]>(dst) };
+						blend_pixel_into(blend_mode, compose_op, self.channels, frt, bck, dst);
 					}
 				}
 			}
 		}
 		cloned
-			.stencils
-			.push_front(Arc::new(CanvasStencil { position, stencil }));
+			.brushes
+			.push(Arc::new(CanvasBrush { position, stencil }));
+		cloned.rebuild_rtree_from_brushes();
 		Ok(cloned)
+	}
+
+	/// Rebuild RTree from brushes
+	fn rebuild_rtree_from_brushes(&mut self) {
+		self.rtree = Arc::new(RTree::bulk_load(
+			self.brushes
+				.iter()
+				.map(|brush| CanvasNode {
+					brush: brush.clone(),
+				})
+				.collect::<Vec<_>>(),
+		));
 	}
 
 	/// Iterate over each pixel of this canvas
@@ -197,8 +258,8 @@ impl Canvas {
 		let outer: Rect<i32, i32> = Rect::new(region.x, region.y, region.w as i32, region.h as i32);
 
 		canvas.size = region.extent();
-		canvas.stencils = canvas
-			.stencils
+		canvas.brushes = canvas
+			.brushes
 			.drain(..)
 			.filter_map(|stencil| {
 				let inner = Rect::new(
@@ -217,7 +278,7 @@ impl Canvas {
 				}
 			})
 			.collect();
-
+		canvas.rebuild_rtree_from_brushes();
 		canvas
 	}
 
@@ -353,18 +414,12 @@ impl Index<usize> for Canvas {
 	fn index(&self, index: usize) -> &Self::Output {
 		let x = index as u32 % self.size.w;
 		let y = index as u32 / self.size.w;
-		for stencil in self.stencils.iter() {
-			if x as i32 >= stencil.position.x
-				&& x as i32 <= stencil.position.x + stencil.stencil.size.w as i32
-				&& y as i32 >= stencil.position.y
-				&& y as i32 <= stencil.position.y + stencil.stencil.size.h as i32
-			{
-				let x = x as i32 - stencil.position.x;
-				let y = y as i32 - stencil.position.y;
-				if x >= 0 && y >= 0 {
-					if let Ok(pixel) = stencil.stencil.try_get((&(x as u32), &(y as u32))) {
-						return pixel;
-					}
+		if let Some(node) = self.rtree.locate_at_point(&[x as i32, y as i32]) {
+			let x = x as i32 - node.brush.position.x;
+			let y = y as i32 - node.brush.position.y;
+			if x >= 0 && y >= 0 {
+				if let Ok(pixel) = node.brush.stencil.try_get((&(x as u32), &(y as u32))) {
+					return pixel;
 				}
 			}
 		}
@@ -376,6 +431,39 @@ impl Index<usize> for Canvas {
 mod tests {
 	use crate::prelude::*;
 	use collections::bitvec;
+
+	#[test]
+	fn test_apply_blending() {
+		let a = Canvas::new(Extent2::new(2, 2), Channel::RGB | Channel::A);
+
+		let stencil = Stencil {
+			size: Extent2::new(2, 2),
+			mask: bitvec![Lsb0, u8; 1, 0, 0, 0],
+			channels: Channel::RGB | Channel::A,
+			data: vec![255u8, 128, 128, 255],
+		};
+
+		let b = a.apply_stencil(Vec2::new(0, 0), stencil).unwrap();
+		assert_eq!(b[0], [255u8, 128, 128, 255][..]);
+		assert_eq!(b[1], [0u8, 0, 0, 0][..]);
+		assert_eq!(b[2], [0u8, 0, 0, 0][..]);
+		assert_eq!(b[3], [0u8, 0, 0, 0][..]);
+
+		let stencil = Stencil {
+			size: Extent2::new(2, 2),
+			mask: bitvec![Lsb0, u8; 1, 0, 0, 0],
+			channels: Channel::RGB | Channel::A,
+			data: vec![0u8, 128, 128, 128],
+		};
+
+		let c = b
+			.apply_stencil_with_blend(Vec2::new(0, 0), stencil, Blend::Normal, Compose::Lighter)
+			.unwrap();
+		assert_eq!(c[0], [255u8, 192, 192, 255][..]);
+		assert_eq!(c[1], [0u8, 0, 0, 0][..]);
+		assert_eq!(c[2], [0u8, 0, 0, 0][..]);
+		assert_eq!(c[3], [0u8, 0, 0, 0][..]);
+	}
 
 	#[test]
 	fn test_index() {
