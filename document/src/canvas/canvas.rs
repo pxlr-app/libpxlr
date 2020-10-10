@@ -141,7 +141,7 @@ impl Canvas {
 				let x = x as i32 - node.brush.position.x;
 				let y = y as i32 - node.brush.position.y;
 				if x >= 0 && y >= 0 {
-					if let Ok(bck) = node.brush.stencil.try_get((&(x as u32), &(y as u32))) {
+					if let Some(bck) = node.brush.stencil.try_get(x as u32, y as u32) {
 						let frt = unsafe { std::mem::transmute::<&mut [u8], &[u8]>(dst) };
 						blend_pixel_into(blend_mode, compose_op, self.channels, frt, bck, dst);
 					}
@@ -418,7 +418,7 @@ impl Index<usize> for Canvas {
 			let x = x as i32 - node.brush.position.x;
 			let y = y as i32 - node.brush.position.y;
 			if x >= 0 && y >= 0 {
-				if let Ok(pixel) = node.brush.stencil.try_get((&(x as u32), &(y as u32))) {
+				if let Some(pixel) = node.brush.stencil.try_get(x as u32, y as u32) {
 					return pixel;
 				}
 			}

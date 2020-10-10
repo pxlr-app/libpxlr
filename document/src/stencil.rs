@@ -16,34 +16,21 @@ pub struct PositionnedStencil {
 	pub stencil: Stencil,
 }
 
-#[derive(Debug)]
-pub enum StencilError {
-	IndexNotInMask,
-}
-
-impl std::error::Error for StencilError {}
-
-impl std::fmt::Display for StencilError {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		match *self {
-			StencilError::IndexNotInMask => write!(f, "Index not in mask."),
-		}
-	}
-}
-
 impl Stencil {
-	pub fn new(size: Extent2<u32>, channels: Channel) -> Stencil {
+	/// Create a new empty stencil
+	pub fn new(size: Extent2<u32>, channels: Channel) -> Self {
 		let buffer: Vec<u8> = vec![0u8; size.w as usize * size.h as usize * channels.size()];
-		Stencil::from_buffer(size, channels, buffer)
+		Self::from_buffer(size, channels, buffer)
 	}
 
-	pub fn from_buffer(size: Extent2<u32>, channels: Channel, buffer: Vec<u8>) -> Stencil {
+	/// Create a stencil from pixel data
+	pub fn from_buffer(size: Extent2<u32>, channels: Channel, buffer: Vec<u8>) -> Self {
 		assert_eq!(
 			size.w as usize * size.h as usize * channels.size(),
 			buffer.len()
 		);
 		let mask = bitvec![Lsb0, u8; 1; (size.w * size.h) as usize];
-		Stencil {
+		Self {
 			size,
 			mask,
 			channels,
@@ -51,24 +38,27 @@ impl Stencil {
 		}
 	}
 
-	pub fn try_get(&self, index: (&u32, &u32)) -> Result<&Pixel, StencilError> {
-		let index = (index.1 * self.size.w + index.0) as usize;
+	/// Try to retrieve a pixel at coordinate
+	pub fn try_get(&self, x: u32, y: u32) -> Option<&Pixel> {
+		let index = (y * self.size.w + x) as usize;
 		self.try_index(index)
 	}
 
-	pub fn try_index(&self, index: usize) -> Result<&Pixel, StencilError> {
+	/// Try to retrieve a pixel at index
+	pub fn try_index(&self, index: usize) -> Option<&Pixel> {
 		if self.mask[index] {
 			let stride = self.channels.size();
 			let count: usize = self.mask[..index]
 				.iter()
 				.map(|b| if b == &true { 1usize } else { 0usize })
 				.sum();
-			Ok(&self.data[(count * stride)..((count + 1) * stride)])
+			Some(&self.data[(count * stride)..((count + 1) * stride)])
 		} else {
-			Err(StencilError::IndexNotInMask)
+			None
 		}
 	}
 
+	/// Iterate over pixel of this stencil
 	pub fn iter(&self) -> StencilIterator {
 		StencilIterator {
 			bit_offset: 0,
@@ -80,6 +70,7 @@ impl Stencil {
 		}
 	}
 
+	/// Iterate over pixel of this stencil
 	pub fn iter_mut(&mut self) -> StencilMutIterator {
 		StencilMutIterator {
 			bit_offset: 0,
@@ -88,6 +79,94 @@ impl Stencil {
 			mask: &self.mask,
 			data_stride: self.channels.size(),
 			data: &mut self.data,
+		}
+	}
+
+	/// Merge two stencil and blend them together if need be
+	pub fn merge(
+		frt: &Self,
+		frt_offset: Vec2<i32>,
+		bck: &Self,
+		bck_offset: Vec2<i32>,
+		blend_mode: Blend,
+		compose_op: Compose,
+	) -> Self {
+		assert_eq!(frt.channels, bck.channels);
+		let stride = frt.channels.size();
+
+		// Calculate new size
+		let size = math::Aabr::<i32> {
+			min: Vec2::partial_min(frt_offset, bck_offset),
+			max: Vec2::partial_max(
+				frt_offset + Vec2::new(frt.size.w as i32, frt.size.h as i32),
+				bck_offset + Vec2::new(bck.size.w as i32, bck.size.h as i32),
+			),
+		}
+		.size()
+		.map(|x| x as u32);
+
+		// Change offset so one is at origin
+		let (frt_offset, bck_offset) = if frt_offset.y < bck_offset.y || frt_offset.x < bck_offset.x
+		{
+			(
+				Vec2::new(0u32, 0u32),
+				(bck_offset - frt_offset).map(|x| x as u32),
+			)
+		} else {
+			(
+				(frt_offset - bck_offset).map(|x| x as u32),
+				Vec2::new(0u32, 0u32),
+			)
+		};
+
+		// Allocate new buffers
+		let mut mask = bitvec![Lsb0, u8; 0; (size.w * size.h) as usize];
+		let mut data: Vec<u8> = Vec::with_capacity((size.w * size.h * stride as u32) as usize);
+		let mut pixel = frt.channels.default_pixel();
+
+		for i in 0..mask.len() {
+			let x = (i % size.w as usize) as u32;
+			let y = (i / size.w as usize) as u32;
+
+			let frt_color = match (x.checked_sub(frt_offset.x), y.checked_sub(frt_offset.y)) {
+				(Some(x), Some(y)) if x < frt.size.w && y < frt.size.h => frt.try_get(x, y),
+				_ => None,
+			};
+			let bck_color = match (x.checked_sub(bck_offset.x), y.checked_sub(bck_offset.y)) {
+				(Some(x), Some(y)) if x < bck.size.w && y < bck.size.h => bck.try_get(x, y),
+				_ => None,
+			};
+
+			match (frt_color, bck_color) {
+				(None, None) => mask.set(i, false),
+				(Some(frt_pixel), None) => {
+					mask.set(i, true);
+					data.extend_from_slice(frt_pixel);
+				}
+				(None, Some(bck_pixel)) => {
+					mask.set(i, true);
+					data.extend_from_slice(bck_pixel);
+				}
+				(Some(frt_pixel), Some(bck_pixel)) => {
+					mask.set(i, true);
+					blend_pixel_into(
+						blend_mode,
+						compose_op,
+						frt.channels,
+						frt_pixel,
+						bck_pixel,
+						&mut pixel[..],
+					);
+					data.extend_from_slice(&pixel[..]);
+				}
+			}
+		}
+
+		Stencil {
+			size,
+			mask,
+			channels: frt.channels,
+			data,
 		}
 	}
 }
@@ -111,53 +190,14 @@ impl std::ops::Add for &Stencil {
 	type Output = Stencil;
 
 	fn add(self, other: Self) -> Self::Output {
-		assert_eq!(self.channels, other.channels);
-		let stride = self.channels.size();
-		let size = Extent2::new(self.size.w.max(other.size.w), self.size.h.max(other.size.h));
-		let mut mask = bitvec![Lsb0, u8; 0; (size.w * size.h) as usize];
-		let mut data: Vec<u8> = Vec::with_capacity((size.w * size.h * stride as u32) as usize);
-		let mut count_a: usize = 0;
-		let mut count_b: usize = 0;
-
-		for i in 0..mask.len() {
-			let x = i % size.w as usize;
-			let y = (i / size.w as usize) | 0;
-
-			let bit_a = if x < (self.size.w as usize) && y < (self.size.h as usize) {
-				let i = y * (self.size.w as usize) + x;
-				self.mask[i]
-			} else {
-				false
-			};
-
-			let bit_b = if x < (other.size.w as usize) && y < (other.size.h as usize) {
-				let i = y * (other.size.w as usize) + x;
-				other.mask[i]
-			} else {
-				false
-			};
-
-			if bit_b {
-				data.extend_from_slice(&other.data[(count_b * stride)..((count_b + 1) * stride)]);
-				mask.set(i, true);
-			} else if bit_a {
-				data.extend_from_slice(&self.data[(count_a * stride)..((count_a + 1) * stride)]);
-				mask.set(i, true);
-			}
-
-			if bit_a {
-				count_a += 1;
-			}
-			if bit_b {
-				count_b += 1;
-			}
-		}
-		Stencil {
-			size,
-			mask,
-			channels: self.channels,
-			data,
-		}
+		Stencil::merge(
+			self,
+			Vec2::new(0, 0),
+			other,
+			Vec2::new(0, 0),
+			Blend::Normal,
+			Compose::Lighter,
+		)
 	}
 }
 
@@ -294,7 +334,7 @@ mod tests {
 	}
 
 	#[test]
-	fn test_combine() {
+	fn test_merge() {
 		let a = Stencil {
 			size: Extent2::new(2, 2),
 			mask: bitvec![Lsb0, u8; 1, 0, 0, 1],
@@ -309,10 +349,23 @@ mod tests {
 			data: vec![2u8, 3],
 		};
 		assert_eq!(format!("{:?}", b), "Stencil ( ⠊ )");
-		let c = &a + &b;
-		assert_eq!(*c.mask, bitvec![1, 1, 1, 1]);
-		assert_eq!(*c.data, [1u8, 2, 3, 4]);
-		assert_eq!(format!("{:?}", c), "Stencil ( ⠛ )");
+		let c = Stencil::merge(
+			&a,
+			Vec2::new(-2, 0),
+			&b,
+			Vec2::new(0, 0),
+			Blend::Normal,
+			Compose::Lighter,
+		);
+		assert_eq!(format!("{:?}", c), "Stencil ( ⠑⠊ )");
+		assert_eq!(c.try_get(0, 0), Some(&[1u8][..]));
+		assert_eq!(c.try_get(1, 0), None);
+		assert_eq!(c.try_get(2, 0), None);
+		assert_eq!(c.try_get(3, 0), Some(&[2u8][..]));
+		assert_eq!(c.try_get(0, 1), None);
+		assert_eq!(c.try_get(1, 1), Some(&[4u8][..]));
+		assert_eq!(c.try_get(2, 1), Some(&[3u8][..]));
+		assert_eq!(c.try_get(3, 1), None);
 
 		let a = Stencil {
 			size: Extent2::new(1, 2),
@@ -331,6 +384,25 @@ mod tests {
 		let c = &a + &b;
 		assert_eq!(*c.mask, bitvec![1, 1, 1, 1]);
 		assert_eq!(*c.data, [1u8, 2, 3, 4]);
+		assert_eq!(format!("{:?}", c), "Stencil ( ⠛ )");
+
+		let a = Stencil {
+			size: Extent2::new(2, 2),
+			mask: bitvec![Lsb0, u8; 1, 1, 0, 1],
+			channels: Channel::A,
+			data: vec![255u8, 128, 64],
+		};
+		assert_eq!(format!("{:?}", a), "Stencil ( ⠙ )");
+		let b = Stencil {
+			size: Extent2::new(2, 2),
+			mask: bitvec![Lsb0, u8; 0, 1, 1, 0],
+			channels: Channel::A,
+			data: vec![128u8, 32],
+		};
+		assert_eq!(format!("{:?}", b), "Stencil ( ⠊ )");
+		let c = &a + &b;
+		assert_eq!(*c.mask, bitvec![1, 1, 1, 1]);
+		assert_eq!(*c.data, [255u8, 192, 32, 64]);
 		assert_eq!(format!("{:?}", c), "Stencil ( ⠛ )");
 	}
 
@@ -399,12 +471,12 @@ mod tests {
 			data: vec![1u8, 4],
 		};
 		assert_eq!(a.try_index(0).unwrap(), &[1u8][..]);
-		assert!(a.try_index(1).is_err());
-		assert!(a.try_index(2).is_err());
+		assert!(a.try_index(1).is_none());
+		assert!(a.try_index(2).is_none());
 		assert_eq!(a.try_index(3).unwrap(), &[4u8][..]);
-		assert_eq!(a.try_get((&0, &0)).unwrap(), &[1u8][..]);
-		assert!(a.try_get((&0, &1)).is_err());
-		assert!(a.try_get((&0, &1)).is_err());
-		assert_eq!(a.try_get((&1, &1)).unwrap(), &[4u8][..]);
+		assert_eq!(a.try_get(0, 0).unwrap(), &[1u8][..]);
+		assert!(a.try_get(0, 1).is_none());
+		assert!(a.try_get(0, 1).is_none());
+		assert_eq!(a.try_get(1, 1).unwrap(), &[4u8][..]);
 	}
 }
