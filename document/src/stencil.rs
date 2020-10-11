@@ -1,6 +1,8 @@
 use crate::prelude::*;
 use collections::{bitvec, braille_fmt2, BitVec, Lsb0};
 use nom::{multi::many_m_n, number::complete::le_u8};
+// #[cfg(feature = "rayon")]
+// use rayon::prelude::*;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Stencil {
@@ -35,6 +37,43 @@ impl Stencil {
 			mask,
 			channels,
 			data: buffer,
+		}
+	}
+
+	/// Create a stencil from pixel data and masking invisible one based on alpha
+	pub fn from_buffer_mask_alpha(size: Extent2<u32>, channels: Channel, buffer: Vec<u8>) -> Self {
+		if channels & Channel::A != Channel::A {
+			Self::from_buffer(size, channels, buffer)
+		} else {
+			assert_eq!(
+				size.w as usize * size.h as usize * channels.size(),
+				buffer.len()
+			);
+			let stride = channels.size();
+			let mut mask = bitvec![Lsb0, u8; 1; (size.w * size.h) as usize];
+			// #[cfg(feature = "rayon")]
+			// let chunks = buffer.par_chunks(stride);
+			// #[cfg(not(feature = "rayon"))]
+			let chunks = buffer.chunks(stride);
+
+			let data = chunks
+				.enumerate()
+				.filter_map(|(i, pixel)| match channels.a(pixel) {
+					Some(A { a }) if a == &0 => {
+						mask.set(i, false);
+						None
+					}
+					_ => Some(pixel.to_vec()),
+				})
+				.flatten()
+				.collect::<Vec<_>>();
+
+			Self {
+				size,
+				mask,
+				channels,
+				data,
+			}
 		}
 	}
 
@@ -323,6 +362,13 @@ mod tests {
 		let s = Stencil::from_buffer(Extent2::new(2, 2), Channel::A, vec![1u8, 2, 3, 4]);
 		assert_eq!(*s.mask, bitvec![1, 1, 1, 1]);
 		assert_eq!(*s.data, [1u8, 2, 3, 4]);
+	}
+
+	#[test]
+	fn test_from_buffer_mask_alpha() {
+		let s = Stencil::from_buffer_mask_alpha(Extent2::new(2, 2), Channel::A, vec![1u8, 0, 0, 4]);
+		assert_eq!(*s.mask, bitvec![1, 0, 0, 1]);
+		assert_eq!(*s.data, [1u8, 4]);
 	}
 
 	#[test]
