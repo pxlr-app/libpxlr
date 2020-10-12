@@ -77,7 +77,7 @@ impl std::fmt::Display for CanvasError {
 	}
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FlipAxis {
 	Horizontal,
 	Vertical,

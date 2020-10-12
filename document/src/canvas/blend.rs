@@ -1,5 +1,7 @@
+use serde::{Deserialize, Serialize};
+
 /// Based on [SVG specs](https://www.w3.org/TR/compositing-1/#porterduffcompositingoperators)
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Blend {
 	Normal,
 	Multiply,
@@ -36,7 +38,7 @@ impl Blend {
 }
 
 /// Based on [SVG specs](https://www.w3.org/TR/compositing-1/#porterduffcompositingoperators)
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Compose {
 	Clear,
 	Copy,

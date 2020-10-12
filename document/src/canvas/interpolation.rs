@@ -125,7 +125,7 @@ fn lerp_pixel(channel: Channel, from: &Pixel, to: &Pixel, weight: f32, dst: &mut
 // 	}
 // }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Interpolation {
 	Nearest,
 	Bilinear,
