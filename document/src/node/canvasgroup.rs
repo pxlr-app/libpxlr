@@ -57,15 +57,27 @@ impl Sized for CanvasGroupNode {
 	fn size(&self) -> Extent2<u32> {
 		*self.size
 	}
-	fn resize(&self, target: Extent2<u32>) -> Option<CommandPair> {
+	fn resize(&self, target: Extent2<u32>, interpolation: Interpolation) -> Option<CommandPair> {
 		Some((
 			CommandType::Resize(ResizeCommand {
 				target: self.id,
 				size: target,
+				interpolation,
 			}),
-			CommandType::Resize(ResizeCommand {
+			CommandType::RestoreSprite(RestoreCanvasGroupCommand {
 				target: self.id,
-				size: *self.size,
+				children: self
+					.children
+					.iter()
+					.map(|child| {
+						child
+							.as_spritenode()
+							.unwrap()
+							.resize(target, interpolation)
+							.unwrap()
+							.1
+					})
+					.collect(),
 			}),
 		))
 	}
@@ -126,19 +138,37 @@ impl Folded for CanvasGroupNode {
 }
 
 impl Cropable for CanvasGroupNode {
-	fn crop(&self, offset: Vec2<u32>, size: Extent2<u32>) -> Option<CommandPair> {
+	fn crop(&self, region: Rect<i32, u32>) -> Option<CommandPair> {
 		Some((
 			CommandType::Crop(CropCommand {
 				target: self.id,
-				offset,
-				size,
+				region,
 			}),
 			CommandType::RestoreSprite(RestoreCanvasGroupCommand {
 				target: self.id,
 				children: self
 					.children
 					.iter()
-					.map(|child| child.as_spritenode().unwrap().crop(offset, size).unwrap().1)
+					.map(|child| child.as_spritenode().unwrap().crop(region).unwrap().1)
+					.collect(),
+			}),
+		))
+	}
+}
+
+impl Flippable for CanvasGroupNode {
+	fn flip(&self, axis: FlipAxis) -> Option<CommandPair> {
+		Some((
+			CommandType::Flip(FlipCommand {
+				target: self.id,
+				axis,
+			}),
+			CommandType::RestoreSprite(RestoreCanvasGroupCommand {
+				target: self.id,
+				children: self
+					.children
+					.iter()
+					.map(|child| child.as_spritenode().unwrap().flip(axis).unwrap().1)
 					.collect(),
 			}),
 		))

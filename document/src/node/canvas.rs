@@ -1,9 +1,6 @@
 use crate as document;
 use crate::prelude::*;
-use nom::{
-	bytes::complete::take,
-	number::complete::{le_f32, le_u8},
-};
+use nom::number::complete::{le_f32, le_u8};
 
 #[derive(SpriteNode, Debug, Clone, Serialize, Deserialize)]
 pub struct CanvasNode {
@@ -15,7 +12,7 @@ pub struct CanvasNode {
 	pub name: Arc<String>,
 	pub opacity: f32,
 	pub channels: Channel,
-	pub data: Arc<Vec<u8>>,
+	pub canvas: Arc<Canvas>,
 }
 
 impl Named for CanvasNode {
@@ -40,32 +37,49 @@ impl Sized for CanvasNode {
 	fn size(&self) -> Extent2<u32> {
 		*self.size
 	}
-	fn resize(&self, target: Extent2<u32>) -> Option<CommandPair> {
+	fn resize(&self, target: Extent2<u32>, interpolation: Interpolation) -> Option<CommandPair> {
 		Some((
 			CommandType::Resize(ResizeCommand {
 				target: self.id,
 				size: target,
+				interpolation,
 			}),
-			CommandType::Resize(ResizeCommand {
+			CommandType::RestoreCanvas(RestoreCanvasCommand {
 				target: self.id,
-				size: *self.size,
+				channels: self.channels,
+				canvas: (*self.canvas).clone(),
 			}),
 		))
 	}
 }
 
 impl Cropable for CanvasNode {
-	fn crop(&self, offset: Vec2<u32>, size: Extent2<u32>) -> Option<CommandPair> {
+	fn crop(&self, region: Rect<i32, u32>) -> Option<CommandPair> {
 		Some((
 			CommandType::Crop(CropCommand {
 				target: self.id,
-				offset,
-				size,
+				region,
 			}),
 			CommandType::RestoreCanvas(RestoreCanvasCommand {
 				target: self.id,
 				channels: self.channels,
-				data: (*self.data).to_owned(),
+				canvas: (*self.canvas).clone(),
+			}),
+		))
+	}
+}
+
+impl Flippable for CanvasNode {
+	fn flip(&self, axis: FlipAxis) -> Option<CommandPair> {
+		Some((
+			CommandType::Flip(FlipCommand {
+				target: self.id,
+				axis,
+			}),
+			CommandType::RestoreCanvas(RestoreCanvasCommand {
+				target: self.id,
+				channels: self.channels,
+				canvas: (*self.canvas).clone(),
 			}),
 		))
 	}
@@ -175,7 +189,7 @@ impl CanvasNode {
 			CommandType::RestoreCanvas(RestoreCanvasCommand {
 				target: self.id,
 				channels: self.channels,
-				data: (*self.data).to_owned(),
+				canvas: (*self.canvas).clone(),
 			}),
 		))
 	}
@@ -209,10 +223,18 @@ impl Executable for CanvasNode {
 				}
 				CommandType::RestoreCanvas(command) => {
 					patched.channels = command.channels;
-					patched.data = Arc::new(command.data.to_owned());
+					patched.canvas = Arc::new(command.canvas.clone());
 				}
-				CommandType::Resize(_patch) => unimplemented!(),
-				CommandType::Crop(_patch) => unimplemented!(),
+				CommandType::Resize(patch) => {
+					patched.canvas =
+						Arc::new(patched.canvas.resize(patch.size, patch.interpolation));
+				}
+				CommandType::Crop(patch) => {
+					patched.canvas = Arc::new(patched.canvas.crop(patch.region));
+				}
+				CommandType::Flip(patch) => {
+					patched.canvas = Arc::new(patched.canvas.flip(patch.axis));
+				}
 				CommandType::ApplyStencil(_patch) => unimplemented!(),
 				_ => return None,
 			};
@@ -245,8 +267,7 @@ impl parser::v0::ParseNode for CanvasNode {
 		} else {
 			(bytes, None)
 		};
-		let len = (row.size.w as usize) * (row.size.h as usize);
-		let (bytes, data) = take(len)(bytes)?;
+		let (bytes, canvas) = Canvas::parse(bytes)?;
 		Ok((
 			bytes,
 			Arc::new(NodeType::Canvas(CanvasNode {
@@ -258,7 +279,7 @@ impl parser::v0::ParseNode for CanvasNode {
 				name: Arc::new(row.name.clone()),
 				opacity: opacity,
 				channels: channels,
-				data: Arc::new(data.to_owned()),
+				canvas: Arc::new(canvas),
 			})),
 		))
 	}
@@ -282,7 +303,7 @@ impl parser::v0::WriteNode for CanvasNode {
 		} else {
 			size += writer.write(&0u8.to_le_bytes())?;
 		}
-		size += writer.write(&self.data.as_slice())?;
+		size += self.canvas.write(writer)?;
 
 		let mut row = parser::v0::IndexRow::new(self.id);
 		row.chunk_type = NodeKind::CanvasGroup;

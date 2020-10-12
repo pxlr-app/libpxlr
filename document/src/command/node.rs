@@ -8,12 +8,6 @@ pub struct TranslateCommand {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Command)]
-pub struct ResizeCommand {
-	pub target: Uuid,
-	pub size: Extent2<u32>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Command)]
 pub struct SetVisibleCommand {
 	pub target: Uuid,
 	pub visibility: bool,

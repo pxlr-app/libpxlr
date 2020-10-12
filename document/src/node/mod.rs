@@ -164,7 +164,7 @@ pub trait Sized {
 	fn size(&self) -> Extent2<u32> {
 		Extent2::new(0, 0)
 	}
-	fn resize(&self, _target: Extent2<u32>) -> Option<CommandPair> {
+	fn resize(&self, _target: Extent2<u32>, _interpolation: Interpolation) -> Option<CommandPair> {
 		None
 	}
 }
@@ -193,7 +193,12 @@ pub trait Folded {
 	}
 }
 pub trait Cropable {
-	fn crop(&self, _offset: Vec2<u32>, _size: Extent2<u32>) -> Option<CommandPair> {
+	fn crop(&self, _region: Rect<i32, u32>) -> Option<CommandPair> {
+		None
+	}
+}
+pub trait Flippable {
+	fn flip(&self, _axis: FlipAxis) -> Option<CommandPair> {
 		None
 	}
 }
@@ -212,7 +217,16 @@ pub trait DocumentNode: Node + Named + Positioned + Sized + Displayed + Locked +
 impl Downcast for dyn DocumentNode {}
 
 pub trait SpriteNode:
-	Node + Named + Sized + Cropable + Displayed + Locked + Folded + HasChannels + Transparent
+	Node
+	+ Named
+	+ Sized
+	+ Cropable
+	+ Flippable
+	+ Displayed
+	+ Locked
+	+ Folded
+	+ HasChannels
+	+ Transparent
 {
 }
 impl Downcast for dyn SpriteNode {}

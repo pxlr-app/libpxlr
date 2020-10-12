@@ -26,16 +26,29 @@ pub struct RestoreCanvasGroupCommand {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Command)]
+pub struct ResizeCommand {
+	pub target: Uuid,
+	pub size: Extent2<u32>,
+	pub interpolation: Interpolation,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Command)]
 pub struct CropCommand {
 	pub target: Uuid,
-	pub offset: Vec2<u32>,
-	pub size: Extent2<u32>,
+	pub region: Rect<i32, u32>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, Command)]
+pub struct FlipCommand {
+	pub target: Uuid,
+	pub axis: FlipAxis,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Command)]
 pub struct RestoreCanvasCommand {
 	pub target: Uuid,
 	pub channels: Channel,
-	pub data: Vec<u8>,
+	pub canvas: Canvas,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Command)]
