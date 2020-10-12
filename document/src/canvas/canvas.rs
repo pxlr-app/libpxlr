@@ -431,6 +431,25 @@ impl Index<usize> for Canvas {
 	}
 }
 
+impl parser::Parse for Canvas {
+	fn parse(bytes: &[u8]) -> nom::IResult<&[u8], Canvas> {
+		let (bytes, stencil) = Stencil::parse(bytes)?;
+		Ok((bytes, Canvas::from_stencil(stencil)))
+	}
+}
+
+impl parser::Write for Canvas {
+	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
+		let stencil = Stencil::from_buffer_mask_alpha(
+			self.size,
+			self.channels,
+			self.copy_to_bytes().to_vec(),
+		);
+		let size = stencil.write(writer)?;
+		Ok(size)
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use crate::prelude::*;
