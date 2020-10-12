@@ -108,8 +108,13 @@ impl Canvas {
 	/// Create a canvas from pixel buffer
 	pub fn from_buffer(size: Extent2<u32>, channels: Channel, data: Vec<u8>) -> Self {
 		let stencil = Stencil::from_buffer(size, channels, data);
+		Self::from_stencil(stencil)
+	}
+
+	/// Create a canvas from a stencil
+	pub fn from_stencil(stencil: Stencil) -> Self {
 		let size = stencil.size.clone();
-		Self::new(size, channels)
+		Self::new(size, stencil.channels)
 			.apply_stencil(Vec2::new(0, 0), stencil)
 			.unwrap()
 	}
@@ -218,10 +223,9 @@ impl Canvas {
 		))
 	}
 
-	/// Flatten canvas
-	pub fn flatten(&self) -> Self {
-		let data = self.copy_to_bytes().to_vec();
-		Self::from_buffer(self.size, self.channels, data)
+	/// Allocate a copy of this canvas
+	pub fn copy(&self) -> Self {
+		Self::from_buffer(self.size, self.channels, self.copy_to_bytes().to_vec())
 	}
 
 	/// Resize canvas

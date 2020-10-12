@@ -45,11 +45,8 @@ impl Stencil {
 		if channels & Channel::A != Channel::A {
 			Self::from_buffer(size, channels, buffer)
 		} else {
-			assert_eq!(
-				size.w as usize * size.h as usize * channels.size(),
-				buffer.len()
-			);
 			let stride = channels.size();
+			assert_eq!(size.w as usize * size.h as usize * stride, buffer.len());
 			let mut mask = bitvec![Lsb0, u8; 1; (size.w * size.h) as usize];
 			// #[cfg(feature = "rayon")]
 			// let chunks = buffer.par_chunks(stride);
