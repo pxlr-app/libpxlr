@@ -431,6 +431,30 @@ impl Index<usize> for Canvas {
 	}
 }
 
+impl serde::Serialize for Canvas {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: serde::Serializer,
+	{
+		let stencil = Stencil::from_buffer_mask_alpha(
+			self.size,
+			self.channels,
+			self.copy_to_bytes().to_vec(),
+		);
+		stencil.serialize(serializer)
+	}
+}
+
+impl<'de> serde::Deserialize<'de> for Canvas {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+	where
+		D: serde::Deserializer<'de>,
+	{
+		let stencil = Stencil::deserialize(deserializer)?;
+		Ok(Canvas::from_stencil(stencil))
+	}
+}
+
 impl parser::Parse for Canvas {
 	fn parse(bytes: &[u8]) -> nom::IResult<&[u8], Canvas> {
 		let (bytes, stencil) = Stencil::parse(bytes)?;
