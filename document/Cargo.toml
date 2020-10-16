@@ -14,6 +14,7 @@ bytes = "0.5.6"
 chrono = { version = "0.4", features = ["serde"] }
 collections = { path = "../collections" }
 document_derive = { path = "../document_derive" }
+enum-display-derive = "0"
 math = { path = "../math" }
 nom = "5"
 rayon = { version = "1", optional = true }

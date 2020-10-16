@@ -539,6 +539,12 @@ impl Channel {
 	}
 }
 
+impl Default for Channel {
+	fn default() -> Self {
+		Channel::I
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use crate::prelude::*;

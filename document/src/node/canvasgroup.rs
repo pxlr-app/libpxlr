@@ -2,7 +2,7 @@ use crate as document;
 use crate::prelude::*;
 use nom::number::complete::{le_f32, le_u8};
 
-#[derive(DocumentNode, Debug, Clone, Serialize, Deserialize)]
+#[derive(DocumentNode, Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CanvasGroupNode {
 	pub id: Uuid,
 	pub position: Arc<Vec2<u32>>,

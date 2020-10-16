@@ -49,9 +49,9 @@ impl From<nom::Err<(&[u8], nom::error::ErrorKind)>> for FileError {
 
 #[derive(Debug, Clone)]
 pub struct File {
-	pub(crate) header: parser::Header,
-	pub(crate) index: parser::v0::Index,
-	pub(crate) rows: Vec<parser::v0::IndexRow>,
+	pub header: parser::Header,
+	pub index: parser::v0::Index,
+	pub rows: Vec<parser::v0::IndexRow>,
 	pub(crate) uuid_index: BTreeMap<Uuid, usize>,
 	pub(crate) cache_node: BTreeMap<Uuid, NodeRef>,
 }

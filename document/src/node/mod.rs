@@ -2,7 +2,7 @@ use crate::prelude::*;
 use math::{Extent2, Vec2};
 use nom::number::complete::le_u16;
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use uuid::Uuid;
 mod canvas;
 mod canvasgroup;
@@ -32,7 +32,7 @@ pub enum NodeType {
 	Canvas(CanvasNode),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Display, Clone, Serialize, Deserialize)]
 pub enum NodeKind {
 	Note,
 	Group,

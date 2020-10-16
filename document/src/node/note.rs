@@ -1,7 +1,7 @@
 use crate as document;
 use crate::prelude::*;
 
-#[derive(DocumentNode, Debug, Clone, Serialize, Deserialize)]
+#[derive(DocumentNode, Debug, Clone, Default, Serialize, Deserialize)]
 pub struct NoteNode {
 	pub id: Uuid,
 	pub position: Arc<Vec2<u32>>,

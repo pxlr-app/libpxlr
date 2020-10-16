@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use std::ops::Index;
+use std::{fmt::Display, ops::Index};
 
 #[inline(always)]
 fn lerp_pixel(channel: Channel, from: &Pixel, to: &Pixel, weight: f32, dst: &mut Pixel) {
@@ -125,7 +125,7 @@ fn lerp_pixel(channel: Channel, from: &Pixel, to: &Pixel, weight: f32, dst: &mut
 // 	}
 // }
 
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Display, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Interpolation {
 	Nearest,
 	Bilinear,
@@ -223,6 +223,12 @@ impl Interpolation {
 			  // 	}
 			  // }
 		};
+	}
+}
+
+impl Default for Interpolation {
+	fn default() -> Self {
+		Interpolation::Nearest
 	}
 }
 

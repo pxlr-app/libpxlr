@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use bytes::Bytes;
 use rstar::{Envelope, Point, PointDistance, RTree, RTreeObject, AABB};
-use std::ops::Index;
+use std::{fmt::Display, ops::Index};
 
 #[derive(Debug, Clone)]
 struct CanvasBrush {
@@ -77,7 +77,7 @@ impl std::fmt::Display for CanvasError {
 	}
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Display, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FlipAxis {
 	Horizontal,
 	Vertical,
@@ -371,6 +371,12 @@ impl Canvas {
 			&mut resized[..],
 		);
 		Self::from_buffer(self.size, self.channels, resized)
+	}
+}
+
+impl Default for Canvas {
+	fn default() -> Self {
+		Canvas::new(Extent2::new(0, 0), Channel::default())
 	}
 }
 

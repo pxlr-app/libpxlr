@@ -2,7 +2,7 @@ use crate as document;
 use crate::prelude::*;
 use nom::number::complete::{le_f32, le_u8};
 
-#[derive(SpriteNode, Debug, Clone, Serialize, Deserialize)]
+#[derive(SpriteNode, Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CanvasNode {
 	pub id: Uuid,
 	pub size: Arc<Extent2<u32>>,

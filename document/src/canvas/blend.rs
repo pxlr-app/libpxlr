@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 
 /// Based on [SVG specs](https://www.w3.org/TR/compositing-1/#porterduffcompositingoperators)
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Display, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Blend {
 	Normal,
 	Multiply,
@@ -37,8 +38,14 @@ impl Blend {
 	}
 }
 
+impl Default for Blend {
+	fn default() -> Self {
+		Blend::Normal
+	}
+}
+
 /// Based on [SVG specs](https://www.w3.org/TR/compositing-1/#porterduffcompositingoperators)
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Display, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Compose {
 	Clear,
 	Copy,
@@ -72,6 +79,12 @@ impl Compose {
 			Compose::XOR => (1. - ba, 1. - fa),
 			Compose::Lighter => (1., 1.),
 		}
+	}
+}
+
+impl Default for Compose {
+	fn default() -> Self {
+		Compose::Lighter
 	}
 }
 

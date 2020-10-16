@@ -2,7 +2,7 @@ use crate as document;
 use crate::prelude::*;
 use nom::{multi::many_m_n, number::complete::le_u8};
 
-#[derive(DocumentNode, Debug, Clone, Serialize, Deserialize)]
+#[derive(DocumentNode, Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PaletteNode {
 	pub id: Uuid,
 	pub position: Arc<Vec2<u32>>,

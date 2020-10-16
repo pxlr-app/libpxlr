@@ -1,5 +1,8 @@
 #![feature(const_btree_new)]
 
+#[macro_use]
+extern crate enum_display_derive;
+
 pub use document_derive::*;
 pub mod any;
 pub mod canvas;
