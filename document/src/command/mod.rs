@@ -3,7 +3,7 @@ use crate::{
 	node::NodeType,
 };
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+use std::fmt::{self, Debug, Display};
 use uuid::Uuid;
 
 mod canvas;
@@ -44,6 +44,33 @@ pub enum CommandType {
 	RestoreSprite(RestoreCanvasGroupCommand),
 	RestoreCanvas(RestoreCanvasCommand),
 	ApplyStencil(ApplyStencilCommand),
+}
+
+impl Display for CommandType {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			CommandType::Translate(_) => write!(f, "Translate"),
+			CommandType::Resize(_) => write!(f, "Resize"),
+			CommandType::SetVisible(_) => write!(f, "SetVisible"),
+			CommandType::SetLock(_) => write!(f, "SetLock"),
+			CommandType::SetFold(_) => write!(f, "SetFold"),
+			CommandType::Rename(_) => write!(f, "Rename"),
+			CommandType::AddChild(_) => write!(f, "AddChild"),
+			CommandType::RemoveChild(_) => write!(f, "RemoveChild"),
+			CommandType::MoveChild(_) => write!(f, "MoveChild"),
+			CommandType::AddColor(_) => write!(f, "AddColor"),
+			CommandType::RemoveColor(_) => write!(f, "RemoveColor"),
+			CommandType::MoveColor(_) => write!(f, "MoveColor"),
+			CommandType::SetPaletteNode(_) => write!(f, "SetPaletteNode"),
+			CommandType::SetOpacity(_) => write!(f, "SetOpacity"),
+			CommandType::SetComponents(_) => write!(f, "SetComponents"),
+			CommandType::Crop(_) => write!(f, "Crop"),
+			CommandType::Flip(_) => write!(f, "Flip"),
+			CommandType::RestoreSprite(_) => write!(f, "RestoreSprite"),
+			CommandType::RestoreCanvas(_) => write!(f, "RestoreCanvas"),
+			CommandType::ApplyStencil(_) => write!(f, "ApplyStencil"),
+		}
+	}
 }
 
 impl CommandType {

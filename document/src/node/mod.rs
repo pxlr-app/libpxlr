@@ -2,7 +2,7 @@ use crate::prelude::*;
 use math::{Extent2, Vec2};
 use nom::number::complete::le_u16;
 use serde::{Deserialize, Serialize};
-use std::fmt::{Debug, Display};
+use std::fmt::{self, Debug, Display};
 use uuid::Uuid;
 mod canvas;
 mod canvasgroup;
@@ -30,6 +30,18 @@ pub enum NodeType {
 	Palette(PaletteNode),
 	CanvasGroup(CanvasGroupNode),
 	Canvas(CanvasNode),
+}
+
+impl Display for NodeType {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			NodeType::Note(_) => write!(f, "Note"),
+			NodeType::Group(_) => write!(f, "Group"),
+			NodeType::Palette(_) => write!(f, "Palette"),
+			NodeType::CanvasGroup(_) => write!(f, "CanvasGroup"),
+			NodeType::Canvas(_) => write!(f, "Canvas"),
+		}
+	}
 }
 
 #[derive(Debug, Display, Clone, Serialize, Deserialize)]
