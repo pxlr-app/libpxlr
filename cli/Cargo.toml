@@ -4,11 +4,25 @@ version = "0.1.0"
 authors = ["Michael Grenier <michael@grenier.dev>"]
 edition = "2018"
 
+[features]
+default = [ "imagerust" ]
+imagerust = [ "image" ]
+# imagenative = [ "freeimage-sys" ]
+
 [dev-dependencies.cargo-husky]
 version = "1"
 default-features = false
 features = ["user-hooks"]
 
 [dependencies]
+clap = "2"
+document = { path = "../document" }
 editor = { path = "../editor" }
-freeimage-sys = { path = "../freeimage-sys" }
+
+[dependencies.image]
+optional = true
+version = "0"
+
+# [dependencies.freeimage-sys]
+# optional = true
+# path = "../freeimage-sys"
