@@ -250,11 +250,21 @@ impl File {
 		Ok(size)
 	}
 
+	pub fn update_index_only<W: io::Write + io::Seek>(
+		&mut self,
+		writer: &mut W,
+	) -> io::Result<usize> {
+		writer.seek(io::SeekFrom::End(0))?;
+		let size = self.write_index(writer)?;
+		Ok(size)
+	}
+
 	pub fn update<W: io::Write + io::Seek>(
 		&mut self,
 		writer: &mut W,
 		node: &NodeType,
 	) -> io::Result<usize> {
+		self.index.hash = Uuid::new_v4();
 		self.index.prev_offset = writer.seek(io::SeekFrom::End(0))?;
 		let mut rows: Vec<parser::v0::IndexRow> = Vec::new();
 		let mut size = self.write_node(writer, &mut rows, node)?;
