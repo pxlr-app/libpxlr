@@ -436,7 +436,7 @@ impl parser::v0::ParseNode for CanvasGroupNode {
 		use parser::Parse;
 		let (bytes, opacity) = le_f32(bytes)?;
 		let (bytes, channels) = le_u8(bytes)?;
-		let channels = Channel::from_bits(channels).unwrap();
+		let channels = Channel::from_bits(channels).expect("Invalid value for Channel");
 		let (bytes, has_palette) = le_u8(bytes)?;
 		let (bytes, palette) = if has_palette == 1 {
 			let (bytes, palette_id) = Uuid::parse(bytes)?;
@@ -475,6 +475,7 @@ impl parser::v0::WriteNode for CanvasGroupNode {
 		dependencies: &mut Vec<NodeRef>,
 	) -> io::Result<usize> {
 		use parser::Write;
+		let chunk_offset = writer.seek(io::SeekFrom::Current(0))?;
 		let mut size = 5usize;
 		writer.write(&self.opacity.to_le_bytes())?;
 		writer.write(&self.channels.bits().to_le_bytes())?;
@@ -488,7 +489,7 @@ impl parser::v0::WriteNode for CanvasGroupNode {
 
 		let mut row = parser::v0::IndexRow::new(self.id);
 		row.chunk_type = NodeKind::CanvasGroup;
-		row.chunk_offset = writer.seek(io::SeekFrom::Current(0))?;
+		row.chunk_offset = chunk_offset;
 		row.chunk_size = size as u32;
 		row.display = self.display;
 		row.locked = self.locked;

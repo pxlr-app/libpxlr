@@ -241,13 +241,14 @@ impl parser::v0::WriteNode for PaletteNode {
 		_dependencies: &mut Vec<NodeRef>,
 	) -> io::Result<usize> {
 		use parser::Write;
+		let chunk_offset = writer.seek(io::SeekFrom::Current(0))?;
 		writer.write(&(self.colors.len() as u8).to_le_bytes())?;
 		for color in self.colors.iter() {
 			color.write(writer)?;
 		}
 		let mut row = parser::v0::IndexRow::new(self.id);
 		row.chunk_type = NodeKind::Palette;
-		row.chunk_offset = writer.seek(io::SeekFrom::Current(0))?;
+		row.chunk_offset = chunk_offset;
 		row.display = self.display;
 		row.locked = self.locked;
 		row.position = *self.position;

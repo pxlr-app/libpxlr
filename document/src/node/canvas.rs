@@ -293,6 +293,7 @@ impl parser::v0::WriteNode for CanvasNode {
 		dependencies: &mut Vec<NodeRef>,
 	) -> io::Result<usize> {
 		use parser::Write;
+		let chunk_offset = writer.seek(io::SeekFrom::Current(0))?;
 		let mut size = 5usize;
 		writer.write(&self.opacity.to_le_bytes())?;
 		writer.write(&self.channels.bits().to_le_bytes())?;
@@ -307,7 +308,7 @@ impl parser::v0::WriteNode for CanvasNode {
 
 		let mut row = parser::v0::IndexRow::new(self.id);
 		row.chunk_type = NodeKind::CanvasGroup;
-		row.chunk_offset = writer.seek(io::SeekFrom::Current(0))?;
+		row.chunk_offset = chunk_offset;
 		row.chunk_size = size as u32;
 		row.display = self.display;
 		row.locked = self.locked;
