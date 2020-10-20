@@ -1,5 +1,6 @@
 use clap::{crate_version, App, Arg, SubCommand};
 use document::prelude::*;
+use image::DynamicImage;
 use std::{ffi, fs, io, path};
 
 fn main() {
@@ -146,13 +147,6 @@ fn main() {
 								.long("name")
 								.value_name("NAME")
 								.help("Name of the canvas"),
-						)
-						.arg(
-							Arg::with_name("file")
-								.value_name("FILE")
-								.required(true)
-								.help("Content of the canvas")
-								.validator_os(validate_file),
 						),
 				)
 				.subcommand(
@@ -229,13 +223,14 @@ fn main() {
 		let long_id = matches.is_present("show-long-id");
 		for row in &file.rows {
 			println!(
-				"{} {} {} {}",
+				"{} {} {} {} {}",
 				if long_id {
 					row.id.to_string()
 				} else {
 					row.id.to_string()[..8].to_owned()
 				},
 				row.chunk_type,
+				row.chunk_offset,
 				row.chunk_size,
 				row.name
 			);
@@ -247,7 +242,7 @@ fn main() {
 			File::read(&mut handle).expect("Could not parse document.")
 		};
 		let parent = if let Some(uuid) = matches.value_of("parent") {
-			let uuid = file_get_by_id_lazy(&file, uuid).expect("Could not find UUID in document.");
+			let uuid = find_id_lazy(&file, uuid).expect("Could not find UUID in document.");
 			file.get(&mut handle, uuid)
 				.expect("Could not find parent in document.")
 		} else {
@@ -273,15 +268,48 @@ fn main() {
 				name: Arc::new(name.to_owned()),
 				..Default::default()
 			})
+		} else if let Some(matches) = matches.subcommand_matches("canvas") {
+			let name = matches.value_of("name").unwrap();
+			let channels = Channel::RGB | Channel::A;
+			let size = Extent2::new(32, 32);
+			NodeType::CanvasGroup(CanvasGroupNode {
+				id,
+				name: Arc::new(name.to_owned()),
+				size: Arc::new(size),
+				opacity: 1.,
+				channels: channels,
+				..Default::default()
+			})
+		} else if let Some(matches) = matches.subcommand_matches("layer") {
+			let name = matches.value_of("name").unwrap_or("Layer");
+			let path = matches.value_of_os("file").unwrap();
+			let canvas = load_image_at(path).expect("Could not load image.");
+			NodeType::Canvas(CanvasNode {
+				id,
+				name: Arc::new(name.to_owned()),
+				size: Arc::new(canvas.size),
+				channels: canvas.channels,
+				canvas: Arc::new(canvas),
+				..Default::default()
+			})
 		} else {
 			unimplemented!()
 		};
+
+		println!("{}", node.as_node().id());
 
 		let parent = if let NodeType::Group(_) = node {
 			node
 		} else {
 			match *parent {
 				NodeType::Group(ref parent) => {
+					let noderef = Arc::new(node);
+					let (redo, _) = parent
+						.add_child(noderef.clone())
+						.expect("Could not add child");
+					parent.execute(&redo).expect("Could not add child")
+				}
+				NodeType::CanvasGroup(ref parent) => {
 					let noderef = Arc::new(node);
 					let (redo, _) = parent
 						.add_child(noderef.clone())
@@ -326,7 +354,7 @@ fn load_file_at<R: io::Read + io::Seek>(
 	}
 }
 
-fn file_get_by_id_lazy(file: &File, begins_with: &str) -> Result<Uuid, &'static str> {
+fn find_id_lazy(file: &File, begins_with: &str) -> Result<Uuid, &'static str> {
 	let len = begins_with.len();
 	for row in &file.rows {
 		if &row.id.to_string()[..len] == begins_with {
@@ -350,3 +378,43 @@ fn validate_file(path: &ffi::OsStr) -> Result<(), ffi::OsString> {
 // fn validate_uuid(val: String) -> Result<(), String> {
 // 	Uuid::parse_str(&val).map_or_else(|_| Err("not a valid UUID".to_owned()), |_| Ok(()))
 // }
+
+#[cfg(feature = "imagerust")]
+fn load_image_at(path: &ffi::OsStr) -> Result<Canvas, String> {
+	match image::open(path).map_err(|_| "could not load image")? {
+		DynamicImage::ImageRgb8(img) => {
+			let (w, h) = img.dimensions();
+			let channels = Channel::RGB;
+			let len = channels.size();
+			let mut pixels = vec![0u8; w as usize * h as usize * len];
+
+			for (x, y, pixel) in img.enumerate_pixels() {
+				let index = (x as u32 + w * y as u32) as usize;
+				let buf = &mut pixels[(index * len)..((index + 1) * len)];
+				unsafe {
+					*channels.unsafe_rgb_mut(buf) = RGB::new(pixel[0], pixel[1], pixel[2]);
+				}
+			}
+
+			Ok(Canvas::from_buffer(Extent2::new(w, h), channels, pixels))
+		}
+		DynamicImage::ImageRgba8(img) => {
+			let (w, h) = img.dimensions();
+			let channels = Channel::RGB | Channel::A;
+			let len = channels.size();
+			let mut pixels = vec![0u8; w as usize * h as usize * len];
+
+			for (x, y, pixel) in img.enumerate_pixels() {
+				let index = (x as u32 + w * y as u32) as usize;
+				let buf = &mut pixels[(index * len)..((index + 1) * len)];
+				unsafe {
+					*channels.unsafe_rgb_mut(buf) = RGB::new(pixel[0], pixel[1], pixel[2]);
+					*channels.unsafe_a_mut(buf) = A::new(pixel[3]);
+				}
+			}
+
+			Ok(Canvas::from_buffer(Extent2::new(w, h), channels, pixels))
+		}
+		_ => Err("unknown color format".into()),
+	}
+}
