@@ -312,6 +312,7 @@ impl File {
 			}
 		}
 
+		self.index.prev_offset = 0;
 		size += self.write_index(destination)?;
 		Ok(size)
 	}
