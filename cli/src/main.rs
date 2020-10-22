@@ -22,6 +22,41 @@ fn main() {
 		.short("out")
 		.value_name("DOCUMENT")
 		.help("Path to a document");
+	let x_arg = Arg::with_name("x")
+		.short("x")
+		.value_name("X")
+		.validator(|v| {
+			v.parse::<u32>()
+				.map_or_else(|_| Err("expected an integer".into()), |_| Ok(()))
+		})
+		.help("X coordinate");
+	let y_arg = Arg::with_name("y")
+		.short("y")
+		.value_name("Y")
+		.validator(|v| {
+			v.parse::<u32>()
+				.map_or_else(|_| Err("expected an integer".into()), |_| Ok(()))
+		})
+		.help("Y coordinate");
+	let width_arg = Arg::with_name("width")
+		.short("w")
+		.long("width")
+		.value_name("WIDTH")
+		.validator(|v| {
+			v.parse::<u32>()
+				.map_or_else(|_| Err("expected an integer".into()), |_| Ok(()))
+		})
+		.help("Width");
+	let height_arg = Arg::with_name("height")
+		.short("h")
+		.long("height")
+		.value_name("HEIGHT")
+		.requires("width")
+		.validator(|v| {
+			v.parse::<u32>()
+				.map_or_else(|_| Err("expected an integer".into()), |_| Ok(()))
+		})
+		.help("Height");
 	let matches = App::new("PXLR CLI")
 		.version(crate_version!())
 		.about("Create and manipulate PXLR documents")
@@ -40,6 +75,11 @@ fn main() {
 			SubCommand::with_name("revert")
 				.about("Revert to a previous revision of the document")
 				.arg(rev_arg.clone().required(true).help("Revision to revert to")),
+		)
+		.subcommand(
+			SubCommand::with_name("fork")
+				.about("Fork the document")
+				.arg(out_arg.clone().required(true)),
 		)
 		.subcommand(
 			SubCommand::with_name("list")
@@ -121,6 +161,8 @@ fn main() {
 						.value_name("UUID")
 						.help("UUID of the parent node"),
 				)
+				.arg(x_arg.clone())
+				.arg(y_arg.clone())
 				.subcommand(
 					SubCommand::with_name("note").about("Add note node").arg(
 						Arg::with_name("content")
@@ -147,6 +189,18 @@ fn main() {
 								.long("name")
 								.value_name("NAME")
 								.help("Name of the canvas"),
+						)
+						.arg(width_arg.clone().required(true))
+						.arg(height_arg.clone())
+						.arg(
+							Arg::with_name("format")
+								.long("format")
+								.value_name("FORMAT")
+								.possible_values(&[
+									"I", "IXYZ", "RGB", "RGBXYZ", "RGBA", "RGBAXYZ", "UV",
+								])
+								.required(true)
+								.help("Format of the canvas"),
 						),
 				)
 				.subcommand(
@@ -203,7 +257,7 @@ fn main() {
 		}
 	} else if let Some(matches) = matches.subcommand_matches("squash") {
 		let mut file = File::read(&mut handle).expect("Could not parse document.");
-		let out_path = matches.value_of_os("out").expect("--out argument missing");
+		let out_path = matches.value_of_os("out").unwrap();
 		let mut out_handle = fs::OpenOptions::new()
 			.write(true)
 			.create(true)
@@ -217,6 +271,9 @@ fn main() {
 			.expect("Could not parse document.");
 		file.update_index_only(&mut handle)
 			.expect("Could not revert document.");
+	} else if let Some(matches) = matches.subcommand_matches("fork") {
+		let out_path = matches.value_of_os("out").unwrap();
+		fs::copy(doc_path, out_path).expect("Could not form document");
 	} else if let Some(matches) = matches.subcommand_matches("list") {
 		let file = load_file_at(&mut handle, matches.value_of("revision"))
 			.expect("Could not parse document.");
@@ -252,6 +309,13 @@ fn main() {
 				..Default::default()
 			}))
 		};
+		let x = matches
+			.value_of("x")
+			.map_or_else(|| 0, |v| v.parse::<u32>().unwrap());
+		let y = matches
+			.value_of("y")
+			.map_or_else(|| 0, |v| v.parse::<u32>().unwrap());
+		let position = Vec2::new(x, y);
 
 		let id = Uuid::new_v4();
 		let node = if let Some(matches) = matches.subcommand_matches("note") {
@@ -259,6 +323,7 @@ fn main() {
 			NodeType::Note(NoteNode {
 				id,
 				name: Arc::new(content.to_owned()),
+				position: Arc::new(position),
 				..Default::default()
 			})
 		} else if let Some(matches) = matches.subcommand_matches("group") {
@@ -266,15 +331,21 @@ fn main() {
 			NodeType::Group(GroupNode {
 				id,
 				name: Arc::new(name.to_owned()),
+				position: Arc::new(position),
 				..Default::default()
 			})
 		} else if let Some(matches) = matches.subcommand_matches("canvas") {
 			let name = matches.value_of("name").unwrap();
-			let channels = Channel::RGB | Channel::A;
-			let size = Extent2::new(32, 32);
+			let channels = map_format_to_channel(&matches.value_of("format").unwrap()).unwrap();
+			let width = matches.value_of("width").unwrap().parse::<u32>().unwrap();
+			let height = matches
+				.value_of("height")
+				.map_or_else(|| width, |v| v.parse::<u32>().unwrap());
+			let size = Extent2::new(width, height);
 			NodeType::CanvasGroup(CanvasGroupNode {
 				id,
 				name: Arc::new(name.to_owned()),
+				position: Arc::new(position),
 				size: Arc::new(size),
 				opacity: 1.,
 				channels: channels,
@@ -303,6 +374,9 @@ fn main() {
 		} else {
 			match *parent {
 				NodeType::Group(ref parent) => {
+					if node.as_documentnode().is_none() {
+						panic!("can not add a non-DocumentNode to a GroupNode");
+					}
 					let noderef = Arc::new(node);
 					let (redo, _) = parent
 						.add_child(noderef.clone())
@@ -310,6 +384,13 @@ fn main() {
 					parent.execute(&redo).expect("Could not add child")
 				}
 				NodeType::CanvasGroup(ref parent) => {
+					match node.as_spritenode() {
+						Some(sprite) if sprite.channels() != parent.channels() => {
+							panic!("layer needs to match the canvas format")
+						}
+						None => panic!("can not add a non-DocumentNode to a GroupNode"),
+						_ => {}
+					}
 					let noderef = Arc::new(node);
 					let (redo, _) = parent
 						.add_child(noderef.clone())
@@ -329,6 +410,19 @@ fn main() {
 		}
 	} else {
 		unimplemented!()
+	}
+}
+
+fn map_format_to_channel(format: &str) -> Result<Channel, &'static str> {
+	match format {
+		"I" => Ok(Channel::I),
+		"IXYZ" => Ok(Channel::I | Channel::XYZ),
+		"RGB" => Ok(Channel::RGB),
+		"RGBXYZ" => Ok(Channel::RGB | Channel::XYZ),
+		"RGBA" => Ok(Channel::RGB | Channel::A),
+		"RGBAXYZ" => Ok(Channel::RGB | Channel::A | Channel::XYZ),
+		"UV" => Ok(Channel::UV),
+		_ => Err("unknown format"),
 	}
 }
 
