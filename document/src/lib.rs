@@ -11,12 +11,9 @@ pub mod command;
 pub mod file;
 pub mod node;
 pub mod parser;
-pub mod stencil;
 
 pub mod prelude {
-	pub use super::{
-		any::*, canvas::*, color::*, command::*, file::*, node::*, parser, stencil::*,
-	};
+	pub use super::{any::*, canvas::*, color::*, command::*, file::*, node::*, parser};
 	pub use document_derive::*;
 	pub use math::{Extent2, Mat3, Rect, Vec2};
 	pub use serde::{Deserialize, Serialize};
