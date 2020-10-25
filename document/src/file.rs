@@ -163,7 +163,6 @@ impl File {
 						}
 					}
 					dependencies.reverse();
-
 					for dep in dependencies.drain(..) {
 						if !self.cache_node.contains_key(&dep.id) {
 							let mut buffer = vec![0u8; dep.chunk_size as usize];
@@ -180,18 +179,18 @@ impl File {
 								.iter()
 								.filter_map(|idx| Some(self.cache_node.get(&idx).unwrap().clone()))
 								.collect();
-
-							if let Ok((_, node)) = match self.header.version {
-								0 => <NodeType as parser::v0::ParseNode>::parse_node(
+							match self.header.version {
+								0 => match <NodeType as parser::v0::ParseNode>::parse_node(
 									dep,
 									children,
 									dependencies,
 									&buffer,
-								),
+								) {
+									Ok((_, node)) => self.cache_node.insert(dep.id, node),
+									Err(err) => return Err(err.into()),
+								},
 								v => return Err(FileError::VersionNotSupported(v)),
-							} {
-								self.cache_node.insert(dep.id, node);
-							}
+							};
 						}
 					}
 
