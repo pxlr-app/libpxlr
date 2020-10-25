@@ -31,7 +31,8 @@ impl Stencil {
 			size.w as usize * size.h as usize * channels.size(),
 			buffer.len()
 		);
-		let mask = bitvec![Lsb0, u8; 1; (size.w * size.h) as usize];
+		let mut mask = bitvec![Lsb0, u8; 1; (size.w * size.h) as usize];
+		mask.set_uninitialized(false);
 		Self {
 			size,
 			mask,
@@ -47,7 +48,7 @@ impl Stencil {
 		} else {
 			let stride = channels.size();
 			assert_eq!(size.w as usize * size.h as usize * stride, buffer.len());
-			let mut mask = bitvec![Lsb0, u8; 1; (size.w * size.h) as usize];
+			let mut mask = bitvec![Lsb0, u8; 0; (size.w * size.h) as usize];
 			// #[cfg(feature = "rayon")]
 			// let chunks = buffer.par_chunks(stride);
 			// #[cfg(not(feature = "rayon"))]
@@ -56,11 +57,11 @@ impl Stencil {
 			let data = chunks
 				.enumerate()
 				.filter_map(|(i, pixel)| match channels.a(pixel) {
-					Some(A { a }) if a == &0 => {
-						mask.set(i, false);
-						None
+					Some(A { a }) if a == &0 => None,
+					_ => {
+						mask.set(i, true);
+						Some(pixel.to_vec())
 					}
-					_ => Some(pixel.to_vec()),
 				})
 				.flatten()
 				.collect::<Vec<_>>();
@@ -84,10 +85,7 @@ impl Stencil {
 	pub fn try_index(&self, index: usize) -> Option<&Pixel> {
 		if self.mask[index] {
 			let stride = self.channels.size();
-			let count: usize = self.mask[..index]
-				.iter()
-				.map(|b| if b == &true { 1usize } else { 0usize })
-				.sum();
+			let count: usize = self.mask[..index].count_ones();
 			Some(&self.data[(count * stride)..((count + 1) * stride)])
 		} else {
 			None
@@ -316,10 +314,10 @@ impl parser::Parse for Stencil {
 		let (bytes, size) = Extent2::parse(bytes)?;
 		let len = (((size.w * size.h) + 8 - 1) / 8) as usize;
 		let (bytes, buffer) = many_m_n(len, len, le_u8)(bytes)?;
-		let mask: BitVec<Lsb0, u8> = buffer.into();
+		let mask: BitVec<Lsb0, u8> = BitVec::from_vec(buffer);
 		let (bytes, channels) = le_u8(bytes)?;
 		let channels = Channel::from_bits(channels).unwrap();
-		let len = (size.w * size.h * channels.size() as u32) as usize;
+		let len = mask.count_ones() * channels.size();
 		let (bytes, data) = many_m_n(len, len, le_u8)(bytes)?;
 		Ok((
 			bytes,
@@ -351,7 +349,7 @@ impl parser::Write for Stencil {
 #[cfg(test)]
 mod tests {
 	use crate::prelude::*;
-	use collections::bitvec;
+	use collections::{bitvec, Lsb0};
 	use std::io;
 
 	#[test]
