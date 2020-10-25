@@ -307,7 +307,7 @@ impl parser::v0::WriteNode for CanvasNode {
 		size += self.canvas.write(writer)?;
 
 		let mut row = parser::v0::IndexRow::new(self.id);
-		row.chunk_type = NodeKind::CanvasGroup;
+		row.chunk_type = NodeKind::Canvas;
 		row.chunk_offset = chunk_offset;
 		row.chunk_size = size as u32;
 		row.display = self.display;
