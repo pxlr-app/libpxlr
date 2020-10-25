@@ -495,6 +495,7 @@ impl parser::v0::WriteNode for CanvasGroupNode {
 		row.locked = self.locked;
 		row.folded = self.folded;
 		row.position = *self.position;
+		row.size = *self.size;
 		row.name = (*self.name).clone();
 		for item in self.children.iter() {
 			dependencies.push(item.clone());
