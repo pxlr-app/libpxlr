@@ -137,7 +137,15 @@ fn main() {
 						.value_name("UUID")
 						.required(true)
 						.help("UUID of the node"),
-				),
+				)
+				.arg(
+					Arg::with_name("format")
+						.long("format")
+						.possible_values(&["json", "ron"])
+						.default_value("ron")
+						.help("Format"),
+				)
+				.arg(Arg::with_name("pretty").long("pretty").help("Pretty print")),
 		)
 		.subcommand(
 			SubCommand::with_name("export")
@@ -280,7 +288,7 @@ fn main() {
 		let long_id = matches.is_present("show-long-id");
 		for row in &file.rows {
 			println!(
-				"{} {} {} {} {}",
+				"{} {} {} {} {} {:?} {:?}",
 				if long_id {
 					row.id.to_string()
 				} else {
@@ -289,9 +297,32 @@ fn main() {
 				row.chunk_type,
 				row.chunk_offset,
 				row.chunk_size,
-				row.name
+				row.name,
+				row.children,
+				row.dependencies
 			);
 		}
+	} else if let Some(matches) = matches.subcommand_matches("describe") {
+		let mut file = load_file_at(&mut handle, matches.value_of("revision"))
+			.expect("Could not parse document.");
+		let uuid = matches.value_of("id").unwrap();
+		let uuid = find_id_lazy(&file, uuid).expect("Could not find UUID in document.");
+		let node = file
+			.get(&mut handle, uuid)
+			.expect("Could not find node in document.");
+		let output = match (
+			matches.value_of("format").unwrap(),
+			matches.is_present("pretty"),
+		) {
+			("json", false) => serde_json::to_string(&node).unwrap(),
+			("json", true) => serde_json::to_string_pretty(&node).unwrap(),
+			("ron", false) => ron::to_string(&node).unwrap(),
+			("ron", true) => {
+				ron::ser::to_string_pretty(&node, ron::ser::PrettyConfig::new()).unwrap()
+			}
+			_ => unimplemented!(),
+		};
+		println!("{}", output);
 	} else if let Some(matches) = matches.subcommand_matches("add") {
 		let mut file = if new_document {
 			File::new()
@@ -388,7 +419,7 @@ fn main() {
 						Some(sprite) if sprite.channels() != parent.channels() => {
 							panic!("layer needs to match the canvas format")
 						}
-						None => panic!("can not add a non-DocumentNode to a GroupNode"),
+						None => panic!("can not add a non-SpriteNode to a CanvasNode"),
 						_ => {}
 					}
 					let noderef = Arc::new(node);

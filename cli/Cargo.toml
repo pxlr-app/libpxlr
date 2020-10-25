@@ -18,6 +18,8 @@ features = ["user-hooks"]
 clap = "2"
 document = { path = "../document" }
 editor = { path = "../editor" }
+ron = "0"
+serde_json = "1"
 
 [dependencies.image]
 optional = true
