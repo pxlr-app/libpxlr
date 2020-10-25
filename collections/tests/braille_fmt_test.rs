@@ -1,4 +1,4 @@
-use collections::{bitvec, braille_fmt, braille_fmt2};
+use collections::{bitvec, braille_fmt, braille_fmt2, Lsb0};
 
 #[test]
 fn it_braille_fmt() {

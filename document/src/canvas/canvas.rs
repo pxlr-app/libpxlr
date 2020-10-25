@@ -483,7 +483,7 @@ impl parser::Write for Canvas {
 #[cfg(test)]
 mod tests {
 	use crate::prelude::*;
-	use collections::bitvec;
+	use collections::{bitvec, Lsb0};
 
 	#[test]
 	fn test_apply_blending() {
