@@ -1,5 +1,5 @@
 [package]
-name = "editor_cli"
+name = "cli"
 version = "0.1.0"
 authors = ["Michael Grenier <michael@grenier.dev>"]
 edition = "2018"
