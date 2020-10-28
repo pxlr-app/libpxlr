@@ -188,6 +188,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "cli"
+version = "0.1.0"
+dependencies = [
+ "cargo-husky",
+ "clap",
+ "document",
+ "editor",
+ "image",
+ "ron",
+ "serde_json",
+]
+
+[[package]]
 name = "collections"
 version = "0.1.0"
 dependencies = [
@@ -331,19 +344,6 @@ dependencies = [
  "serde_json",
  "sha2",
  "uuid",
-]
-
-[[package]]
-name = "editor_cli"
-version = "0.1.0"
-dependencies = [
- "cargo-husky",
- "clap",
- "document",
- "editor",
- "image",
- "ron",
- "serde_json",
 ]
 
 [[package]]
