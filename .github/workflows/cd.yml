@@ -22,6 +22,7 @@ jobs:
         with:
           tag_name: "${{ github.ref }}"
           release_name: "Release ${{ github.ref }}"
+          draft: true
 
       - name: Save release upload URL to artifact
         run: echo "${{ steps.release.outputs.upload_url }}" > artifacts/release-upload-url
