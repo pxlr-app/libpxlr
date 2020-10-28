@@ -175,36 +175,32 @@ fn main() {
 
 		println!("{}", node.as_node().id());
 
-		let parent = if let NodeType::Group(_) = node {
-			node
-		} else {
-			match *parent {
-				NodeType::Group(ref parent) => {
-					if node.as_documentnode().is_none() {
-						panic!("can not add a non-DocumentNode to a GroupNode");
-					}
-					let noderef = Arc::new(node);
-					let (redo, _) = parent
-						.add_child(noderef.clone())
-						.expect("Could not add child");
-					parent.execute(&redo).expect("Could not add child")
+		let parent = match *parent {
+			NodeType::Group(ref parent) => {
+				if node.as_documentnode().is_none() {
+					panic!("can not add a non-DocumentNode to a GroupNode");
 				}
-				NodeType::CanvasGroup(ref parent) => {
-					match node.as_spritenode() {
-						Some(sprite) if sprite.channels() != parent.channels() => {
-							panic!("layer needs to match the canvas format")
-						}
-						None => panic!("can not add a non-SpriteNode to a CanvasNode"),
-						_ => {}
-					}
-					let noderef = Arc::new(node);
-					let (redo, _) = parent
-						.add_child(noderef.clone())
-						.expect("Could not add child");
-					parent.execute(&redo).expect("Could not add child")
-				}
-				_ => panic!("Could not add a node to parent"),
+				let noderef = Arc::new(node);
+				let (redo, _) = parent
+					.add_child(noderef.clone())
+					.expect("Could not add child");
+				parent.execute(&redo).expect("Could not add child")
 			}
+			NodeType::CanvasGroup(ref parent) => {
+				match node.as_spritenode() {
+					Some(sprite) if sprite.channels() != parent.channels() => {
+						panic!("layer needs to match the canvas format")
+					}
+					None => panic!("can not add a non-SpriteNode to a CanvasNode"),
+					_ => {}
+				}
+				let noderef = Arc::new(node);
+				let (redo, _) = parent
+					.add_child(noderef.clone())
+					.expect("Could not add child");
+				parent.execute(&redo).expect("Could not add child")
+			}
+			_ => panic!("Could not add a node to parent"),
 		};
 
 		if new_document {
