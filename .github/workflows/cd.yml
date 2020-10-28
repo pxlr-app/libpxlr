@@ -98,7 +98,7 @@ jobs:
 
       - name: Strip release binary (linux and macos)
         if: matrix.build == 'linux' || matrix.build == 'macos'
-        run: strip "target/${{ matrix.target }}/release/editor_cli"
+        run: strip "target/${{ matrix.target }}/release/pxlr"
 
       - name: Build archive
         shell: bash
@@ -107,11 +107,11 @@ jobs:
           staging="pxlr-${{ env.RELEASE_VERSION }}-${{ matrix.target }}"
           mkdir -p "$staging"
           if [ "${{ matrix.os }}" = "windows-2019" ]; then
-            cp "target/${{ matrix.target }}/release/editor_cli.exe" "$staging/"
+            cp "target/${{ matrix.target }}/release/pxlr.exe" "$staging/"
             7z a "$staging.zip" "$staging"
             echo "ASSET=$staging.zip" >> $GITHUB_ENV
           else
-            cp "target/${{ matrix.target }}/release/editor_cli" "$staging/"
+            cp "target/${{ matrix.target }}/release/pxlr" "$staging/"
             tar czf "$staging.tar.gz" "$staging"
             echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
           fi
