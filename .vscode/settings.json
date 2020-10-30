@@ -9,7 +9,8 @@
 		".prettierrc": true,
 		"rustfmt.toml": true,
 		"target": true,
-		"Cargo.lock": true
+		"Cargo.lock": true,
+		"**/node_modules": true
 	},
 	"editor.formatOnSave": true,
 	"editor.defaultFormatter": "rust-lang.rust",
