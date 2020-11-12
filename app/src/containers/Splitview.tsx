@@ -39,37 +39,41 @@ export default function Splitview(props: SplitviewProps) {
 
 		document.body.style.cursor = axe === 'horizontal' ? 'ew-resize' : 'ns-resize';
 
+		function clientXasPercent(e: PointerEvent) {
+			const viewportPos = e[clientX];
+			const target = e.target as HTMLElement | null;
+			if (target) {
+				const bounds = (target?.parentElement ?? target).getBoundingClientRect()!;
+				const relativePos = viewportPos - bounds[left];
+				const percentPos = Math.max(0, Math.min(1, relativePos / bounds[width]));
+				return percentPos;
+			}
+			return undefined;
+		}
+
 		const onMove = (e: PointerEvent) => {
 			if (state.dragging) {
-				const viewportPos = e[clientX];
-				const target = e.target as HTMLElement | null;
-				if (target) {
-					const bounds = (target?.parentElement ?? target).getBoundingClientRect()!;
-					const relativePos = viewportPos - bounds[left];
-					const percentPos = (relativePos / bounds[width]) * 100;
-					
+				const percentPos = clientXasPercent(e);
+				if (percentPos !== undefined) {
 					if (dividerRef.current?.style) {
-						dividerRef.current.style[left] = `${percentPos.toFixed(4)}%`;
+						dividerRef.current.style[left] = `${(percentPos * 100).toFixed(4)}%`;
 					}
 
 					if (viewRef.current?.style) {
-						viewRef.current.style[width] = state.main == 'left' ? `${percentPos.toFixed(4)}%` : `${(100 - percentPos).toFixed(4)}%`;
+						viewRef.current.style[width] = state.main == 'left' ? `${(percentPos * 100).toFixed(4)}%` : `${(100 - percentPos * 100).toFixed(4)}%`;
 					}
 				}
 			}
 		}
 		const onLeave = (e: PointerEvent) => {
-			const viewportPos = e[clientX];
-			const target = e.target as HTMLElement | null;
-			const bounds = target?.parentElement?.getBoundingClientRect()!;
-			const relativePos = viewportPos - bounds[left];
-			const percentPos = relativePos / bounds[width];
-
-			setState({
-				...state,
-				dragging: false,
-				split: percentPos * 100,
-			});
+			const percentPos = clientXasPercent(e);
+			if (percentPos !== undefined) {
+				setState({
+					...state,
+					dragging: false,
+					split: percentPos * 100,
+				});
+			}
 		}
 
 		document.addEventListener('pointerup', onLeave);
@@ -82,10 +86,7 @@ export default function Splitview(props: SplitviewProps) {
 	}, [state]);
 
 	const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-		setState({
-			...state,
-			dragging: true,
-		});
+		setState({ ...state, dragging: true });
 	};
 
 	return (
