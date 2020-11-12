@@ -41,7 +41,7 @@ export default function Splitview(props: SplitviewProps) {
 
 		function clientXasPercent(e: PointerEvent) {
 			const viewportPos = e[clientX];
-			const target = e.target as HTMLElement | null;
+			const target = dividerRef.current;
 			if (target) {
 				const bounds = (target?.parentElement ?? target).getBoundingClientRect()!;
 				const relativePos = viewportPos - bounds[left];
