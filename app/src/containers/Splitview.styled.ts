@@ -4,7 +4,6 @@ export interface HandleSplitProps {
 	axe: 'horizontal' | 'vertical',
 	visible?: boolean,
 	disabled?: boolean,
-	offset: number,
 }
 
 export interface ViewContainerProps {
@@ -13,9 +12,7 @@ export interface ViewContainerProps {
 
 export interface ViewProps {
 	axe: 'horizontal' | 'vertical',
-	visible?: boolean,
-	disabled?: boolean,
-	width?: number,
+	resizable: boolean
 }
 
 export const Splitview = styled.div`
@@ -44,14 +41,12 @@ export const HandleSplit = styled.div<HandleSplitProps>`
 		top: 0;
 		height: 100%;
 		width: var(--splithandle-size);
-		left: ${props => props.offset}%;
 		transform: translateX(calc(var(--splithandle-size) / -2));
 	`}
 	${props => props.axe === 'vertical' && css<HandleSplitProps>`
 		left: 0;
 		width: 100%;
 		height: var(--splithandle-size);
-		top: ${props => props.offset}%;
 		transform: translateY(calc(var(--splithandle-size) / -2));
 	`}
 `;
@@ -66,10 +61,10 @@ export const ViewContainer = styled.div<ViewContainerProps>`
 
 export const View = styled.div<ViewProps>`
 	display: flex;
+	flex: ${props => props.resizable ? 'unset' : '1'};
 	overflow: auto;
 	white-space: normal;
 	${props => props.axe === 'horizontal' && css<ViewProps>`
-		${props => typeof props.width !== 'undefined' ? `width: ${props.width}%` : `flex: 1`};
 		height: 100%;
 		border-right: 1px solid black;
 
@@ -78,7 +73,6 @@ export const View = styled.div<ViewProps>`
 		}
 	`}
 	${props => props.axe === 'vertical' && css<ViewProps>`
-		${props => typeof props.width !== 'undefined' ? `height: ${props.width}%` : `flex: 1`};
 		width: 100%;
 		border-bottom: 1px solid black;
 

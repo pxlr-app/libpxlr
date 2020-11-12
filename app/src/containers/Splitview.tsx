@@ -15,7 +15,7 @@ interface SplitviewState {
 }
 
 export default function Splitview(props: SplitviewProps) {
-	const axe = props.axe ?? 'vertical';
+	const axe = props.axe ?? 'horizontal';
 	const clientX = axe === 'horizontal' ? 'clientX' : 'clientY';
 	const left = axe === 'horizontal' ? 'left' : 'top';
 	const width = axe === 'horizontal' ? 'width' : 'height';
@@ -91,13 +91,13 @@ export default function Splitview(props: SplitviewProps) {
 	return (
 		<styled.Splitview>
 			<styled.HandleContainer>
-				{(state.left && state.right) && <styled.HandleSplit ref={dividerRef} axe={axe} offset={state.split} onPointerDown={onPointerDown} />}
+				{(state.left && state.right) && <styled.HandleSplit ref={dividerRef} axe={axe} style={{[left]: `${state.split.toFixed(4)}%`}} onPointerDown={onPointerDown} />}
 			</styled.HandleContainer>
 			<styled.ViewContainer axe={axe}>
-				{state.left && <styled.View ref={state.main == 'left' ? viewRef : undefined} axe={axe} width={state.main == 'left' && state.right ? state.split : undefined}>
+				{state.left && <styled.View ref={state.main == 'left' ? viewRef : undefined} axe={axe} resizable={state.main == 'left'} style={{[width]: state.main == 'left' && state.right ? `${state.split.toFixed(4)}%` : 'auto'}}>
 					{state.left}
 				</styled.View>}
-				{state.right && <styled.View ref={state.main == 'right' ? viewRef : undefined} axe={axe} width={state.main == 'right' && state.left ? 100 - state.split : undefined}>
+				{state.right && <styled.View ref={state.main == 'right' ? viewRef : undefined} axe={axe} resizable={state.main == 'right'} style={{[width]: state.main == 'right' && state.left ? `${(100 - state.split).toFixed(4)}%` : 'auto'}}>
 					{state.right}
 				</styled.View>}
 			</styled.ViewContainer>
