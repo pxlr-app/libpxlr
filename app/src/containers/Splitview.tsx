@@ -1,41 +1,34 @@
-import React, { useState, useEffect, createRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import * as styled from './Splitview.styled';
 
 export interface SplitviewProps {
-	defaultView: React.ReactNode,
+	defaultView: React.ReactElement,
 	axe?: 'horizontal' | 'vertical',
 }
 
 interface SplitviewState {
-	left: {
-		node: React.ReactNode,
-		dom?: React.RefObject<HTMLDivElement>;
-		width: number,
-	}
-	right?: SplitviewState['left'],
+	left?: React.ReactElement,
+	right?: React.ReactElement,
+	main: 'left' | 'right',
 	dragging: boolean,
-	startPos: number,
+	split: number,
 }
 
 export default function Splitview(props: SplitviewProps) {
-	const axe = props.axe ?? 'horizontal';
+	const axe = props.axe ?? 'vertical';
 	const clientX = axe === 'horizontal' ? 'clientX' : 'clientY';
+	const left = axe === 'horizontal' ? 'left' : 'top';
 	const width = axe === 'horizontal' ? 'width' : 'height';
-	const offsetWidth = axe === 'horizontal' ? 'offsetWidth' : 'offsetHeight';
 
-	let [state, setState] = useState<SplitviewState>(() => ({
-		left: {
-			node: props.defaultView,
-			dom: createRef<HTMLDivElement>(),
-			width: 400,
-		},
-		right: {
-			node: props.defaultView,
-			dom: createRef<HTMLDivElement>(),
-			width: 200,
-		},
+	const dividerRef = useRef<HTMLDivElement>(null);
+	const viewRef = useRef<HTMLDivElement>(null);
+
+	const [state, setState] = useState<SplitviewState>(() => ({
+		left: props.defaultView,
+		right: props.defaultView,
+		main: 'left',
 		dragging: false,
-		startPos: 0,
+		split: 30.
 	}));
 
 	useEffect(() => {
@@ -48,30 +41,36 @@ export default function Splitview(props: SplitviewProps) {
 
 		const onMove = (e: PointerEvent) => {
 			if (state.dragging) {
-				const currentPos = e[clientX];
-				const delta = currentPos - state.startPos;
-				console.log('Start', state.startPos, 'Current', currentPos, 'Delta', delta);
+				const viewportPos = e[clientX];
+				const target = e.target as HTMLElement | null;
+				if (target) {
+					const bounds = (target?.parentElement ?? target).getBoundingClientRect()!;
+					const relativePos = viewportPos - bounds[left];
+					const percentPos = (relativePos / bounds[width]) * 100;
+					
+					if (dividerRef.current?.style) {
+						dividerRef.current.style[left] = `${percentPos.toFixed(4)}%`;
+					}
+
+					if (viewRef.current?.style) {
+						viewRef.current.style[width] = state.main == 'left' ? `${percentPos.toFixed(4)}%` : `${(100 - percentPos).toFixed(4)}%`;
+					}
+				}
 			}
-		};
+		}
 		const onLeave = (e: PointerEvent) => {
-			const currentPos = e[clientX];
-			const delta = currentPos - state.startPos;
+			const viewportPos = e[clientX];
+			const target = e.target as HTMLElement | null;
+			const bounds = target?.parentElement?.getBoundingClientRect()!;
+			const relativePos = viewportPos - bounds[left];
+			const percentPos = relativePos / bounds[width];
 
 			setState({
 				...state,
-				left: {
-					...state.left,
-					width: state.left.width + delta,
-				},
-				right: state.right
-					? {
-						...state.right,
-						//width: state.right.width - delta,
-					}
-					: undefined,
 				dragging: false,
+				split: percentPos * 100,
 			});
-		};
+		}
 
 		document.addEventListener('pointerup', onLeave);
 		document.addEventListener('pointermove', onMove);
@@ -79,42 +78,63 @@ export default function Splitview(props: SplitviewProps) {
 		return () => {
 			document.removeEventListener('pointerup', onLeave);
 			document.removeEventListener('pointermove', onMove);
-		};
+		}
 	}, [state]);
 
 	const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
 		setState({
 			...state,
 			dragging: true,
-			startPos: e[clientX]
 		});
 	};
 
 	return (
 		<styled.Splitview>
 			<styled.HandleContainer>
-				{state.right && <styled.HandleSplit axe="horizontal" offset={state.left.width} onPointerDown={onPointerDown} />}
-				<styled.HandleSubdivide axe="horizontal" offset={0} width={state.left.width}>
-					<styled.HandleSubdivideCorner corner="top-left" />
-					<styled.HandleSubdivideCorner corner="top-right" />
-					<styled.HandleSubdivideCorner corner="bottom-left" />
-					<styled.HandleSubdivideCorner corner="bottom-right" />
-				</styled.HandleSubdivide>
-				{state.right && <styled.HandleSubdivide axe="horizontal" offset={state.left.width} width={state.right.width}>
-					<styled.HandleSubdivideCorner corner="top-left" />
-					<styled.HandleSubdivideCorner corner="top-right" />
-					<styled.HandleSubdivideCorner corner="bottom-left" />
-					<styled.HandleSubdivideCorner corner="bottom-right" />
-				</styled.HandleSubdivide>}
+				{(state.left && state.right) && <styled.HandleSplit ref={dividerRef} axe={axe} offset={state.split} onPointerDown={onPointerDown} />}
 			</styled.HandleContainer>
-			<styled.ViewContainer>
-				<styled.View axe="horizontal" offset={0} width={state.left.width}>
-					{state.left.node}
-				</styled.View>
-				{state.right && <styled.View axe="horizontal" offset={state.left.width} width={state.right.width}>
-					{state.right.node}
+			<styled.ViewContainer axe={axe}>
+				{state.left && <styled.View ref={state.main == 'left' ? viewRef : undefined} axe={axe} width={state.main == 'left' && state.right ? state.split : undefined}>
+					{state.left}
+				</styled.View>}
+				{state.right && <styled.View ref={state.main == 'right' ? viewRef : undefined} axe={axe} width={state.main == 'right' && state.left ? 100 - state.split : undefined}>
+					{state.right}
 				</styled.View>}
 			</styled.ViewContainer>
 		</styled.Splitview>
 	);
 }
+
+
+// const getComputedStyle = document.defaultView!.getComputedStyle;
+// function getComputedSize(
+// 	element: HTMLElement,
+// 	prop: 'width' | 'min-width' | 'max-width' | 'height' | 'min-height' | 'max-height'
+// ) {
+// 	const styles = getComputedStyle(element);
+// 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// 	const value = styles[prop as any] as string;
+// 	const match = value.match(/^(\d+)(px|em|rem|%|vw|vh)$/i);
+// 	if (!match) {
+// 		return undefined;
+// 	}
+// 	const [, size, unit] = match;
+// 	switch (unit.toLowerCase()) {
+// 		case 'px':
+// 			return parseFloat(size);
+// 		case 'em':
+// 			return parseFloat(size) * parseFloat(getComputedStyle(element.parentElement!).fontSize);
+// 		case 'rem':
+// 			return parseFloat(size) * parseFloat(getComputedStyle(document.body).fontSize);
+// 		case '%':
+// 			return (
+// 				(parseFloat(size) / 100) *
+// 				element.parentElement![prop.substr(-5) === 'width' ? 'offsetWidth' : 'offsetHeight']
+// 			);
+// 		case 'vw':
+// 			return (parseFloat(size) / 100) * window.innerWidth;
+// 		case 'vh':
+// 			return (parseFloat(size) / 100) * window.innerHeight;
+// 	}
+// 	return undefined;
+// };
