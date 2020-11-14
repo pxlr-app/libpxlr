@@ -5,6 +5,6 @@ import Splitview from './Splitview';
 export default function Workbench() {
 	return (
 		// <Pane defaultPane={<div>Hey</div>} />
-		<Splitview defaultView={<div>Hey</div>} />
+		<Splitview axe="horizontal" defaultView={<Splitview axe="vertical" defaultView={<div>Default view</div>} />} />
 	)
 }
