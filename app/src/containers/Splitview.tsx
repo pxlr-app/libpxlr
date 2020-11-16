@@ -4,6 +4,8 @@ import useAnimationFrame from '../helpers/useAnimationFrame';
 
 export interface SplitviewProps {
 	defaultView: React.ReactElement,
+	left?: React.ReactElement,
+	right?: React.ReactElement,
 	axe?: 'horizontal' | 'vertical',
 }
 
@@ -34,10 +36,10 @@ export default function Splitview(props: SplitviewProps) {
 	});
 	const [state, setState] = useState<SplitviewState>(() => ({
 		axe: props.axe ?? 'horizontal',
-		left: props.defaultView,
-		// right: props.defaultView,
+		left: props.left ?? props.defaultView,
+		right: props.right,
 		main: 'left',
-		split: 30.,
+		split: 50.,
 	}));
 
 	function getSplitMetric(e: PointerEvent, clientX: 'clientX' | 'clientY') {
@@ -100,12 +102,12 @@ export default function Splitview(props: SplitviewProps) {
 								(corner === 'top-right' && !isHorizontal) ||
 								(corner === 'bottom-left' && isHorizontal)
 							) {
-								left = props.defaultView;
-								right = internalState.current.originalMain;
+								left = <Splitview defaultView={props.defaultView} />;
+								right = <Splitview defaultView={internalState.current.originalMain!} />;
 								main = 'right';
 							} else {
-								left = internalState.current.originalMain;
-								right = props.defaultView;
+								left = <Splitview defaultView={internalState.current.originalMain!} />;
+								right = <Splitview defaultView={props.defaultView} />;
 							}
 
 							const axe = isHorizontal ? 'horizontal' : 'vertical';
@@ -171,14 +173,25 @@ export default function Splitview(props: SplitviewProps) {
 	}, [state]);
 
 	const onSplitDown = (e: React.PointerEvent<HTMLDivElement>) => {
-		console.log('onSplitDown', e.target);
 		e.preventDefault();
 		e.stopPropagation();
-		internalState.current.dragging = true;
+		if (!e.ctrlKey) {
+			internalState.current.dragging = true;
+		}
+	};
+
+	const onSplitUp = (e: React.PointerEvent<HTMLDivElement>) => {
+		e.preventDefault();
+		e.stopPropagation();
+		if (e.ctrlKey) {
+			setState({
+				...state,
+				axe: state.axe === 'horizontal' ? 'vertical' : 'horizontal'
+			});
+		}
 	};
 
 	const onSubdivideDown = (corner: Exclude<SplitviewInternalState['corner'], undefined>) => (e: React.PointerEvent<HTMLDivElement>) => {
-		console.log('onSubdivideDown', e.target);
 		e.preventDefault();
 		e.stopPropagation();
 		internalState.current = {
@@ -194,7 +207,7 @@ export default function Splitview(props: SplitviewProps) {
 	const W = axe === 'horizontal' ? 'width' : 'height';
 	const H = axe === 'horizontal' ? 'height' : 'width';
 
-	console.log('render', state.main);
+	console.log('render', state);
 
 	return (
 		<styled.Splitview>
@@ -207,6 +220,7 @@ export default function Splitview(props: SplitviewProps) {
 						[T]: 'auto'
 					}}
 					onPointerDown={onSplitDown}
+					onPointerUp={onSplitUp}
 				/>
 			</styled.HandleContainer>}
 			{(!state.left !== !state.right || internalState.current.corner) && <styled.SubdivideContainer ref={subdivideRef}>
