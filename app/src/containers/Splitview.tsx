@@ -43,14 +43,14 @@ export default function Splitview(props: SplitviewProps) {
 		split: 50.,
 	}));
 
-	function getSplitMetric(e: PointerEvent, clientX: 'clientX' | 'clientY') {
+	function getSplitMetric(e: PointerEvent, clientX: 'clientX' | 'clientY', left: 'left' | 'top', width: 'width' | 'height') {
 		const pos = e[clientX];
 		const target = dividerRef.current;
 		if (target) {
 			const bounds = (target?.parentElement ?? target).getBoundingClientRect()!;
-			const relativePos = pos - bounds[L];
-			const percentPos = Math.max(0, Math.min(1, relativePos / bounds[W]));
-			return [percentPos, relativePos, bounds[W]];
+			const relativePos = pos - bounds[left];
+			const percentPos = Math.max(0, Math.min(1, relativePos / bounds[width]));
+			return [percentPos, relativePos, bounds[width]];
 		}
 		return [undefined, undefined];
 	}
@@ -61,7 +61,9 @@ export default function Splitview(props: SplitviewProps) {
 				internalState.current = { dragging: false };
 				document.body.style.cursor = 'auto';
 
-				const [percent] = getSplitMetric(e, state.axe === 'horizontal' ? 'clientX' : 'clientY');
+				const [percent] = state.axe === 'horizontal'
+									? getSplitMetric(e,  'clientX', 'left', 'width')
+									: getSplitMetric(e,  'clientY', 'top', 'height');
 				if (percent !== undefined) {
 					setState({ ...state, split: percent * 100 });
 				}
@@ -69,6 +71,8 @@ export default function Splitview(props: SplitviewProps) {
 		}
 
 		function onMove(pointerEvent: PointerEvent) {
+			internalState.current.pointerEvent = pointerEvent;
+
 			if (internalState.current.dragging) {
 				const { dragging, lastPointerEvent, snapPointerEvent, corner } = internalState.current;
 
@@ -114,6 +118,7 @@ export default function Splitview(props: SplitviewProps) {
 
 								// Flip splitview
 								if (!state.left || !state.right || state.axe !== axe) {
+									// TODO recalculate split to be under current pointer
 									setState({
 										...state,
 										axe,
@@ -127,7 +132,9 @@ export default function Splitview(props: SplitviewProps) {
 					}
 					
 					// Dragging split
-					const [percent, pos, width] = getSplitMetric(pointerEvent, state.axe === 'horizontal' ? 'clientX' : 'clientY');
+					const [percent, pos, width] = state.axe === 'horizontal'
+									? getSplitMetric(pointerEvent,  'clientX', 'left', 'width')
+									: getSplitMetric(pointerEvent,  'clientY', 'top', 'height');
 					if (percent !== undefined) {
 						const viewRef = state.main === 'left' ? leftViewRef : rightViewRef;
 						const otherViewRef = state.main === 'left' ? rightViewRef : leftViewRef;
@@ -137,7 +144,6 @@ export default function Splitview(props: SplitviewProps) {
 						const W = state.axe === 'horizontal' ? 'width' : 'height';
 						const H = state.axe === 'horizontal' ? 'height' : 'width';
 
-						// console.log('dragging split', state.main, state.axe, percent, pos, width);
 						if (dividerRef.current?.style) {
 							dividerRef.current.style[L] = `${(percent * 100).toFixed(4)}%`;
 							dividerRef.current.style[T] = 'auto';
@@ -185,8 +191,18 @@ export default function Splitview(props: SplitviewProps) {
 		e.preventDefault();
 		e.stopPropagation();
 		if (e.ctrlKey) {
+			let { split } = state;
+			if (internalState.current.pointerEvent) {
+				const [percent] = state.axe === 'horizontal'
+									? getSplitMetric(internalState.current.pointerEvent,  'clientY', 'top', 'height')
+									: getSplitMetric(internalState.current.pointerEvent,  'clientX', 'left', 'width');
+				if (percent !== undefined) {
+					split = percent * 100;
+				}
+			}
 			setState({
 				...state,
+				split,
 				axe: state.axe === 'horizontal' ? 'vertical' : 'horizontal'
 			});
 		}
@@ -261,37 +277,3 @@ export default function Splitview(props: SplitviewProps) {
 		</styled.Splitview>
 	);
 }
-
-
-// const getComputedStyle = document.defaultView!.getComputedStyle;
-// function getComputedSize(
-// 	element: HTMLElement,
-// 	prop: 'width' | 'min-width' | 'max-width' | 'height' | 'min-height' | 'max-height'
-// ) {
-// 	const styles = getComputedStyle(element);
-// 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-// 	const value = styles[prop as any] as string;
-// 	const match = value.match(/^(\d+)(px|em|rem|%|vw|vh)$/i);
-// 	if (!match) {
-// 		return undefined;
-// 	}
-// 	const [, size, unit] = match;
-// 	switch (unit.toLowerCase()) {
-// 		case 'px':
-// 			return parseFloat(size);
-// 		case 'em':
-// 			return parseFloat(size) * parseFloat(getComputedStyle(element.parentElement!).fontSize);
-// 		case 'rem':
-// 			return parseFloat(size) * parseFloat(getComputedStyle(document.body).fontSize);
-// 		case '%':
-// 			return (
-// 				(parseFloat(size) / 100) *
-// 				element.parentElement![prop.substr(-5) === 'width' ? 'offsetWidth' : 'offsetHeight']
-// 			);
-// 		case 'vw':
-// 			return (parseFloat(size) / 100) * window.innerWidth;
-// 		case 'vh':
-// 			return (parseFloat(size) / 100) * window.innerHeight;
-// 	}
-// 	return undefined;
-// };
