@@ -24,6 +24,7 @@ interface SplitviewInternalState {
 	corner?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right',
 	pointerEvent?: PointerEvent,
 	lastPointerEvent?: PointerEvent,
+	snapPointerEvent?: PointerEvent,
 }
 
 export default function Splitview(props: SplitviewProps) {
@@ -69,58 +70,58 @@ export default function Splitview(props: SplitviewProps) {
 
 		function onMove(pointerEvent: PointerEvent) {
 			if (internalState.current.dragging) {
-				const { dragging, lastPointerEvent, corner } = internalState.current;
+				const { dragging, lastPointerEvent, snapPointerEvent, corner } = internalState.current;
 
 				// Skip this callback if position hasn't changed
 				if (pointerEvent?.clientX === lastPointerEvent?.clientX && pointerEvent?.clientY === lastPointerEvent?.clientY) {
 					return;
 				}
 				internalState.current.lastPointerEvent = pointerEvent;
+				internalState.current.snapPointerEvent = snapPointerEvent ?? pointerEvent;
 
 				if (dragging && pointerEvent) {
 					// Dragging corner?
 					if (corner) {
+						const snapPointerEvent = internalState.current.snapPointerEvent;
 						const subdivider = subdivideRef.current;
 						if (subdivider) {
-							const bounds = (subdivider?.parentElement ?? subdivider).getBoundingClientRect()!;
-							const x = pointerEvent.clientX - bounds.left;
-							const y = pointerEvent.clientY - bounds.top;
-							const origX = corner === 'top-left' || corner === 'bottom-left' ? bounds.left : bounds.right;
-							const origY = corner === 'top-left' || corner === 'top-right' ? bounds.top : bounds.bottom;
-							const dirX = x - origX;
-							const dirY = y - origY;
-							
-							const isHorizontal = Math.abs(dirX) > Math.abs(dirY);
-							// document.body.style.cursor = isHorizontal ? 'ew-resize' : 'ns-resize';
+							const deltaX = pointerEvent.clientX - snapPointerEvent.clientX;
+							const deltaY = pointerEvent.clientY - snapPointerEvent.clientY;
 
-							let left: SplitviewState['right'] = undefined;
-							let right: SplitviewState['right'] = undefined;
-							let main: SplitviewState['main'] = 'left';
+							if (deltaX * deltaX + deltaY * deltaY >= 20 * 20) {
+								internalState.current.snapPointerEvent = pointerEvent;
 
-							if (
-								(corner === 'top-left') ||
-								(corner === 'top-right' && !isHorizontal) ||
-								(corner === 'bottom-left' && isHorizontal)
-							) {
-								left = <Splitview defaultView={props.defaultView} />;
-								right = <Splitview defaultView={internalState.current.originalMain!} />;
-								main = 'right';
-							} else {
-								left = <Splitview defaultView={internalState.current.originalMain!} />;
-								right = <Splitview defaultView={props.defaultView} />;
-							}
+								const isHorizontal = Math.abs(deltaX) > Math.abs(deltaY);
 
-							const axe = isHorizontal ? 'horizontal' : 'vertical';
+								let left: SplitviewState['right'] = undefined;
+								let right: SplitviewState['right'] = undefined;
+								let main: SplitviewState['main'] = 'left';
 
-							// Flip splitview
-							if (!state.left || !state.right || state.axe !== axe) {
-								setState({
-									...state,
-									axe,
-									main,
-									left: left!,
-									right,
-								});
+								if (
+									(corner === 'top-left') ||
+									(corner === 'top-right' && !isHorizontal) ||
+									(corner === 'bottom-left' && isHorizontal)
+								) {
+									left = <Splitview defaultView={props.defaultView} />;
+									right = <Splitview defaultView={internalState.current.originalMain!} />;
+									main = 'right';
+								} else {
+									left = <Splitview defaultView={internalState.current.originalMain!} />;
+									right = <Splitview defaultView={props.defaultView} />;
+								}
+
+								const axe = isHorizontal ? 'horizontal' : 'vertical';
+
+								// Flip splitview
+								if (!state.left || !state.right || state.axe !== axe) {
+									setState({
+										...state,
+										axe,
+										main,
+										left: left!,
+										right,
+									});
+								}
 							}
 						}
 					}
