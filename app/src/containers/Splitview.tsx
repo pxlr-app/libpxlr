@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import * as styled from './Splitview.styled';
-import useAnimationFrame from '../helpers/useAnimationFrame';
+import './Splitview.scss';
 
 export interface SplitviewProps {
 	defaultView: React.ReactElement,
@@ -234,11 +233,10 @@ export default function Splitview(props: SplitviewProps) {
 	console.log('render', state);
 
 	return (
-		<styled.Splitview>
-			{state.left && state.right && <styled.HandleContainer>
-				<styled.HandleSplit
+		<div className="splitview">
+			{state.left && state.right && <div className={`splitview-handle-container splitview-handle-container--${axe}`}>
+				<div className="splitview-handle-container-split"
 					ref={dividerRef}
-					axe={axe}
 					style={{
 						[L]: `${state.split.toFixed(4)}%`,
 						[T]: 'auto'
@@ -246,41 +244,37 @@ export default function Splitview(props: SplitviewProps) {
 					onPointerDown={onSplitDown}
 					onPointerUp={onSplitUp}
 				/>
-			</styled.HandleContainer>}
-			{(!state.left !== !state.right || internalState.current.corner) && <styled.SubdivideContainer ref={subdivideRef}>
-				<styled.HandleSubdivide corner="top-left" onPointerDown={onSubdivideDown('top-left')} />
-				<styled.HandleSubdivide corner="top-right" onPointerDown={onSubdivideDown('top-right')} />
-				<styled.HandleSubdivide corner="bottom-left" onPointerDown={onSubdivideDown('bottom-left')} />
-				<styled.HandleSubdivide corner="bottom-right" onPointerDown={onSubdivideDown('bottom-right')} />
-			</styled.SubdivideContainer>}
-			<styled.ViewContainer axe={axe}>
+			</div>}
+			{(!state.left !== !state.right || internalState.current.corner) && <div className={`splitview-handle-container splitview-handle-container--${axe}`} ref={subdivideRef}>
+				<div className="splitview-handle-container-subdivider splitview-handle-container-subdivider--top-left" onPointerDown={onSubdivideDown('top-left')} />
+				<div className="splitview-handle-container-subdivider splitview-handle-container-subdivider--top-right" onPointerDown={onSubdivideDown('top-right')} />
+				<div className="splitview-handle-container-subdivider splitview-handle-container-subdivider--bottom-left" onPointerDown={onSubdivideDown('bottom-left')} />
+				<div className="splitview-handle-container-subdivider splitview-handle-container-subdivider--bottom-right" onPointerDown={onSubdivideDown('bottom-right')} />
+			</div>}
+			<div className={`splitview-view-container splitview-view-container--${axe}`}>
 				{state.left && 
-					<styled.View
+					<div className={`splitview-view-container-view ${state.main === 'left' ? 'splitview-view-container-view--resizable' : ''}`}
 						ref={leftViewRef}
-						axe={axe}
-						resizable={state.main == 'left'}
 						style={{
 							[W]: state.main == 'left' && state.right ? `${state.split.toFixed(4)}%` : 'auto',
 							[H]: 'auto'
 						}}
 					>
 						{state.left}
-					</styled.View>
+					</div>
 				}
 				{state.right &&
-					<styled.View
+					<div className={`splitview-view-container-view ${state.main === 'right' ? 'splitview-view-container-view--resizable' : ''}`}
 						ref={rightViewRef}
-						axe={axe}
-						resizable={state.main == 'right'}
 						style={{
 							[W]: state.main == 'right' && state.left ? `${(100 - state.split).toFixed(4)}%` : 'auto',
 							[H]: 'auto'
 						}}
 					>
 						{state.right}
-					</styled.View>
+					</div>
 				}
-			</styled.ViewContainer>
-		</styled.Splitview>
+			</div>
+		</div>
 	);
 }
