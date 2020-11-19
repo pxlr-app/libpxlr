@@ -205,6 +205,13 @@ export default function Splitview(props: SplitviewProps) {
 				split,
 				axe: state.axe === 'horizontal' ? 'vertical' : 'horizontal'
 			});
+		} else if (e.altKey) {
+			setState({
+				...state,
+				main: state.main === 'left' ? 'right' : 'left',
+				left: state.right!,
+				right: state.left
+			});
 		}
 	};
 
