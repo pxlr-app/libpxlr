@@ -20,18 +20,34 @@
 		}
 
 		&--horizontal > &-split {
-			cursor: ew-resize;
+			cursor: url('assets/cursors/arrows-h.svg') 8 8, ew-resize;
 			top: 0;
 			height: 100%;
 			width: var(--split-size);
 			transform: translateX(calc(var(--split-size) / -2));
+
+			@at-root body.key--alt & {
+				cursor: url('assets/cursors/exchange-h.svg') 8 8, url('assets/cursors/arrows-h.svg') 8 8, ew-resize;
+			}
+
+			@at-root body.key--ctrl & {
+				cursor: url('assets/cursors/sync-alt-h.svg') 8 8, url('assets/cursors/arrows-h.svg') 8 8, ew-resize;
+			}
 		}
 		&--vertical > &-split {
-			cursor: ns-resize;
+			cursor: url('assets/cursors/arrows-v.svg') 8 8, ns-resize;
 			left: 0;
 			width: 100%;
 			height: var(--split-size);
 			transform: translateY(calc(var(--split-size) / -2));
+
+			@at-root body.key--alt & {
+				cursor: url('assets/cursors/exchange-v.svg') 8 8, url('assets/cursors/arrows-v.svg') 4 8, ns-resize;
+			}
+
+			@at-root body.key--ctrl & {
+				cursor: url('assets/cursors/sync-alt-v.svg') 8 8, url('assets/cursors/arrows-v.svg') 4 8, ns-resize;
+			}
 		}
 
 		&-subdivider {
@@ -63,7 +79,7 @@
 				&, &::before {
 					top: 0;
 					left: 0;
-					cursor: nw-resize;
+					cursor: url('assets/cursors/expand-alt-ne.svg') 8 8, nw-resize;
 				}
 				&::before {
 					border-width: var(--subdivide-size) var(--subdivide-size) 0 0;
@@ -76,7 +92,7 @@
 				&, &::before {
 					top: 0;
 					right: 0;
-					cursor: ne-resize;
+					cursor: url('assets/cursors/expand-alt-nw.svg') 8 8, ne-resize;
 				}
 				&::before {
 					border-width: 0 var(--subdivide-size) var(--subdivide-size) 0;
@@ -89,7 +105,7 @@
 				&, &::before {
 					bottom: 0;
 					left: 0;
-					cursor: sw-resize;
+					cursor: url('assets/cursors/expand-alt-sw.svg') 8 8, sw-resize;
 				}
 				&::before {
 					border-width: var(--subdivide-size) 0 0 var(--subdivide-size);
@@ -102,7 +118,7 @@
 				&, &::before {
 					bottom: 0;
 					right: 0;
-					cursor: se-resize;
+					cursor: url('assets/cursors/expand-alt-se.svg') 8 8, se-resize;
 				}
 				&::before {
 					border-width: 0 0 var(--subdivide-size) var(--subdivide-size);

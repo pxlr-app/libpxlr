@@ -181,7 +181,7 @@ export default function Splitview(props: SplitviewProps) {
 	const onSplitDown = (e: React.PointerEvent<HTMLDivElement>) => {
 		e.preventDefault();
 		e.stopPropagation();
-		if (!e.ctrlKey) {
+		if (e.button === 0 && !e.ctrlKey) {
 			internalState.current.dragging = true;
 		}
 	};
@@ -189,7 +189,7 @@ export default function Splitview(props: SplitviewProps) {
 	const onSplitUp = (e: React.PointerEvent<HTMLDivElement>) => {
 		e.preventDefault();
 		e.stopPropagation();
-		if (e.ctrlKey) {
+		if (e.button === 0 && e.ctrlKey) {
 			let { split } = state;
 			if (internalState.current.pointerEvent) {
 				const [percent] = state.axe === 'horizontal'
@@ -204,7 +204,7 @@ export default function Splitview(props: SplitviewProps) {
 				split,
 				axe: state.axe === 'horizontal' ? 'vertical' : 'horizontal'
 			});
-		} else if (e.altKey) {
+		} else if (e.button === 0 && e.altKey) {
 			setState({
 				...state,
 				main: state.main === 'left' ? 'right' : 'left',
@@ -229,8 +229,6 @@ export default function Splitview(props: SplitviewProps) {
 	const T = axe === 'horizontal' ? 'top' : 'left';
 	const W = axe === 'horizontal' ? 'width' : 'height';
 	const H = axe === 'horizontal' ? 'height' : 'width';
-
-	console.log('render', state);
 
 	return (
 		<div className="splitview">
