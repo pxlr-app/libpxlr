@@ -1,11 +1,14 @@
-.splitview {
+@import '../variables';
+
+.gridview {
 	position: relative;
 	display: flex;
 	flex: 1;
 	--split-size: 10px;
 	--subdivide-size: 10px;
+	--border-size: 1px;
 
-	&-handle-container {
+	&-handle {
 		position: absolute;
 		width: 100%;
 		height: 100%;
@@ -18,34 +21,34 @@
 			pointer-events: auto;
 		}
 
-		&--horizontal > &-split {
-			cursor: url('assets/cursors/arrows-h.svg') 8 8, ew-resize;
+		&-split--horizontal {
+			cursor: var(--cursor-ew-resize);
 			top: 0;
 			height: 100%;
 			width: var(--split-size);
 			transform: translateX(calc(var(--split-size) / -2));
 
 			@at-root body.key--alt & {
-				cursor: url('assets/cursors/exchange-h.svg') 8 8, url('assets/cursors/arrows-h.svg') 8 8, ew-resize;
+				cursor: var(--cursor-swap-horizontal);
 			}
 
 			@at-root body.key--ctrl & {
-				cursor: url('assets/cursors/sync-alt-h.svg') 8 8, url('assets/cursors/arrows-h.svg') 8 8, ew-resize;
+				cursor: var(--cursor-flip-horizontal);
 			}
 		}
-		&--vertical > &-split {
-			cursor: url('assets/cursors/arrows-v.svg') 8 8, ns-resize;
+		&-split--vertical {
+			cursor: var(--cursor-ns-resize);
 			left: 0;
 			width: 100%;
 			height: var(--split-size);
 			transform: translateY(calc(var(--split-size) / -2));
 
 			@at-root body.key--alt & {
-				cursor: url('assets/cursors/exchange-v.svg') 8 8, url('assets/cursors/arrows-v.svg') 4 8, ns-resize;
+				cursor: var(--cursor-swap-vertical);
 			}
 
 			@at-root body.key--ctrl & {
-				cursor: url('assets/cursors/sync-alt-v.svg') 8 8, url('assets/cursors/arrows-v.svg') 4 8, ns-resize;
+				cursor: var(--cursor-flip-vertical);
 			}
 		}
 
@@ -78,7 +81,7 @@
 				&, &::before {
 					top: 0;
 					left: 0;
-					cursor: url('assets/cursors/expand-alt-ne.svg') 8 8, nw-resize;
+					cursor: var(--cursor-nw-resize);
 				}
 				&::before {
 					border-width: var(--subdivide-size) var(--subdivide-size) 0 0;
@@ -91,7 +94,7 @@
 				&, &::before {
 					top: 0;
 					right: 0;
-					cursor: url('assets/cursors/expand-alt-nw.svg') 8 8, ne-resize;
+					cursor: var(--cursor-ne-resize);
 				}
 				&::before {
 					border-width: 0 var(--subdivide-size) var(--subdivide-size) 0;
@@ -104,7 +107,7 @@
 				&, &::before {
 					bottom: 0;
 					left: 0;
-					cursor: url('assets/cursors/expand-alt-sw.svg') 8 8, sw-resize;
+					cursor: var(--cursor--sw-resize);
 				}
 				&::before {
 					border-width: var(--subdivide-size) 0 0 var(--subdivide-size);
@@ -117,7 +120,7 @@
 				&, &::before {
 					bottom: 0;
 					right: 0;
-					cursor: url('assets/cursors/expand-alt-se.svg') 8 8, se-resize;
+					cursor: var(--cursor-se-resize);
 				}
 				&::before {
 					border-width: 0 0 var(--subdivide-size) var(--subdivide-size);
@@ -128,44 +131,26 @@
 		}
 	}
 
+	&-subdivider-container,
+	&-split-container {
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+	}
+
 	&-view-container {
-		position: relative;
-		white-space: nowrap;
-		display: flex;
-		flex: 1;
-		&--horizontal {
-			flex-direction: row;
-		}
-		&--horizontal > &-view {
-			height: 100%;
-			border-right: 1px solid black;
-
-			&:last-child {
-				border-right: 0;
-			}
-		}
-		&--vertical {
-			flex-direction: column;
-		}
-		&--vertical > &-view {
-			width: 100%;
-			border-bottom: 1px solid black;
-
-			&:last-child {
-				border-bottom: 0;
-			}
-		}
+		position: absolute;
+		width: 100%;
+		height: 100%;
 
 		&-view {
-			display: flex;
-			position: relative;
+			position: absolute;
+			border-width: 0 0 0 0;
+			border-style: solid;
+			border-color: black;
+			box-sizing: border-box;
 			overflow: auto;
-			white-space: normal;
-			flex: 1;
-
-			&--resizable {
-				flex: unset;
-			}
 		}
 	}
 }

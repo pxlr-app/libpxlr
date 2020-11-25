@@ -1,6 +1,18 @@
 html {
 	width: 100%;
 	height: 100%;
+
+	--cursor-pointer: url('assets/cursors/mouse-pointer.svg') 3 0, auto;
+	--cursor-ns-resize: url('assets/cursors/arrows-v.svg') 8 8, ns-resize;
+	--cursor-ew-resize: url('assets/cursors/arrows-h.svg') 8 8, ew-resize;
+	--cursor-ne-resize: url('assets/cursors/expand-alt-nw.svg') 8 8, ne-resize;
+	--cursor-nw-resize: url('assets/cursors/expand-alt-ne.svg') 8 8, nw-resize;
+	--cursor-se-resize: url('assets/cursors/expand-alt-se.svg') 8 8, se-resize;
+	--cursor-sw-resize: url('assets/cursors/expand-alt-sw.svg') 8 8, sw-resize;
+	--cursor-flip-horizontal: url('assets/cursors/sync-alt-h.svg') 8 8, url('assets/cursors/arrows-h.svg') 8 8, ew-resize;
+	--cursor-swap-horizontal: url('assets/cursors/exchange-h.svg') 8 8, url('assets/cursors/arrows-h.svg') 8 8, ew-resize;
+	--cursor-flip-vertical: url('assets/cursors/sync-alt-v.svg') 8 8, url('assets/cursors/arrows-v.svg') 4 8, ns-resize;
+	--cursor-swap-vertical: url('assets/cursors/exchange-v.svg') 8 8, url('assets/cursors/arrows-v.svg') 4 8, ns-resize;
 }
 body, body > #root {
 	width: 100%;
@@ -12,5 +24,5 @@ body, body > #root {
 	font-size: 11px;
 	user-select: none;
 	display: flex;
-	cursor: url('assets/cursors/mouse-pointer.svg') 3 0, auto;
+	cursor: var(--cursor-pointer);
 }
