@@ -10,8 +10,6 @@
 
 	&-handle {
 		position: absolute;
-		width: 100%;
-		height: 100%;
 		pointer-events: none;
 
 		&-split {
@@ -31,10 +29,6 @@
 			@at-root body.key--alt & {
 				cursor: var(--cursor-swap-horizontal);
 			}
-
-			@at-root body.key--ctrl & {
-				cursor: var(--cursor-flip-horizontal);
-			}
 		}
 		&-split--vertical {
 			cursor: var(--cursor-ns-resize);
@@ -45,10 +39,6 @@
 
 			@at-root body.key--alt & {
 				cursor: var(--cursor-swap-vertical);
-			}
-
-			@at-root body.key--ctrl & {
-				cursor: var(--cursor-flip-vertical);
 			}
 		}
 
@@ -107,7 +97,7 @@
 				&, &::before {
 					bottom: 0;
 					left: 0;
-					cursor: var(--cursor--sw-resize);
+					cursor: var(--cursor-sw-resize);
 				}
 				&::before {
 					border-width: var(--subdivide-size) 0 0 var(--subdivide-size);
