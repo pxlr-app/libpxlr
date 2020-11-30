@@ -26,10 +26,16 @@ interface GridviewInternal {
 	bounds: DOMRect,
 	views: ViewState[],
 	dragging: boolean,
+	subdividing: boolean,
+	limits: DOMRect,
 	axe: 'horizontal' | 'vertical',
 	left: Set<number>,
 	right: Set<number>,
-	limits: DOMRect,
+	corner?: Corner,
+	subdividingOriginal?: number,
+	subdividingOther?: number,
+	lastPointerEvent?: PointerEvent,
+	trottledPointerEvent?: PointerEvent,
 }
 
 interface GridviewState {
@@ -42,10 +48,11 @@ export default function () {
 		bounds: new DOMRect(),
 		views: [],
 		dragging: false,
+		subdividing: false,
+		limits: new DOMRect(),
 		axe: 'horizontal',
 		left: new Set(),
-		right: new Set(),
-		limits: new DOMRect()
+		right: new Set()
 	});
 	const viewsProps: View[] = [{
 		top: 0,
@@ -82,7 +89,7 @@ export default function () {
 		views: viewsProps.map<ViewState>((view, id) => ({
 			...view,
 			neightbors: computeNeighbors(viewsProps, id),
-			ref: useRef<HTMLDivElement>(null),
+			ref: React.createRef<HTMLDivElement>(),
 			elem: <div>{id}</div>,
 			props: {},
 		}))
@@ -124,10 +131,11 @@ export default function () {
 					bounds: internal.current.bounds,
 					views: [],
 					dragging: false,
+					subdividing: false,
+					limits: new DOMRect(),
 					axe: 'horizontal',
 					left: new Set(),
-					right: new Set(),
-					limits: new DOMRect()
+					right: new Set()
 				};
 			}
 		}
@@ -135,6 +143,55 @@ export default function () {
 		function onMove(e: PointerEvent) {
 			const { dragging } = internal.current;
 			if (dragging) {
+				const { subdividing, lastPointerEvent, trottledPointerEvent } = internal.current;
+				if (e.clientX === lastPointerEvent?.clientX && e.clientY === lastPointerEvent?.clientY) {
+					return;
+				}
+				internal.current.lastPointerEvent = e;
+				internal.current.trottledPointerEvent = trottledPointerEvent ?? e;
+
+				if (subdividing !== false) {
+					const { trottledPointerEvent } = internal.current;
+					const deltaX = e.clientX - trottledPointerEvent.clientX;
+					const deltaY = e.clientY - trottledPointerEvent.clientY;
+
+					if (deltaX * deltaX + deltaY * deltaY >= 20 * 20) {
+						const { corner, limits, subdividingOriginal, subdividingOther } = internal.current;
+						internal.current.trottledPointerEvent = e;
+
+						const axe = Math.abs(deltaX) > Math.abs(deltaY) ? 'horizontal' : 'vertical';
+
+						if (axe !== internal.current.axe) {
+							const view = internal.current.views[subdividingOriginal!];
+							const otherView = internal.current.views[subdividingOther!];
+							// view.top = otherView.top = limits.top;
+							// view.right = otherView.right = 100 - limits.right;
+							// view.bottom = otherView.bottom = limits.bottom;
+							// view.left = otherView.left = limits.left;
+
+							// view.ref.current!.style.top = otherView.ref.current!.style.top = limits.top + '%';
+							// view.ref.current!.style.right = otherView.ref.current!.style.right = (100 - limits.right) + '%';
+							// view.ref.current!.style.bottom = otherView.ref.current!.style.bottom = limits.bottom + '%';
+							// view.ref.current!.style.left = otherView.ref.current!.style.left = limits.left + '%';
+
+							console.log('subdividing', subdividingOriginal, subdividingOther, corner, axe, limits);
+							if (axe === 'vertical') {
+								// internal.current.views[subdividingOriginal!].neightbors[3] = internal.current.views[subdividingOther!].neightbors[3];
+								// internal.current.views[subdividingOther!].neightbors[3] = internal.current.views[subdividingOriginal!].neightbors[1];
+							} else {
+
+							}
+
+							// internal.current.axe = axe;
+
+							// setState({
+							// 	...state,
+							// 	views: internal.current.views
+							// });
+						}
+					}
+				}
+
 				const { bounds, axe, left, right, views } = internal.current;
 				const { x: oX, y: oY, width, height } = bounds;
 				const [x, y] = [e.clientX - oX, e.clientY - oY];
@@ -144,7 +201,6 @@ export default function () {
 					Math.max(Math.min(pY, internal.current.limits.bottom), internal.current.limits.top),
 				];
 
-				const P = axe === 'horizontal' ? pX : pY;
 				const C = axe === 'horizontal' ? cX : cY;
 				const L = axe === 'horizontal' ? 'left' : 'top';
 				const R = axe === 'horizontal' ? 'right' : 'bottom';
@@ -182,7 +238,7 @@ export default function () {
 
 		const [left, right] = computeSplit(state.views, id, dir);
 
-		internal.current.views = state.views.map(view => ({ ...view }));
+		internal.current.views = state.views;
 		internal.current.dragging = true;
 		internal.current.axe = dir % 2 ? 'horizontal' : 'vertical';
 		internal.current.left = left;
@@ -190,11 +246,47 @@ export default function () {
 		internal.current.limits = computeLimits(state.views, id, dir);
 	}
 
-	const onSubdividerDown = (corner: Corner) => (e: React.PointerEvent) => {
+	const onSubdividerDown = (id:number, corner: Corner) => (e: React.PointerEvent) => {
 		e.preventDefault();
 		e.stopPropagation();
-		// internal.current.views = state.views;
-		// internal.current.dragging = true;
+		const view = state.views[id];
+		const otherId = state.views.length;
+		const dir = corner === 'top-left' || corner === 'bottom-left' ? 3 : 1;
+
+		const otherView: ViewState = {
+			top: view.top,
+			right: view.right,
+			bottom: view.bottom,
+			left: view.left,
+			neightbors: view.neightbors.map(n => n?.concat() ?? null) as ViewState['neightbors'],
+			ref: React.createRef<HTMLDivElement>(),
+			elem: <div>{otherId}</div>,
+			props: {}
+		}
+		
+		if (corner === 'top-left' || corner === 'bottom-left') {
+			otherView.neightbors[1] = [id];
+			view.neightbors[3] = [otherId];
+		} else {
+			otherView.neightbors[3] = [id];
+			view.neightbors[1] = [otherId];
+		}
+
+		const views = state.views.concat([otherView]);
+		const [left, right] = computeSplit(views, id, dir);
+
+		internal.current.views = views;
+		internal.current.dragging = true;
+		internal.current.subdividing = true;
+		internal.current.axe = dir % 2 ? 'horizontal' : 'vertical';
+		internal.current.left = left;
+		internal.current.right = right;
+		internal.current.limits = new DOMRect(view.left, view.top, 100 - view.right - view.left, 100 - view.bottom - view.top);
+		internal.current.corner = corner;
+		internal.current.subdividingOriginal = id;
+		internal.current.subdividingOther = otherId;
+
+		setState({ ...state, views });
 	}
 
 	const splits = state.views.map((view, id) => view.neightbors.map((neighbors, dir) => {
@@ -239,10 +331,10 @@ export default function () {
 		bottom: `${view.bottom}%`,
 		left: `${view.left}%`,
 	}}>
-		<div key="top-left" className={`gridview-handle-subdivider gridview-handle-subdivider--top-left`} onPointerDown={onSubdividerDown('top-left')} />
-		<div key="top-right" className={`gridview-handle-subdivider gridview-handle-subdivider--top-right`} onPointerDown={onSubdividerDown('top-right')} />
-		<div key="bottom-left" className={`gridview-handle-subdivider gridview-handle-subdivider--bottom-left`} onPointerDown={onSubdividerDown('bottom-left')} />
-		<div key="bottom-right" className={`gridview-handle-subdivider gridview-handle-subdivider--bottom-right`} onPointerDown={onSubdividerDown('bottom-right')} />
+		<div key="top-left" className={`gridview-handle-subdivider gridview-handle-subdivider--top-left`} onPointerDown={onSubdividerDown(id, 'top-left')} />
+		<div key="top-right" className={`gridview-handle-subdivider gridview-handle-subdivider--top-right`} onPointerDown={onSubdividerDown(id, 'top-right')} />
+		<div key="bottom-left" className={`gridview-handle-subdivider gridview-handle-subdivider--bottom-left`} onPointerDown={onSubdividerDown(id, 'bottom-left')} />
+		<div key="bottom-right" className={`gridview-handle-subdivider gridview-handle-subdivider--bottom-right`} onPointerDown={onSubdividerDown(id, 'bottom-right')} />
 	</div>);
 
 	const views = state.views.map((view, id) => <div
@@ -276,7 +368,6 @@ export default function () {
 }
 
 function computeLimits(views: ViewState[], id: number, dir: number): DOMRect {
-	const view = views[id];
 	const rect = { top: -1, right: 0, bottom: -1, left: 0 };
 	const [left, right] = computeSplit(views, id, dir);
 
