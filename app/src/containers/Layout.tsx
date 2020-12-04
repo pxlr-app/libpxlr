@@ -24,6 +24,7 @@ interface Internal {
 	dragId?: number,
 	dragCorner?: Corner,
 	dragBounds: DOMRect,
+	dragSiblings?: boolean,
 	lastPointerEvent?: PointerEvent,
 	trottledPointerEvent?: PointerEvent,
 }
@@ -39,6 +40,9 @@ export default function(props: React.PropsWithChildren<LayoutProps>) {
 		() => new Layout(props.panes),
 		[props.panes]
 	);
+
+	console.log(props.panes, layout);
+
 
 	const [_, render] = useState({});
 
@@ -82,7 +86,7 @@ export default function(props: React.PropsWithChildren<LayoutProps>) {
 
 		function onMove(e: PointerEvent) {
 			if (internal.current?.dragging === true) {
-				const { bounds, dragBounds, dragId, dragCorner, lastPointerEvent, trottledPointerEvent } = internal.current;
+				const { bounds, dragBounds, dragId, dragCorner, dragSiblings, lastPointerEvent, trottledPointerEvent } = internal.current;
 				if (e.clientX === lastPointerEvent?.clientX && e.clientY === lastPointerEvent?.clientY) {
 					return;
 				}
@@ -118,9 +122,12 @@ export default function(props: React.PropsWithChildren<LayoutProps>) {
 					
 					edge.p = C;
 					edge.updateDOM();
-					for (const sibling of edge.siblings) {
-						sibling.p = C;
-						sibling.updateDOM();
+
+					if (dragSiblings) {
+						for (const sibling of edge.siblings) {
+							sibling.p = C;
+							sibling.updateDOM();
+						}
 					}
 				}
 			}
@@ -145,6 +152,9 @@ export default function(props: React.PropsWithChildren<LayoutProps>) {
 		let maxX: number = 100;
 		let minY: number = 0;
 		let maxY: number = 100;
+		const breakable = edge.axe === 'horizontal'
+			? Math.abs(edge.left.left - edge.right.left) < 0.1 && Math.abs(edge.left.right - edge.right.right) < 0.1
+			: Math.abs(edge.left.top - edge.right.top) < 0.1 && Math.abs(edge.left.bottom - edge.right.bottom) < 0.1;
 
 		for (const sibiling of [edge].concat(edge.siblings)) {
 			minX = Math.max(minX, sibiling.left.left);
@@ -157,7 +167,8 @@ export default function(props: React.PropsWithChildren<LayoutProps>) {
 			...internal.current!,
 			dragging: true,
 			dragId: id,
-			dragBounds: new DOMRect(minX, minY, maxX - minX, maxY - minY)
+			dragBounds: new DOMRect(minX, minY, maxX - minX, maxY - minY),
+			dragSiblings: !(breakable && e.ctrlKey)
 		};
 	};
 
@@ -443,5 +454,5 @@ class Pane {
 }
 
 function segmentIntersect(x1: number, x2: number, y1: number, y2: number): boolean {
-	return x2 >= y1 && y2 >= x1;
+	return x2 > y1 && y2 > x1;
 }
