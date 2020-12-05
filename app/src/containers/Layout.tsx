@@ -172,7 +172,7 @@ export default function(props: React.PropsWithChildren<LayoutProps>) {
 		};
 	};
 
-	const onDividerDown = (id:number, corner: Corner) => (e: React.PointerEvent) => {
+	const onDividerDown = (id: number, corner: Corner) => (e: React.PointerEvent) => {
 		e.preventDefault();
 		e.stopPropagation();
 
@@ -188,30 +188,26 @@ export default function(props: React.PropsWithChildren<LayoutProps>) {
 	};
 
 	const edges = layout.edges.map((edge, id) => {
-		let styles: React.CSSProperties;
+		let styles: React.CSSProperties = {};
 		if (edge.axe === 'horizontal') {
-			const min = Math.max(edge.left.left, edge.right.left);
-			const max = Math.min(edge.left.right, edge.right.right);
-			styles = {
-				top: edge.p + '%',
-				left: min + '%',
-				width: (max - min) + '%',
-				height: 'var(--edge-size)'
-			};
+			const left = Math.max(edge.left.left, edge.right.left);
+			const right = Math.min(edge.left.right, edge.right.right);
+			styles.top = edge.p.toFixed(6) + '%';
+			styles.left = left.toFixed(6) + '%';
+			styles.width = (right - left).toFixed(6) + '%';
+			styles.height = 'var(--edge-size)';
 		} else {
-			const min = Math.max(edge.left.top, edge.right.top);
-			const max = Math.min(edge.left.bottom, edge.right.bottom);
-			styles = {
-				top: min + '%',
-				left: edge.p + '%',
-				width: 'var(--edge-size)',
-				height: (max - min) + '%'
-			};
+			const top = Math.max(edge.left.top, edge.right.top);
+			const bottom = Math.min(edge.left.bottom, edge.right.bottom);
+			styles.top = top.toFixed(6) + '%';
+			styles.left = edge.p.toFixed(6) + '%';
+			styles.width = 'var(--edge-size)';
+			styles.height = (bottom - top).toFixed(6) + '%';
 		}
 
 		return <div
 			ref={edge.ref}
-			key={`edge-${id}`}
+			key={`edge-${edge.left.id}-${edge.right.id}`}
 			className={`layout-handle-edge layout-handle-edge--${edge.axe}`}
 			style={styles}
 			onPointerDown={onEdgeDown(id)}
@@ -219,13 +215,14 @@ export default function(props: React.PropsWithChildren<LayoutProps>) {
 	});
 
 	const dividers = layout.panes.map((pane, id) => <div
-		key={`divider-${id}`}
+		ref={pane.dividerRef}
+		key={`divider-${pane.id}`}
 		className="layout-handle"
 		style={{
-			top: `${pane.top}%`,
-			right: `${100 - pane.right}%`,
-			bottom: `${100 - pane.bottom}%`,
-			left: `${pane.left}%`,
+			top: `${pane.top.toFixed(6)}%`,
+			right: `${(100 - pane.right).toFixed(6)}%`,
+			bottom: `${(100 - pane.bottom).toFixed(6)}%`,
+			left: `${(pane.left).toFixed(6)}%`,
 			borderWidth: pane.links.map((link, dir) => link ? (dir === 1 || dir === 2 ? `var(--border-size)` : 0) : `var(--border-size)`).join(' ')
 		}}
 	>
@@ -236,14 +233,14 @@ export default function(props: React.PropsWithChildren<LayoutProps>) {
 	</div>);
 
 	const panes = layout.panes.map((pane, id) => <div
-		ref={pane.ref}
+		ref={pane.paneRef}
 		key={`pane-${id}`}
 		className="layout-view-container-view"
 		style={{
-			top: `${pane.top}%`,
-			right: `${100 - pane.right}%`,
-			bottom: `${100 - pane.bottom}%`,
-			left: `${pane.left}%`,
+			top: `${pane.top.toFixed(6)}%`,
+			right: `${(100 - pane.right).toFixed(6)}%`,
+			bottom: `${(100 - pane.bottom).toFixed(6)}%`,
+			left: `${pane.left.toFixed(6)}%`,
 			borderWidth: pane.links.map((link, dir) => link ? (dir === 1 || dir === 2 ? `var(--border-size)` : 0) : `var(--border-size)`).join(' ')
 		}}
 	>
@@ -388,15 +385,25 @@ class Edge {
 	}
 
 	public updateDOM() {
-		if (this.ref.current) {
-			if (this.axe === 'horizontal') {
-				this.ref.current.style.top = this.p + '%';
-			} else {
-				this.ref.current.style.left = this.p + '%';
-			}
-		}
 		this.left.updateDOM();
 		this.right.updateDOM();
+		if (this.ref.current) {
+			if (this.axe === 'horizontal') {
+				const left = Math.max(this.left.left, this.right.left);
+				const right = Math.min(this.left.right, this.right.right);
+				this.ref.current.style.top = this.p.toFixed(6) + '%';
+				this.ref.current.style.left = left.toFixed(6) + '%';
+				this.ref.current.style.width = (right - left).toFixed(6) + '%';
+				this.ref.current.style.height = 'var(--edge-size)';
+			} else {
+				const top = Math.max(this.left.top, this.right.top);
+				const bottom = Math.min(this.left.bottom, this.right.bottom);
+				this.ref.current.style.top = top.toFixed(6) + '%';
+				this.ref.current.style.left = this.p.toFixed(6) + '%';
+				this.ref.current.style.width = 'var(--edge-size)';
+				this.ref.current.style.height = (bottom - top).toFixed(6) + '%';
+			}
+		}
 		for (const sibling of this.siblings) {
 			sibling.left.updateDOM();
 			sibling.right.updateDOM();
@@ -405,26 +412,31 @@ class Edge {
 }
 
 class Pane {
-	public ref: React.RefObject<HTMLDivElement>;
+	public paneRef: React.RefObject<HTMLDivElement>;
+	public dividerRef: React.RefObject<HTMLDivElement>;
 
 	constructor(
 		public id: string,
 		public links: Links
 	) {
-		this.ref = React.createRef();
+		this.paneRef = React.createRef();
+		this.dividerRef = React.createRef();
 	}
 
 	public dispose() {
-		this.ref = undefined!;
+		this.paneRef = undefined!;
+		this.dividerRef = undefined!;
 		this.links = undefined!;
 	}
 
 	public updateDOM() {
-		if (this.ref.current) {
-			this.ref.current.style.top = `${this.top}%`;
-			this.ref.current.style.right = `${100 - this.right}%`;
-			this.ref.current.style.bottom = `${100 - this.bottom}%`;
-			this.ref.current.style.left = `${this.left}%`;
+		for (const ref of [this.paneRef, this.dividerRef]) {
+			if (ref.current) {
+				ref.current.style.top = `${this.top}%`;
+				ref.current.style.right = `${100 - this.right}%`;
+				ref.current.style.bottom = `${100 - this.bottom}%`;
+				ref.current.style.left = `${this.left}%`;
+			}
 		}
 	}
 
