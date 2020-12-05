@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { nanoid } from 'nanoid';
 import './Layout.scss';
 
 export interface PaneProps {
@@ -18,18 +19,23 @@ export interface LayoutProps {
 	onChange: (panes: PaneProps[]) => void,
 }
 
+type Axe = 'horizontal' | 'vertical';
+
 interface Internal {
 	bounds: DOMRect,
 	dragging: boolean,
-	dragId?: number,
+	dragLeft?: string,
+	dragRight?: string,
 	dragCorner?: Corner,
 	dragBounds: DOMRect,
 	dragSiblings?: boolean,
+	divId?: number,
+	divAxe?: Axe,
 	lastPointerEvent?: PointerEvent,
 	trottledPointerEvent?: PointerEvent,
 }
 
-export default function(props: React.PropsWithChildren<LayoutProps>) {
+export default function({ panes, onChange }: React.PropsWithChildren<LayoutProps>) {
 	const layoutRef = useRef<HTMLDivElement>(null);
 	const internal = useRef<Internal>({
 		bounds: new DOMRect(),
@@ -37,14 +43,9 @@ export default function(props: React.PropsWithChildren<LayoutProps>) {
 		dragBounds: new DOMRect(),
 	});
 	const layout = useMemo<Layout>(
-		() => new Layout(props.panes),
-		[props.panes]
+		() => new Layout(panes),
+		[panes]
 	);
-
-	console.log(props.panes, layout);
-
-
-	const [_, render] = useState({});
 
 	useEffect(() => {
 		internal.current.bounds = layoutRef.current?.getBoundingClientRect()!;
@@ -58,11 +59,15 @@ export default function(props: React.PropsWithChildren<LayoutProps>) {
 				internal.current = {
 					...internal.current!,
 					dragging: false,
-					dragId: undefined,
+					dragLeft: undefined,
+					dragRight: undefined,
 					dragCorner: undefined,
+					dragSiblings: undefined,
+					divId: undefined,
+					divAxe: undefined,
 				};
 
-				const panes = props.panes.reduce((panes, pane) => {
+				const newPanes = panes.reduce((panes, pane) => {
 					const layoutPane = layout.panes.find(p => p.id === pane.key);
 					// Remove missing pane or collapsed pane
 					if (layoutPane && layoutPane.width > 0 && layoutPane.height > 0) {
@@ -76,24 +81,29 @@ export default function(props: React.PropsWithChildren<LayoutProps>) {
 				}, [] as PaneProps[]);
 
 
-				if (props.onChange) {
-					props.onChange(panes);
-				} else {
-					render({});
-				}
+				onChange(newPanes);
 			}
 		}
 
 		function onMove(e: PointerEvent) {
 			if (internal.current?.dragging === true) {
-				const { bounds, dragBounds, dragId, dragCorner, dragSiblings, lastPointerEvent, trottledPointerEvent } = internal.current;
+				const { bounds, dragLeft, dragRight, dragBounds, dragCorner, dragSiblings, divAxe, lastPointerEvent, trottledPointerEvent } = internal.current;
+
 				if (e.clientX === lastPointerEvent?.clientX && e.clientY === lastPointerEvent?.clientY) {
 					return;
 				}
 				internal.current.lastPointerEvent = e;
 				internal.current.trottledPointerEvent = trottledPointerEvent ?? e;
 
-				if (dragCorner) {
+				const { x: oX, y: oY, width, height } = bounds;
+				const [x, y] = [e.clientX - oX, e.clientY - oY];
+				const [pX, pY] = [x / width * 100, y / height * 100];
+				const [cX, cY] = [
+					Math.max(Math.min(pX, dragBounds.right), dragBounds.left),
+					Math.max(Math.min(pY, dragBounds.bottom), dragBounds.top),
+				];
+
+				if (dragCorner !== undefined) {
 					const { trottledPointerEvent } = internal.current;
 					const deltaX = e.clientX - trottledPointerEvent.clientX;
 					const deltaY = e.clientY - trottledPointerEvent.clientY;
@@ -102,31 +112,47 @@ export default function(props: React.PropsWithChildren<LayoutProps>) {
 						internal.current.trottledPointerEvent = e;
 
 						const axe = Math.abs(deltaX) > Math.abs(deltaY) ? 'vertical' : 'horizontal';
-						console.log('dividing', dragId, axe);
-						// TODO subdivide
+
+						if (axe !== divAxe) {
+							internal.current.divAxe = axe;
+
+							const newPanes = panes.reduce((panes, pane) => {
+								const newPane = { ...pane };
+								if (newPane.key === dragLeft || newPane.key === dragRight) {
+									newPane.top = dragBounds.top;
+									newPane.right = dragBounds.right;
+									newPane.bottom = dragBounds.bottom;
+									newPane.left = dragBounds.left;
+
+									if (axe === 'horizontal') {
+										newPane[newPane.key === dragLeft ? 'bottom' : 'top'] = cY;
+									} else {
+										newPane[newPane.key === dragLeft ? 'right' : 'left'] = cX;
+									}
+								}
+								panes.push(newPane);
+								return panes;
+							}, [] as PaneProps[]);
+
+							onChange(newPanes);
+							return;
+						}
 					}
 				}
 
-				else {
-					const edge = layout.edges[dragId!];
+				if (dragLeft !== undefined && dragRight !== undefined) {
+					const edge = layout.edges.find(e => e.left.id === dragLeft && e.right.id === dragRight);
+					if (edge) {
+						const p = edge.axe === 'horizontal' ? cY : cX;
+						
+						edge.p = p;
+						edge.updateDOM();
 
-					const { x: oX, y: oY, width, height } = bounds;
-					const [x, y] = [e.clientX - oX, e.clientY - oY];
-					const [pX, pY] = [x / width * 100, y / height * 100];
-					const [cX, cY] = [
-						Math.max(Math.min(pX, dragBounds.right), dragBounds.left),
-						Math.max(Math.min(pY, dragBounds.bottom), dragBounds.top),
-					];
-
-					const C = edge.axe === 'horizontal' ? cY : cX;
-					
-					edge.p = C;
-					edge.updateDOM();
-
-					if (dragSiblings) {
-						for (const sibling of edge.siblings) {
-							sibling.p = C;
-							sibling.updateDOM();
+						if (dragSiblings) {
+							for (const sibling of edge.siblings) {
+								sibling.p = p;
+								sibling.updateDOM();
+							}
 						}
 					}
 				}
@@ -141,7 +167,7 @@ export default function(props: React.PropsWithChildren<LayoutProps>) {
 			document.removeEventListener('pointerup', onLeave);
 			document.removeEventListener('pointermove', onMove);
 		}
-	}, [props.panes, props.onChange]);
+	}, [panes, onChange]);
 
 	const onEdgeDown = (id: number) => (e: React.PointerEvent) => {
 		e.preventDefault();
@@ -166,7 +192,8 @@ export default function(props: React.PropsWithChildren<LayoutProps>) {
 		internal.current = {
 			...internal.current!,
 			dragging: true,
-			dragId: id,
+			dragLeft: edge.left.id,
+			dragRight: edge.right.id,
 			dragBounds: new DOMRect(minX, minY, maxX - minX, maxY - minY),
 			dragSiblings: !(breakable && e.ctrlKey)
 		};
@@ -178,16 +205,42 @@ export default function(props: React.PropsWithChildren<LayoutProps>) {
 
 		const pane = layout.panes[id];
 
+		const paneProps: PaneProps = panes.find(p => p.key === pane.id)!;
+		const newPaneProps: PaneProps = { ...paneProps };
+		newPaneProps.key = nanoid();
+
+		let dragLeft = pane.id;
+		let dragRight = newPaneProps.key;
+
+		if (corner === 'top-left' || corner === 'bottom-left') {
+			let t = dragLeft;
+			dragLeft = dragRight;
+			dragRight = t;
+			paneProps.left += 1;
+			newPaneProps.right = paneProps.left;
+		} else {
+			paneProps.right -= 1;
+			newPaneProps.left = paneProps.right;
+		}
+
 		internal.current = {
 			...internal.current!,
 			dragging: true,
-			dragId: id,
+			dragLeft,
+			dragRight,
 			dragCorner: corner,
 			dragBounds: new DOMRect(pane.left, pane.top, pane.right - pane.left, pane.bottom - pane.top),
+			divAxe: 'vertical'
 		};
+
+		console.log('div', paneProps, newPaneProps, dragLeft, dragRight);
+
+		onChange(panes.concat([newPaneProps]));
 	};
 
-	const edges = layout.edges.map((edge, id) => {
+	return (<div className="layout" ref={layoutRef}>
+		<div className="layout-edge-container">
+			{layout.edges.map((edge, id) => {
 		let styles: React.CSSProperties = {};
 		if (edge.axe === 'horizontal') {
 			const left = Math.max(edge.left.left, edge.right.left);
@@ -212,9 +265,10 @@ export default function(props: React.PropsWithChildren<LayoutProps>) {
 			style={styles}
 			onPointerDown={onEdgeDown(id)}
 		/>;
-	});
-
-	const dividers = layout.panes.map((pane, id) => <div
+	})}
+		</div>
+		<div className="layout-divider-container">
+			{layout.panes.map((pane, id) => <div
 		ref={pane.dividerRef}
 		key={`divider-${pane.id}`}
 		className="layout-handle"
@@ -230,9 +284,10 @@ export default function(props: React.PropsWithChildren<LayoutProps>) {
 		<div key="top-right" className={`layout-handle-divider layout-handle-divider--top-right`} onPointerDown={onDividerDown(id, 'top-right')} />
 		<div key="bottom-left" className={`layout-handle-divider layout-handle-divider--bottom-left`} onPointerDown={onDividerDown(id, 'bottom-left')} />
 		<div key="bottom-right" className={`layout-handle-divider layout-handle-divider--bottom-right`} onPointerDown={onDividerDown(id, 'bottom-right')} />
-	</div>);
-
-	const panes = layout.panes.map((pane, id) => <div
+	</div>)}
+		</div>
+		<div className="layout-view-container">
+			{layout.panes.map((pane, id) => <div
 		ref={pane.paneRef}
 		key={`pane-${id}`}
 		className="layout-view-container-view"
@@ -245,17 +300,7 @@ export default function(props: React.PropsWithChildren<LayoutProps>) {
 		}}
 	>
 		{pane.id}
-	</div>);
-
-	return (<div className="layout" ref={layoutRef}>
-		<div className="layout-edge-container">
-			{edges}
-		</div>
-		<div className="layout-divider-container">
-			{dividers}
-		</div>
-		<div className="layout-view-container">
-			{panes}
+	</div>)}
 		</div>
 	</div>);
 }
@@ -270,34 +315,37 @@ class Layout {
 	constructor(panesProps: PaneProps[]) {
 		// Find neighbors
 		const neighbors: [number[], number[], number[], number[]][] = [];
-		for (const pane of panesProps) {
+		for (let a = 0, b = panesProps.length; a < b; ++a) {
+			const pane = panesProps[a];
 			const neighbor: [number[], number[], number[], number[]] = [[], [], [], []];
 			const pLeft = min(pane.left, pane.right);
 			const pRight = max(pane.left, pane.right);
 			const pTop = min(pane.top, pane.bottom);
 			const pBottom = max(pane.top, pane.bottom);
-			for (let i = 0, l = panesProps.length; i < l; ++i) {
-				const other = panesProps[i];
-				const oLeft = min(other.left, other.right);
-				const oRight = max(other.left, other.right);
-				const oTop = min(other.top, other.bottom);
-				const oBottom = max(other.top, other.bottom);
+			for (let c = 0, d = panesProps.length; c < d; ++c) {
+				if (a !== c) {
+					const other = panesProps[c];
+					const oLeft = min(other.left, other.right);
+					const oRight = max(other.left, other.right);
+					const oTop = min(other.top, other.bottom);
+					const oBottom = max(other.top, other.bottom);
 
-				// TOP
-				if (abs(pane.top - other.bottom) < 0.1 && segmentIntersect(pLeft, pRight, oLeft, oRight)) {
-					neighbor[0].push(i);
-				}
-				// RIGHT
-				else if (abs(pane.right - other.left) < 0.1 && segmentIntersect(pTop, pBottom, oTop, oBottom)) {
-					neighbor[1].push(i);
-				}
-				// BOTTOM
-				else if (abs(pane.bottom - other.top) < 0.1 && segmentIntersect(pLeft, pRight, oLeft, oRight)) {
-					neighbor[2].push(i);
-				}
-				// LEFT
-				else if (abs(pane.left - other.right) < 0.1 && segmentIntersect(pTop, pBottom, oTop, oBottom)) {
-					neighbor[3].push(i);
+					// TOP
+					if (abs(pane.top - other.bottom) <= 0.1 && segmentIntersect(pLeft, pRight, oLeft, oRight)) {
+						neighbor[0].push(c);
+					}
+					// RIGHT
+					else if (abs(pane.right - other.left) <= 0.1 && segmentIntersect(pTop, pBottom, oTop, oBottom)) {
+						neighbor[1].push(c);
+					}
+					// BOTTOM
+					else if (abs(pane.bottom - other.top) <= 0.1 && segmentIntersect(pLeft, pRight, oLeft, oRight)) {
+						neighbor[2].push(c);
+					}
+					// LEFT
+					else if (abs(pane.left - other.right) <= 0.1 && segmentIntersect(pTop, pBottom, oTop, oBottom)) {
+						neighbor[3].push(c);
+					}
 				}
 			}
 			neighbors.push(neighbor);
@@ -312,6 +360,9 @@ class Layout {
 					const pos = dir % 2 ? panesProps[a].right : panesProps[a].bottom;
 					const key = `${Math.min(a, b)}-${Math.max(a, b)}`;
 					if (!edges.has(key)) {
+						if (pos === 0 || pos === 100) {
+							debugger;
+						}
 						edges.set(key, new Edge(axe, pos, null!, null!, []));
 					}
 				}
@@ -368,7 +419,7 @@ class Edge {
 	public ref: React.RefObject<HTMLDivElement>;
 
 	constructor(
-		public axe: 'horizontal' | 'vertical',
+		public axe: Axe,
 		public p: number,
 		public left: Pane,
 		public right: Pane,
