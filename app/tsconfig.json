@@ -1,13 +1,20 @@
 {
 	"include": [
 		"src",
-		"types"
+		"types",
+		"pxlr",
 	],
 	"compilerOptions": {
 		"module": "esnext",
 		"target": "esnext",
 		"moduleResolution": "node",
 		"jsx": "preserve",
+		"lib": [
+			"DOM",
+			"ES2017.SharedMemory",
+			"WebWorker",
+			"WebWorker.ImportScripts"
+		],
 		"baseUrl": "./",
 		/* paths - If you configure Snowpack import aliases, add them here. */
 		"paths": {},
