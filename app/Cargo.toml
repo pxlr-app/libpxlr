@@ -6,7 +6,7 @@ edition = "2018"
 
 [lib]
 crate-type = ["cdylib"]
-path = "rust/lib.rs"
+path = "editor/lib.rs"
 
 [profile.release]
 lto = true

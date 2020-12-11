@@ -2,10 +2,13 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import App from './containers/App';
 
-const worker = new Worker('./_dist_/worker.js', { type: 'module' });
-worker.onmessage = function (msg: MessageEvent<any>) {
+const worker = new Worker(
+	new URL('./worker.js', import.meta.url),
+	{ type: 'module' }
+);
+worker.addEventListener('message', (msg) => {
 	console.log('Main', msg.data);
-}
+});
 
 setInterval(() => {
 	worker.postMessage('PONG');

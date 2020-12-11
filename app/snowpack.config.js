@@ -1,7 +1,8 @@
 module.exports = {
 	mount: {
 		public: '/',
-		src: '/_dist_',
+		client: '/_dist_',
+		pkg: '/editor'
 	},
 	plugins: [
 		'@snowpack/plugin-sass',
