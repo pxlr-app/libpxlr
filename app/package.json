@@ -2,10 +2,10 @@
 	"scripts": {
 		"start": "concurrently -k \"npm run dev:client\" \"npm run dev:editor\"",
 		"dev:client": "snowpack dev",
-		"dev:editor": "cargo watch -i .gitignore -i \"pkg/*\" -s \"wasm-pack build --target web\"",
+		"dev:editor": "cargo watch -i .gitignore -i \"pkg/*\" -s \"wasm-pack build --target web --out-name editor\"",
 		"build": "npm run build:client && npm run build:editor",
 		"build:client": "snowpack build",
-		"build:editor": "wasm-pack build --target web",
+		"build:editor": "rimraf pkg && wasm-pack build --target web --out-name editor",
 		"test": "web-test-runner \"client/**/*.test.tsx\"",
 		"format": "prettier --write \"client/**/*.{js,jsx,ts,tsx}\"",
 		"lint": "prettier --check \"client/**/*.{js,jsx,ts,tsx}\""

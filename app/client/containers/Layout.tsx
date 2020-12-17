@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { createContext, useEffect, useRef, useMemo } from 'react';
 import { nanoid } from 'nanoid';
 import './Layout.scss';
 
@@ -13,6 +13,15 @@ export interface PaneProps {
 	elem: React.ReactElement,
 	props?: any,
 }
+
+export const PaneContext = createContext<PaneProps>({
+	key: '',
+	top: 0,
+	right: 0,
+	bottom: 0,
+	left: 0,
+	elem: <></>
+});
 
 export interface LayoutProps {
 	panes: PaneProps[],
@@ -233,8 +242,6 @@ export default function({ panes, onChange }: React.PropsWithChildren<LayoutProps
 			divAxe: 'vertical'
 		};
 
-		console.log('div', paneProps, newPaneProps, dragLeft, dragRight);
-
 		onChange(panes.concat([newPaneProps]));
 	};
 
@@ -277,7 +284,7 @@ export default function({ panes, onChange }: React.PropsWithChildren<LayoutProps
 			right: `${(100 - pane.right).toFixed(6)}%`,
 			bottom: `${(100 - pane.bottom).toFixed(6)}%`,
 			left: `${(pane.left).toFixed(6)}%`,
-			borderWidth: pane.links.map((link, dir) => link ? (dir === 1 || dir === 2 ? `var(--border-size)` : 0) : `var(--border-size)`).join(' ')
+			borderWidth: pane.links.map((link, dir) => link ? (dir === 1 || dir === 2 ? `var(--border-size)` : 0) : `var(--border-size)`).join(' '),
 		}}
 	>
 		<div key="top-left" className={`layout-handle-divider layout-handle-divider--top-left`} onPointerDown={onDividerDown(id, 'top-left')} />
@@ -288,19 +295,25 @@ export default function({ panes, onChange }: React.PropsWithChildren<LayoutProps
 		</div>
 		<div className="layout-view-container">
 			{layout.panes.map((pane, id) => <div
-		ref={pane.paneRef}
-		key={`pane-${id}`}
-		className="layout-view-container-view"
-		style={{
-			top: `${pane.top.toFixed(6)}%`,
-			right: `${(100 - pane.right).toFixed(6)}%`,
-			bottom: `${(100 - pane.bottom).toFixed(6)}%`,
-			left: `${pane.left.toFixed(6)}%`,
-			borderWidth: pane.links.map((link, dir) => link ? (dir === 1 || dir === 2 ? `var(--border-size)` : 0) : `var(--border-size)`).join(' ')
-		}}
-	>
-		{pane.id}
-	</div>)}
+				ref={pane.paneRef}
+				key={`pane-${id}`}
+				className="layout-view-container-view"
+				style={{
+					top: `${pane.top.toFixed(6)}%`,
+					right: `${(100 - pane.right).toFixed(6)}%`,
+					bottom: `${(100 - pane.bottom).toFixed(6)}%`,
+					left: `${pane.left.toFixed(6)}%`,
+					// borderWidth: pane.links.map((link, dir) => link.length ? (dir === 1 || dir === 2 ? `var(--border-size)` : 0) : `var(--border-size)`).join(' '),
+					['--pane-top-neighbor' as any]: pane.links[0].length ? 1 : 0,
+					['--pane-right-neighbor' as any]: pane.links[1].length ? 1 : 0,
+					['--pane-bottom-neighbor' as any]: pane.links[2].length ? 1 : 0,
+					['--pane-left-neighbor' as any]: pane.links[3].length ? 1 : 0,
+				}}
+			>
+				<PaneContext.Provider value={pane.props}>
+					{pane.props.elem}
+				</PaneContext.Provider>
+			</div>)}
 		</div>
 	</div>);
 }
@@ -380,7 +393,7 @@ class Layout {
 
 		// Create panes
 		const panes = neighbors.reduce((panes, neighbors, a) => {
-			const pane = new Pane(panesProps[a].key, [[], [], [], []]);
+			const pane = new Pane(panesProps[a].key, [[], [], [], []], panesProps[a]);
 			pane.links = neighbors.map((neighbors, dir) => {
 				return neighbors.reduce((links, b) => {
 					const key = `${Math.min(a, b)}-${Math.max(a, b)}`;
@@ -468,7 +481,8 @@ class Pane {
 
 	constructor(
 		public id: string,
-		public links: Links
+		public links: Links,
+		public props: PaneProps,
 	) {
 		this.paneRef = React.createRef();
 		this.dividerRef = React.createRef();
@@ -478,6 +492,7 @@ class Pane {
 		this.paneRef = undefined!;
 		this.dividerRef = undefined!;
 		this.links = undefined!;
+		this.props = undefined!;
 	}
 
 	public updateDOM() {
