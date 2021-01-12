@@ -261,53 +261,53 @@ export default function({ panes, onChange, onDragging }: React.PropsWithChildren
 	return (<div className="layout" ref={layoutRef}>
 		<div className="layout-edge-container">
 			{layout.edges.map((edge, id) => {
-		let styles: React.CSSProperties = {};
-		if (edge.axe === 'horizontal') {
-			const left = Math.max(edge.left.left, edge.right.left);
-			const right = Math.min(edge.left.right, edge.right.right);
-			styles.top = edge.p.toFixed(6) + '%';
-			styles.left = left.toFixed(6) + '%';
-			styles.width = (right - left).toFixed(6) + '%';
-			styles.height = 'var(--edge-size)';
-		} else {
-			const top = Math.max(edge.left.top, edge.right.top);
-			const bottom = Math.min(edge.left.bottom, edge.right.bottom);
-			styles.top = top.toFixed(6) + '%';
-			styles.left = edge.p.toFixed(6) + '%';
-			styles.width = 'var(--edge-size)';
-			styles.height = (bottom - top).toFixed(6) + '%';
-		}
+				let styles: React.CSSProperties = {};
+				if (edge.axe === 'horizontal') {
+					const left = Math.max(edge.left.left, edge.right.left);
+					const right = Math.min(edge.left.right, edge.right.right);
+					styles.top = edge.p.toFixed(6) + '%';
+					styles.left = left.toFixed(6) + '%';
+					styles.width = (right - left).toFixed(6) + '%';
+					styles.height = 'var(--edge-size)';
+				} else {
+					const top = Math.max(edge.left.top, edge.right.top);
+					const bottom = Math.min(edge.left.bottom, edge.right.bottom);
+					styles.top = top.toFixed(6) + '%';
+					styles.left = edge.p.toFixed(6) + '%';
+					styles.width = 'var(--edge-size)';
+					styles.height = (bottom - top).toFixed(6) + '%';
+				}
 
-		return <div
-			ref={edge.ref}
-			key={`edge-${edge.left.id}-${edge.right.id}`}
-			className={`layout-handle-edge layout-handle-edge--${edge.axe}`}
-			style={styles}
-			onPointerDown={onEdgeDown(id)}
-		/>;
-	})}
+				return <div
+					ref={edge.ref}
+					key={`edge-${edge.left.id}-${edge.right.id}`}
+					className={`layout-handle-edge layout-handle-edge--${edge.axe}`}
+					style={styles}
+					onPointerDown={onEdgeDown(id)}
+				/>;
+			})}
 		</div>
 		<div className="layout-divider-container">
 			{layout.panes.map((pane, id) => <div
-		ref={pane.dividerRef}
-		key={`divider-${pane.id}`}
-		className="layout-handle"
-		style={{
-			top: `${pane.top.toFixed(6)}%`,
-			right: `${(100 - pane.right).toFixed(6)}%`,
-			bottom: `${(100 - pane.bottom).toFixed(6)}%`,
-			left: `${(pane.left).toFixed(6)}%`,
-			borderWidth: pane.links.map((link, dir) => link ? (dir === 1 || dir === 2 ? `var(--border-size)` : 0) : `var(--border-size)`).join(' '),
-		}}
-	>
-		<div key="top-left" className={`layout-handle-divider layout-handle-divider--top-left`} onPointerDown={onDividerDown(id, 'top-left')} />
-		<div key="top-right" className={`layout-handle-divider layout-handle-divider--top-right`} onPointerDown={onDividerDown(id, 'top-right')} />
-		<div key="bottom-left" className={`layout-handle-divider layout-handle-divider--bottom-left`} onPointerDown={onDividerDown(id, 'bottom-left')} />
-		<div key="bottom-right" className={`layout-handle-divider layout-handle-divider--bottom-right`} onPointerDown={onDividerDown(id, 'bottom-right')} />
-	</div>)}
+				ref={pane.dividerRef}
+				key={`divider-${pane.id}`}
+				className="layout-handle"
+				style={{
+					top: `${pane.top.toFixed(6)}%`,
+					right: `${(100 - pane.right).toFixed(6)}%`,
+					bottom: `${(100 - pane.bottom).toFixed(6)}%`,
+					left: `${(pane.left).toFixed(6)}%`,
+					borderWidth: pane.links.map((link, dir) => link ? (dir === 1 || dir === 2 ? `var(--border-size)` : 0) : `var(--border-size)`).join(' '),
+				}}
+			>
+				<div key="top-left" className={`layout-handle-divider layout-handle-divider--top-left`} onPointerDown={onDividerDown(id, 'top-left')} />
+				<div key="top-right" className={`layout-handle-divider layout-handle-divider--top-right`} onPointerDown={onDividerDown(id, 'top-right')} />
+				<div key="bottom-left" className={`layout-handle-divider layout-handle-divider--bottom-left`} onPointerDown={onDividerDown(id, 'bottom-left')} />
+				<div key="bottom-right" className={`layout-handle-divider layout-handle-divider--bottom-right`} onPointerDown={onDividerDown(id, 'bottom-right')} />
+			</div>)}
 		</div>
 		<div className="layout-view-container">
-			{layout.panes.map((pane, id) => <div
+			{layout.panes.map(pane => <div
 				ref={pane.paneRef}
 				key={`pane-${pane.id}`}
 				className="layout-view-container-view"
