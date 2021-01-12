@@ -309,7 +309,7 @@ export default function({ panes, onChange, onDragging }: React.PropsWithChildren
 		<div className="layout-view-container">
 			{layout.panes.map((pane, id) => <div
 				ref={pane.paneRef}
-				key={`pane-${id}`}
+				key={`pane-${pane.id}`}
 				className="layout-view-container-view"
 				style={{
 					top: `${pane.top.toFixed(6)}%`,
