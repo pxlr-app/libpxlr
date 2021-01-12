@@ -1,54 +1,32 @@
-import React, { useState, createContext } from 'react';
+import React, { useState, useRef, useEffect, createRef } from 'react';
 import Layout, { PaneContext } from './Layout';
-import { EditorContext, EditorState } from '../contexts/Editor';
+ 
 import View from './View';
 import Viewport from './views/Viewport';
 import Outline from './views/Outline';
 import Properties from './views/Properties';
 import './Workbench.scss';
-
-// type Command = 
-// 	{
-// 		cmd: 'Ready'
-// 	};
-
-// const worker = new Worker(
-// 	new URL('./worker.js', import.meta.url),
-// 	{ type: 'module' }
-// );
-// document.addEventListener('readystatechange', () => {
-// 	worker.addEventListener('message', (msg: MessageEvent<Command>) => {
-// 		console.log('Main', msg.data);
-
-// 		if (msg.data.cmd === 'Ready') {
-// 			const canvas = document.getElementById('mainCanvas') as HTMLCanvasElement;
-// 			const offscreen_canvas = canvas.transferControlToOffscreen();
-// 			const bounds = canvas.getBoundingClientRect();
-// 			offscreen_canvas.width = bounds.width;
-// 			offscreen_canvas.height = bounds.height;
-// 			worker.postMessage({ cmd: 'Init', offscreen_canvas }, [offscreen_canvas]);
-
-// 			window.addEventListener('resize', e => {
-// 				const bounds = canvas.getBoundingClientRect();
-// 				worker.postMessage({ cmd: 'Resize', width: bounds.width, height: bounds.height });
-// 			});
-
-// 			setInterval(() => {
-// 				// TODO 
-// 				worker.postMessage({ cmd: 'Ping' });
-// 			}, 1000);
-// 		}
-// 	});
-// });
+import { Editor, EditorContext } from '../contexts/Editor';
 
 export default function Workbench() {
 
-	const [state, setState] = useState<EditorState>({
-		panes: [
+	const [, update] = useState({});
+	const editor = useRef<Editor>(new Editor());
+	const canvasRef = createRef<HTMLCanvasElement>();
+
+	useEffect(() => {
+		(window as any).pxlrEditor = editor.current;
+
+		editor.current.onUpdate = () => update({});
+		editor.current.init(canvasRef.current!);
+
+		// TODO : Initialize editor state from localStorage
+		//editorState.current.loadFromLocalStorage();
+		editor.current.setPanes([
 			{
 				key: 'main',
 				top: 0,
-				right: 80,
+				right: 60,
 				bottom: 100,
 				left: 0,
 				elem: <PaneContext.Consumer>{pane => <View><Viewport /></View>}</PaneContext.Consumer>
@@ -58,7 +36,7 @@ export default function Workbench() {
 				top: 0,
 				right: 100,
 				bottom: 40,
-				left: 80,
+				left: 60,
 				elem: <PaneContext.Consumer>{pane => <View><Outline /></View>}</PaneContext.Consumer>
 			},
 			{
@@ -66,17 +44,17 @@ export default function Workbench() {
 				top: 40,
 				right: 100,
 				bottom: 100,
-				left: 80,
+				left: 60,
 				elem: <PaneContext.Consumer>{pane => <View><Properties /></View>}</PaneContext.Consumer>
 			}
-		]
-	});
+		]);
+	}, []);
 
 	return (
-		<EditorContext.Provider value={state}>
+		<EditorContext.Provider value={editor.current}>
 			<div className="workbench">
-				<canvas id="mainCanvas" />
-				<Layout panes={state.panes} onChange={panes => setState({ ...state, panes })} />
+				<canvas ref={canvasRef} id="mainCanvas" />
+				<Layout panes={editor.current.panes} onChange={panes => editor.current.setPanes(panes)} onDragging={panes => editor.current.setPanes(panes, false)} />
 			</div>
 		</EditorContext.Provider>
 	)

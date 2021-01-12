@@ -25,7 +25,8 @@ export const PaneContext = createContext<PaneProps>({
 
 export interface LayoutProps {
 	panes: PaneProps[],
-	onChange: (panes: PaneProps[]) => void,
+	onChange?: (panes: PaneProps[]) => void,
+	onDragging?: (panes: PaneProps[]) => void,
 }
 
 type Axe = 'horizontal' | 'vertical';
@@ -44,7 +45,7 @@ interface Internal {
 	trottledPointerEvent?: PointerEvent,
 }
 
-export default function({ panes, onChange }: React.PropsWithChildren<LayoutProps>) {
+export default function({ panes, onChange, onDragging }: React.PropsWithChildren<LayoutProps>) {
 	const layoutRef = useRef<HTMLDivElement>(null);
 	const internal = useRef<Internal>({
 		bounds: new DOMRect(),
@@ -90,7 +91,7 @@ export default function({ panes, onChange }: React.PropsWithChildren<LayoutProps
 				}, [] as PaneProps[]);
 
 
-				onChange(newPanes);
+				onChange && onChange(newPanes);
 			}
 		}
 
@@ -143,7 +144,7 @@ export default function({ panes, onChange }: React.PropsWithChildren<LayoutProps
 								return panes;
 							}, [] as PaneProps[]);
 
-							onChange(newPanes);
+							onChange && onChange(newPanes);
 							return;
 						}
 					}
@@ -163,6 +164,18 @@ export default function({ panes, onChange }: React.PropsWithChildren<LayoutProps
 								sibling.updateDOM();
 							}
 						}
+
+						onDragging && onDragging(panes.map(pane => {
+							const newPane = { ...pane };
+							const layoutPane = layout.panes.find(p => p.id === pane.key);
+							if (layoutPane) {
+								newPane.top = layoutPane.top;
+								newPane.right = layoutPane.right;
+								newPane.bottom = layoutPane.bottom;
+								newPane.left = layoutPane.left;
+							}
+							return newPane
+						}));
 					}
 				}
 			}
@@ -242,7 +255,7 @@ export default function({ panes, onChange }: React.PropsWithChildren<LayoutProps
 			divAxe: 'vertical'
 		};
 
-		onChange(panes.concat([newPaneProps]));
+		onChange && onChange(panes.concat([newPaneProps]));
 	};
 
 	return (<div className="layout" ref={layoutRef}>
