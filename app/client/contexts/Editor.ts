@@ -1,23 +1,32 @@
 import { createContext } from 'react';
 import type { PaneProps } from '../containers/Layout';
+import type { Command, Viewport } from '../editor';
 
 type OnUpdate = () => void;
 
-type Command = 
+type WorkerResponse = 
 	{
 		cmd: 'Ready'
 	};
 
 export class Editor {
 	public panes: PaneProps[] = [];
-	public readonly viewports: ReadonlySet<PaneProps['key']> = new Set();
 	private worker?: Worker;
 	private canvas?: HTMLCanvasElement;
+	private ready: boolean = false;
+	private commandBuffer: Command[] = [];
 	public onUpdate?: OnUpdate;
+
 
 	constructor() {}
 
-	public loadFromLocalStorage() {}
+	private sendCommand(command: Command) {
+		if (this.ready && this.worker) {
+			this.worker.postMessage(command);
+		} else {
+			this.commandBuffer.push(command);
+		}
+	}
 
 	public init(canvas: HTMLCanvasElement) {
 		if (this.canvas) {
@@ -29,7 +38,7 @@ export class Editor {
 			{ type: 'module' }
 		);
 
-		worker.addEventListener('message', (msg: MessageEvent<Command>) => {
+		worker.addEventListener('message', (msg: MessageEvent<WorkerResponse>) => {
 			console.log('Main', msg.data);
 	
 			if (msg.data.cmd === 'Ready') {
@@ -38,23 +47,23 @@ export class Editor {
 				offscreen_canvas.width = bounds.width;
 				offscreen_canvas.height = bounds.height;
 				worker.postMessage({ cmd: 'Init', offscreen_canvas }, [offscreen_canvas]);
-
-				this.viewports.forEach(id => {
-					const pane = this.panes.find(p => p.key === id);
-					if (pane) {
-						worker.postMessage({ cmd: 'RegisterViewport', id, top: pane.top, right: pane.right, bottom: pane.bottom, left: pane.left });
-					}
-				});
+				worker.postMessage({ cmd: 'Resize', width: bounds.width, height: bounds.height });
+				
+				let cmd: Command | undefined;
+				while ((cmd = this.commandBuffer.pop()) !== undefined) {
+					worker.postMessage(cmd);
+				}
+				this.ready = true;
 			}
 		});
 
+		// TODO on uninit remove event listener
 		window.addEventListener('resize', e => {
 			const bounds = canvas.getBoundingClientRect();
-			canvas.width = bounds.width;
-			canvas.height = bounds.height;
-			worker.postMessage({ cmd: 'Resize', width: bounds.width, height: bounds.height });
+			this.sendCommand({ cmd: 'Resize', width: bounds.width, height: bounds.height });
 		});
 
+		// TODO on uninit remove timer
 		setInterval(() => {
 			// TODO 
 			worker.postMessage({ cmd: 'Ping' });
@@ -66,28 +75,20 @@ export class Editor {
 
 	public setPanes(panes: PaneProps[], needUpdate = true) {
 		this.panes = panes;
-		this.worker && this.viewports.forEach(id => {
-			const pane = this.panes.find(p => p.key === id);
-			if (pane) {
-				this.worker!.postMessage({ cmd: 'UpdateViewport', id, top: pane.top, right: pane.right, bottom: pane.bottom, left: pane.left });
-			}
-		});
+		window.dispatchEvent(new Event('resize'));
 		needUpdate && this.onUpdate && this.onUpdate();
 	}
 
-	public registerViewport(paneKey: PaneProps['key'], needUpdate = true) {
-		const pane = this.panes.find(p => p.key === paneKey);
-		if (pane) {
-			(this.viewports as Set<PaneProps['key']>).add(paneKey);
-			this.worker && this.worker!.postMessage({ cmd: 'RegisterViewport', id: paneKey, top: pane.top, right: pane.right, bottom: pane.bottom, left: pane.left });
-		}
-		needUpdate && this.onUpdate && this.onUpdate();
+	public addViewport(viewport: Viewport) {
+		this.sendCommand({ cmd: 'AddViewport', viewport });
 	}
 
-	public unregisterViewport(paneKey: PaneProps['key'], needUpdate = true) {
-		(this.viewports as Set<PaneProps['key']>).delete(paneKey);
-		this.worker && this.worker!.postMessage({ cmd: 'UnregisterViewport', id: paneKey });
-		needUpdate && this.onUpdate && this.onUpdate();
+	public removeViewport(key: string) {
+		this.sendCommand({ cmd: 'RemoveViewport', key });
+	}
+
+	public updateViewport(viewport: Viewport) {
+		this.sendCommand({ cmd: 'UpdateViewport', viewport });
 	}
 }
 

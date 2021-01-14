@@ -1,36 +1,6 @@
 // @ts-ignore
 import init, { process_command, Editor } from '/editor/editor.js';
-
-type Command = 
-	  {
-		cmd: 'Init',
-		offscreen_canvas: OffscreenCanvas
-	}
-	| {
-		cmd: 'Resize',
-		width: number,
-		height: number,
-	}
-	| {
-		cmd: 'RegisterViewport',
-		id: string,
-		top: number,
-		right: number,
-		bottom: number,
-		left: number,
-	}
-	| {
-		cmd: 'UpdateViewport',
-		id: string,
-		top: number,
-		right: number,
-		bottom: number,
-		left: number,
-	}
-	| {
-		cmd: 'UnregisterViewport',
-		id: string,
-	};
+import type { Command } from './editor';
 
 (async () => {
 	await init();
@@ -41,28 +11,19 @@ type Command =
 
 	self.addEventListener('message', (msg: MessageEvent<Command>) => {
 		if (msg.data.cmd === 'Init') {
-			const canvas = msg.data.offscreen_canvas;
-			editor = Editor.init(canvas, canvas.width, canvas.height);
-		} else if (msg.data.cmd === 'Resize') {
-			Editor.resize(editor, msg.data.width, msg.data.height);
-		} else if (msg.data.cmd === 'RegisterViewport') {
-			const { id, top, right, bottom, left} = msg.data;
-			Editor.add_viewport(editor, id, top, right, bottom, left);
-		} else if (msg.data.cmd === 'UpdateViewport') {
-			const { id, top, right, bottom, left} = msg.data;
-			Editor.update_viewport(editor, id, top, right, bottom, left);
-		} else if (msg.data.cmd === 'UnregisterViewport') {
-			Editor.remove_viewport(editor, msg.data.id);
+			editor = Editor.init();
+			Editor.send_command_with_canvas(editor, JSON.stringify({ cmd: 'Init' }), msg.data.offscreen_canvas);
 		} else {
-			process_command(editor, JSON.stringify(msg.data));
+			console.debug('send_command', msg.data);
+			Editor.send_command(editor, JSON.stringify(msg.data));
 		}
 	});
 
 	function draw(time: number) {
 		if (editor) {
-			process_command(editor, JSON.stringify({ cmd: 'Draw' }));
+			Editor.send_command(editor, JSON.stringify({ cmd: 'Draw' }));
 		}
 		requestAnimationFrame(draw);
-	  }
-	  requestAnimationFrame(draw);
+	}
+	requestAnimationFrame(draw);
 })();

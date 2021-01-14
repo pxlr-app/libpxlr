@@ -29,7 +29,7 @@ export default function Workbench() {
 				right: 60,
 				bottom: 100,
 				left: 0,
-				elem: <PaneContext.Consumer>{pane => <View><Viewport /></View>}</PaneContext.Consumer>
+				elem: <PaneContext.Consumer>{pane => <View><Viewport options={{ type: 'Blank' }} /></View>}</PaneContext.Consumer>
 			},
 			{
 				key: 'outline',

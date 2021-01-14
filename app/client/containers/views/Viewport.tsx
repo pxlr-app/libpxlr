@@ -1,17 +1,14 @@
-import React, { useContext, useEffect } from 'react';
-import { EditorContext } from '../../contexts/Editor';
+import React, { useContext } from 'react';
 import { PaneContext } from '../Layout';
+import BaseViewport from '../Viewport';
+import type { Viewport, ViewportOptions } from '../../editor';
 
-export default function Viewport({ children }: React.PropsWithChildren<{}>) {
-	const editorState = useContext(EditorContext);
+export interface ViewportProps {
+	options: ViewportOptions,
+};
+
+export default function Viewport({ options }: ViewportProps) {
 	const pane = useContext(PaneContext);
 
-	useEffect(() => {
-		editorState.registerViewport(pane.key);
-		return () => {
-			editorState.unregisterViewport(pane.key);
-		}
-	}, []);
-
-	return (<div>{children}</div>);
+	return (<BaseViewport id={pane.key} options={options} />);
 }
