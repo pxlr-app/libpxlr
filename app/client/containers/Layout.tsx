@@ -159,7 +159,7 @@ export default function({ panes, onChange, onDragging }: React.PropsWithChildren
 						edge.updateDOM();
 
 						if (dragSiblings) {
-							for (const sibling of edge.siblings) {
+							for (const sibling of edge.allSiblings()) {
 								sibling.p = p;
 								sibling.updateDOM();
 							}
@@ -204,7 +204,7 @@ export default function({ panes, onChange, onDragging }: React.PropsWithChildren
 			? Math.abs(edge.left.left - edge.right.left) < 0.1 && Math.abs(edge.left.right - edge.right.right) < 0.1
 			: Math.abs(edge.left.top - edge.right.top) < 0.1 && Math.abs(edge.left.bottom - edge.right.bottom) < 0.1;
 
-		for (const sibiling of [edge].concat(edge.siblings)) {
+		for (const sibiling of [edge].concat(edge.allSiblings())) {
 			minX = Math.max(minX, sibiling.left.left);
 			maxX = Math.min(maxX, sibiling.right.right);
 			minY = Math.max(minY, sibiling.left.top);
@@ -263,19 +263,15 @@ export default function({ panes, onChange, onDragging }: React.PropsWithChildren
 			{layout.edges.map((edge, id) => {
 				let styles: React.CSSProperties = {};
 				if (edge.axe === 'horizontal') {
-					const left = Math.max(edge.left.left, edge.right.left);
-					const right = Math.min(edge.left.right, edge.right.right);
 					styles.top = edge.p.toFixed(6) + '%';
-					styles.left = left.toFixed(6) + '%';
-					styles.width = (right - left).toFixed(6) + '%';
+					styles.left = edge.s.toFixed(6) + '%';
+					styles.width = (edge.e - edge.s).toFixed(6) + '%';
 					styles.height = 'var(--edge-size)';
 				} else {
-					const top = Math.max(edge.left.top, edge.right.top);
-					const bottom = Math.min(edge.left.bottom, edge.right.bottom);
-					styles.top = top.toFixed(6) + '%';
+					styles.top = edge.s.toFixed(6) + '%';
 					styles.left = edge.p.toFixed(6) + '%';
 					styles.width = 'var(--edge-size)';
-					styles.height = (bottom - top).toFixed(6) + '%';
+					styles.height = (edge.e - edge.s).toFixed(6) + '%';
 				}
 
 				return <div
@@ -386,10 +382,12 @@ class Layout {
 					const pos = dir % 2 ? panesProps[a].right : panesProps[a].bottom;
 					const key = `${Math.min(a, b)}-${Math.max(a, b)}`;
 					if (!edges.has(key)) {
-						if (pos === 0 || pos === 100) {
-							debugger;
-						}
-						edges.set(key, new Edge(axe, pos, null!, null!, []));
+						// if (pos === 0 || pos === 100) {
+						// 	debugger;
+						// }
+						const start = dir % 2 ? Math.max(panesProps[a].top, panesProps[b].top) : Math.max(panesProps[a].left, panesProps[b].left);
+						const end = dir % 2 ? Math.min(panesProps[a].bottom, panesProps[b].bottom) : Math.min(panesProps[a].right, panesProps[b].right);
+						edges.set(key, new Edge(axe, start, end, pos, null!, null!, []));
 					}
 				}
 			}
@@ -398,7 +396,15 @@ class Layout {
 
 		for (const [_, edge] of edges) {
 			for (const [_, other] of edges) {
-				if (edge !== other && edge.axe === other.axe && Math.abs(edge.p - other.p) < 0.1) {
+				if (
+					edge !== other &&
+					edge.axe === other.axe &&
+					Math.abs(edge.p - other.p) < 0.1 &&
+					(
+						Math.abs(edge.s - other.e) < 0.1 ||
+						Math.abs(edge.e - other.s) < 0.1
+					)
+				) {
 					edge.siblings.push(other);
 				}
 			}
@@ -446,12 +452,24 @@ class Edge {
 
 	constructor(
 		public axe: Axe,
+		public s: number,
+		public e: number,
 		public p: number,
 		public left: Pane,
 		public right: Pane,
 		public siblings: Edge[],
 	) {
 		this.ref = React.createRef();
+	}
+
+	public allSiblings(siblings: Set<Edge> = new Set()) {
+		for (const sibling of this.siblings) {
+			if (!siblings.has(sibling)) {
+				siblings.add(sibling);
+				sibling.allSiblings(siblings);
+			}
+		}
+		return Array.from(siblings);
 	}
 
 	public dispose() {
@@ -466,22 +484,18 @@ class Edge {
 		this.right.updateDOM();
 		if (this.ref.current) {
 			if (this.axe === 'horizontal') {
-				const left = Math.max(this.left.left, this.right.left);
-				const right = Math.min(this.left.right, this.right.right);
 				this.ref.current.style.top = this.p.toFixed(6) + '%';
-				this.ref.current.style.left = left.toFixed(6) + '%';
-				this.ref.current.style.width = (right - left).toFixed(6) + '%';
+				this.ref.current.style.left = this.s.toFixed(6) + '%';
+				this.ref.current.style.width = (this.e - this.s).toFixed(6) + '%';
 				this.ref.current.style.height = 'var(--edge-size)';
 			} else {
-				const top = Math.max(this.left.top, this.right.top);
-				const bottom = Math.min(this.left.bottom, this.right.bottom);
-				this.ref.current.style.top = top.toFixed(6) + '%';
+				this.ref.current.style.top = this.s.toFixed(6) + '%';
 				this.ref.current.style.left = this.p.toFixed(6) + '%';
 				this.ref.current.style.width = 'var(--edge-size)';
-				this.ref.current.style.height = (bottom - top).toFixed(6) + '%';
+				this.ref.current.style.height = (this.e - this.s).toFixed(6) + '%';
 			}
 		}
-		for (const sibling of this.siblings) {
+		for (const sibling of this.allSiblings()) {
 			sibling.left.updateDOM();
 			sibling.right.updateDOM();
 		}
