@@ -1,5 +1,5 @@
 // @ts-ignore
-import init, { process_command, Editor } from '/editor/editor.js';
+import init, { Editor } from '/editor/editor.js';
 import type { Command } from './editor';
 
 (async () => {
