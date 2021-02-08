@@ -1,0 +1,83 @@
+<script lang="ts">
+	import Workbench from './Workbench.svelte';
+	import { onMount } from 'svelte';
+
+	onMount(() => {
+		function onKeyDown(e: KeyboardEvent) {
+			if (e.ctrlKey) {
+				document.body.classList.add('key--ctrl');
+			}
+			if (e.altKey) {
+				document.body.classList.add('key--alt');
+			}
+			if (e.shiftKey) {
+				document.body.classList.add('key--shift');
+			}
+			if (e.metaKey) {
+				document.body.classList.add('key--meta');
+			}
+			if (e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) {
+				e.preventDefault();
+			}
+		}
+
+		function onKeyUp(e: KeyboardEvent) {
+			if (!e.ctrlKey) {
+				document.body.classList.remove('key--ctrl');
+			}
+			if (!e.altKey) {
+				document.body.classList.remove('key--alt');
+			}
+			if (!e.shiftKey) {
+				document.body.classList.remove('key--shift');
+			}
+			if (!e.metaKey) {
+				document.body.classList.remove('key--meta');
+			}
+			if (!e.ctrlKey || !e.altKey || !e.shiftKey || !e.metaKey) {
+				e.preventDefault();
+			}
+		}
+
+		document.addEventListener('keydown', onKeyDown);
+		document.addEventListener('keyup', onKeyUp);
+		return () => {
+			document.removeEventListener('keydown', onKeyDown);
+			document.removeEventListener('keyup', onKeyUp);
+		}
+	});
+</script>
+
+<Workbench />
+
+<style global>
+	html {
+		width: 100%;
+		height: 100%;
+		background: #333;
+
+		--cursor-pointer: url('assets/cursors/mouse-pointer.svg') 3 0, auto;
+		--cursor-ns-resize: url('assets/cursors/arrows-h.svg') 8 8, ns-resize;
+		--cursor-ew-resize: url('assets/cursors/arrows-v.svg') 8 8, ew-resize;
+		--cursor-ne-resize: url('assets/cursors/expand-alt-nw.svg') 8 8, ne-resize;
+		--cursor-nw-resize: url('assets/cursors/expand-alt-ne.svg') 8 8, nw-resize;
+		--cursor-se-resize: url('assets/cursors/expand-alt-se.svg') 8 8, se-resize;
+		--cursor-sw-resize: url('assets/cursors/expand-alt-sw.svg') 8 8, sw-resize;
+		--cursor-flip-horizontal: url('assets/cursors/sync-alt-h.svg') 8 8, url('assets/cursors/arrows-h.svg') 8 8, ew-resize;
+		--cursor-swap-horizontal: url('assets/cursors/exchange-h.svg') 8 8, url('assets/cursors/arrows-h.svg') 8 8, ew-resize;
+		--cursor-flip-vertical: url('assets/cursors/sync-alt-h.svg') 8 8, url('assets/cursors/arrows-v.svg') 4 8, ns-resize;
+		--cursor-swap-vertical: url('assets/cursors/exchange-v.svg') 8 8, url('assets/cursors/arrows-v.svg') 4 8, ns-resize;
+	}
+	body, body > #root {
+		width: 100%;
+		height: 100%;
+		margin: 0;
+		padding: 0;
+		overflow: hidden;
+		font-family: Segoe WPC, Segoe UI, sans-serif;
+		font-size: 11px;
+		user-select: none;
+		display: flex;
+		cursor: var(--cursor-pointer);
+	}
+</style>

@@ -21,7 +21,7 @@ pub struct Viewport {
 	pub options: ViewportOptions,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "cmd")]
 pub enum Command {
 	Init,

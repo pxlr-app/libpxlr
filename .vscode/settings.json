@@ -16,4 +16,5 @@
 	"editor.defaultFormatter": "rust-lang.rust",
 	"files.eol": "\n",
 	"rust-client.engine": "rust-analyzer",
+	"git.ignoreLimitWarning": true,
 }

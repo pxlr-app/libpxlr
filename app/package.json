@@ -1,7 +1,7 @@
 {
 	"scripts": {
 		"start": "concurrently -k \"npm run dev:client\" \"npm run dev:editor\"",
-		"dev:client": "snowpack dev",
+		"dev:client": "snowpack dev --port 8081",
 		"dev:editor": "cargo watch -i .gitignore -i \"pkg/*\" -s \"wasm-pack build --target web --out-name editor\"",
 		"build": "npm run build:client && npm run build:editor",
 		"build:client": "snowpack build",
