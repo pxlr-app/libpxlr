@@ -5,6 +5,7 @@
 		"test": "web-test-runner \"client/**/*.test.ts\""
 	},
 	"dependencies": {
+		"nanoid": "^3.1.20",
 		"svelte": "^3.24.0"
 	},
 	"devDependencies": {
