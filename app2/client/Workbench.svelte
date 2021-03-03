@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Layout from './Layout.svelte';
+	import Empty from './views/Empty.svelte';
 </script>
 
 <div class="workbench">
@@ -11,7 +12,7 @@
 			right: 60,
 			bottom: 100,
 			left: 0,
-			elem: 'Viewport'
+			elem: Empty
 		},
 		{
 			key: 'outline',
@@ -19,7 +20,7 @@
 			right: 100,
 			bottom: 40,
 			left: 60,
-			elem: 'Outline'
+			elem: Empty
 		},
 		{
 			key: 'properties',
@@ -27,7 +28,7 @@
 			right: 100,
 			bottom: 100,
 			left: 60,
-			elem: 'Properties'
+			elem: Empty
 		}
 	]} />
 </div>

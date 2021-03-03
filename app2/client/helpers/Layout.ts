@@ -1,3 +1,5 @@
+import type { SvelteComponent } from "svelte";
+
 export interface PaneProps {
 	key: string,
 	top: number,
@@ -6,8 +8,8 @@ export interface PaneProps {
 	left: number,
 	minWidth?: number,
 	minHeight?: number,
-	elem: any,
-	props?: any,
+	elem: typeof SvelteComponent,
+	props?: Record<string, any>,
 }
 
 const { abs, min, max } = Math;

@@ -251,7 +251,9 @@
 				class="view"
 				style={`top: ${pane.top.toFixed(6)}%; right: ${(100 - pane.right).toFixed(6)}%; bottom: ${(100 - pane.bottom).toFixed(6)}%; left: ${pane.left.toFixed(6)}%; --pane-top-neighbor: ${pane.links[0].length ? 1 : 0}; --pane-right-neighbor: ${pane.links[1].length ? 1 : 0}; --pane-bottom-neighbor: ${pane.links[2].length ? 1 : 0}; --pane-left-neighbor: ${pane.links[3].length ? 1 : 0};`}
 			>
-				View
+				<div class="inner">
+					<svelte:component this={pane.props.elem} {...pane.props.props} />
+				</div>
 			</div>
 		{/each}
 	</div>
@@ -354,5 +356,27 @@
 		bottom: 0;
 		right: 0;
 		cursor: var(--cursor-se-resize);
+	}
+
+	.inner {
+		display: flex;
+		position: absolute;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		left: 0;
+		overflow: hidden;
+		box-sizing: border-box;
+		border-style: solid;
+		border-color: #000;
+		box-shadow: 0 0 0 6px #000;
+		border-top-width: calc(var(--pane-top-neighbor) * 1px);
+		border-right-width: calc(var(--pane-right-neighbor) * 1px);
+		border-bottom-width: calc(var(--pane-bottom-neighbor) * 1px);
+		border-left-width: calc(var(--pane-left-neighbor) * 1px);
+		border-top-left-radius: calc(min(var(--pane-top-neighbor), var(--pane-left-neighbor)) * 5px);
+		border-top-right-radius: calc(min(var(--pane-top-neighbor), var(--pane-right-neighbor)) * 5px);
+		border-bottom-left-radius: calc(min(var(--pane-bottom-neighbor), var(--pane-left-neighbor)) * 5px);
+		border-bottom-right-radius: calc(min(var(--pane-bottom-neighbor), var(--pane-right-neighbor)) * 5px);
 	}
 </style>
