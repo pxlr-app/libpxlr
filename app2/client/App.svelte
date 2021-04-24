@@ -1,57 +1,49 @@
 <script lang="ts">
 	import Workbench from './Workbench.svelte';
-	import { onMount } from 'svelte';
-
-	onMount(() => {
-		function onKeyDown(e: KeyboardEvent) {
-			if (e.ctrlKey) {
-				document.body.classList.add('key--ctrl');
-			}
-			if (e.altKey) {
-				document.body.classList.add('key--alt');
-			}
-			if (e.shiftKey) {
-				document.body.classList.add('key--shift');
-			}
-			if (e.metaKey) {
-				document.body.classList.add('key--meta');
-			}
-			if (e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) {
-				e.preventDefault();
-			}
+	
+	function onKeyDown(e: KeyboardEvent) {
+		if (e.ctrlKey) {
+			document.body.classList.add('key--ctrl');
 		}
-
-		function onKeyUp(e: KeyboardEvent) {
-			if (!e.ctrlKey) {
-				document.body.classList.remove('key--ctrl');
-			}
-			if (!e.altKey) {
-				document.body.classList.remove('key--alt');
-			}
-			if (!e.shiftKey) {
-				document.body.classList.remove('key--shift');
-			}
-			if (!e.metaKey) {
-				document.body.classList.remove('key--meta');
-			}
-			if (!e.ctrlKey || !e.altKey || !e.shiftKey || !e.metaKey) {
-				e.preventDefault();
-			}
+		if (e.altKey) {
+			document.body.classList.add('key--alt');
 		}
-
-		document.addEventListener('keydown', onKeyDown);
-		document.addEventListener('keyup', onKeyUp);
-		return () => {
-			document.removeEventListener('keydown', onKeyDown);
-			document.removeEventListener('keyup', onKeyUp);
+		if (e.shiftKey) {
+			document.body.classList.add('key--shift');
 		}
-	});
+		if (e.metaKey) {
+			document.body.classList.add('key--meta');
+		}
+		if (e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) {
+			e.preventDefault();
+		}
+	}
+
+	function onKeyUp(e: KeyboardEvent) {
+		if (!e.ctrlKey) {
+			document.body.classList.remove('key--ctrl');
+		}
+		if (!e.altKey) {
+			document.body.classList.remove('key--alt');
+		}
+		if (!e.shiftKey) {
+			document.body.classList.remove('key--shift');
+		}
+		if (!e.metaKey) {
+			document.body.classList.remove('key--meta');
+		}
+		if (!e.ctrlKey || !e.altKey || !e.shiftKey || !e.metaKey) {
+			e.preventDefault();
+		}
+	}
 </script>
+
+<svelte:body on:keydown={onKeyDown} onkeyup={onKeyUp} />
 
 <Workbench />
 
-<style global>
-	html {
+<style>
+	:global(html) {
 		width: 100%;
 		height: 100%;
 		background: #333;
@@ -68,7 +60,7 @@
 		--cursor-flip-vertical: url('assets/cursors/sync-alt-h.svg') 8 8, url('assets/cursors/arrows-v.svg') 4 8, ns-resize;
 		--cursor-swap-vertical: url('assets/cursors/exchange-v.svg') 8 8, url('assets/cursors/arrows-v.svg') 4 8, ns-resize;
 	}
-	body, body > #root {
+	:global(body), :global(#root) {
 		width: 100%;
 		height: 100%;
 		margin: 0;

@@ -223,10 +223,10 @@
 			<div
 				bind:this={edge.ref}
 				on:pointerdown={onResizerDown(id)}
-				class={`resizer resizer--${edge.axe}`}
-				style={edge.axe === 'horizontal'
+				class="resizer resizer--{edge.axe}"
+				style="{edge.axe === 'horizontal'
 						? `top: ${edge.p.toFixed(6)}%; left: ${edge.s.toFixed(6)}%; width: ${(edge.e - edge.s).toFixed(6)}%; height: var(--edge-size);`
-						: `top: ${edge.s.toFixed(6)}%; left: ${edge.p.toFixed(6)}%; width: var(--edge-size); height: ${(edge.e - edge.s).toFixed(6)}%;`}
+						: `top: ${edge.s.toFixed(6)}%; left: ${edge.p.toFixed(6)}%; width: var(--edge-size); height: ${(edge.e - edge.s).toFixed(6)}%;`}"
 			/>
 		{/each}
 	</div>
@@ -235,7 +235,7 @@
 			<div
 				bind:this={pane.dividerRef}
 				class="divider"
-				style={`top: ${pane.top.toFixed(6)}%; right: ${(100 - pane.right).toFixed(6)}%; bottom: ${(100 - pane.bottom).toFixed(6)}%; left: ${(pane.left).toFixed(6)}%; border-width: ${pane.links.map((link, dir) => link ? (dir === 1 || dir === 2 ? `var(--border-size)` : 0) : `var(--border-size)`).join(' ')};`}
+				style="top: {pane.top.toFixed(6)}%; right: {(100 - pane.right).toFixed(6)}%; bottom: {(100 - pane.bottom).toFixed(6)}%; left: {(pane.left).toFixed(6)}%; border-width: {pane.links.map((link, dir) => link ? (dir === 1 || dir === 2 ? `var(--border-size)` : 0) : `var(--border-size)`).join(' ')};"
 			>
 				<div on:pointerdown={onDividerDown(id, 'top-left')} class="divider--top-left" />
 				<div on:pointerdown={onDividerDown(id, 'top-right')} class="divider--top-right" />
@@ -249,7 +249,7 @@
 			<div
 				bind:this={pane.paneRef}
 				class="view"
-				style={`top: ${pane.top.toFixed(6)}%; right: ${(100 - pane.right).toFixed(6)}%; bottom: ${(100 - pane.bottom).toFixed(6)}%; left: ${pane.left.toFixed(6)}%; --pane-top-neighbor: ${pane.links[0].length ? 1 : 0}; --pane-right-neighbor: ${pane.links[1].length ? 1 : 0}; --pane-bottom-neighbor: ${pane.links[2].length ? 1 : 0}; --pane-left-neighbor: ${pane.links[3].length ? 1 : 0};`}
+				style="top: {pane.top.toFixed(6)}%; right: {(100 - pane.right).toFixed(6)}%; bottom: {(100 - pane.bottom).toFixed(6)}%; left: {pane.left.toFixed(6)}%; --pane-top-neighbor: {pane.links[0].length ? 1 : 0}; --pane-right-neighbor: {pane.links[1].length ? 1 : 0}; --pane-bottom-neighbor: {pane.links[2].length ? 1 : 0}; --pane-left-neighbor: {pane.links[3].length ? 1 : 0};"
 			>
 				<div class="inner">
 					<svelte:component this={pane.props.elem} {...pane.props.props} />
