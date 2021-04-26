@@ -16,7 +16,7 @@ impl Node for Group {
 	fn id(&self) -> &Uuid {
 		&self.id
 	}
-	fn display(&self) -> &str {
+	fn name(&self) -> &str {
 		&self.name
 	}
 }

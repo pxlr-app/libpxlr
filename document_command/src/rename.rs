@@ -5,10 +5,6 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 pub trait Renamable: Node {
-	fn name(&self) -> &str {
-		self.display()
-	}
-
 	fn rename<S: Into<String>>(&self, name: S) -> (CommandType, CommandType) {
 		(
 			CommandType::Rename(RenameCommand {

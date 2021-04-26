@@ -15,7 +15,7 @@ impl Node for Note {
 	fn id(&self) -> &Uuid {
 		&self.id
 	}
-	fn display(&self) -> &str {
+	fn name(&self) -> &str {
 		&self.name
 	}
 }
