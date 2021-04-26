@@ -1,0 +1,57 @@
+name: Continuous Integration
+
+on:
+  pull_request:
+    paths-ignore: 
+      - "app/**"
+
+jobs:
+  continuous-integration:
+    name: Cargo test
+    runs-on: ${{ matrix.os }}
+    env:
+      CARGO_HUSKY_DONT_INSTALL_HOOKS: true
+      RUST_BACKTRACE: 1
+
+    strategy:
+      matrix:
+        build: [linux, macos, win-msvc]
+        include:
+        - build: linux
+          os: ubuntu-latest
+          rust: nightly
+        - build: macos
+          os: macos-latest
+          rust: nightly
+        - build: win-msvc
+          os: windows-2019
+          rust: nightly
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+
+    - name: Install rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: ${{ matrix.rust }}
+        override: true
+        components: rustfmt
+
+    - name: Cargo build
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+
+    - name: Cargo test
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+
+    - name: Cargo fmt
+      if: matrix.build == 'linux'
+      uses: actions-rs/cargo@v1
+      with:
+        command: fmt
+        args: --all -- --check

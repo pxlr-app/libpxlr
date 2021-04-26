@@ -1,0 +1,18 @@
+[package]
+name = "document_command"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+document_core = { path = "../document_core" }
+serde = { version = "1.0", features = ["rc"] }
+uuid = { version = "0.8", features = ["serde", "stdweb", "v4"] }
+vek = { version = "0.15", features = ["serde"] }
+
+[build-dependencies]
+rustc_version = "0.2.3"
+
+[dev-dependencies.cargo-husky]
+version = "1"
+default-features = false
+features = ["user-hooks"]

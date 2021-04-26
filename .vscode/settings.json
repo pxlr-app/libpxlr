@@ -1,0 +1,20 @@
+{
+	"editor.insertSpaces": false,
+	"editor.detectIndentation": false,
+	"debug.allowBreakpointsEverywhere": true,
+	"files.exclude": {
+		".cargo-husky": true,
+		".editorconfig": true,
+		".gitignore": true,
+		".prettierrc": true,
+		"rustfmt.toml": true,
+		"target": true,
+		"Cargo.lock": true,
+		"**/node_modules": true
+	},
+	"editor.formatOnSave": true,
+	"editor.defaultFormatter": "rust-lang.rust",
+	"files.eol": "\n",
+	"rust-client.engine": "rust-analyzer",
+	"git.ignoreLimitWarning": true,
+}

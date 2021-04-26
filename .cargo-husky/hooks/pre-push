@@ -1,0 +1,11 @@
+#!/bin/sh
+
+set -e
+
+FILES=$(git diff --cached --name-only --diff-filter=ACMR "*.rs" "*.toml" | sed 's| |\\ |g')
+[ -z "$FILES" ] && exit 0
+
+cargo test --all
+cargo fmt
+
+echo "$FILES" | xargs git add
