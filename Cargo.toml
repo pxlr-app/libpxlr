@@ -1,5 +1,6 @@
 [workspace]
 members = [
-	"document_core",
 	"document_command",
+	"document_core",
+	"document_file",
 ]
