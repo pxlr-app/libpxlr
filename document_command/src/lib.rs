@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 mod group;
+mod note;
 mod rename;
 mod translate;
 
@@ -57,6 +58,7 @@ pub trait Command {
 }
 
 pub use group::*;
+pub use note::*;
 pub use rename::*;
 pub use translate::*;
 
@@ -66,6 +68,7 @@ pub enum CommandType {
 	MoveChild(group::MoveChildCommand),
 	RemoveChild(group::RemoveChildCommand),
 	Rename(rename::RenameCommand),
+	SetNoteContent(note::SetNoteContentCommand),
 	Translate(translate::TranslateCommand),
 }
 
@@ -76,6 +79,7 @@ impl Command for CommandType {
 			CommandType::MoveChild(cmd) => cmd.target(),
 			CommandType::RemoveChild(cmd) => cmd.target(),
 			CommandType::Rename(cmd) => cmd.target(),
+			CommandType::SetNoteContent(cmd) => cmd.target(),
 			CommandType::Translate(cmd) => cmd.target(),
 		}
 	}
@@ -85,6 +89,7 @@ impl Command for CommandType {
 			CommandType::MoveChild(cmd) => cmd.execute(node),
 			CommandType::RemoveChild(cmd) => cmd.execute(node),
 			CommandType::Rename(cmd) => cmd.execute(node),
+			CommandType::SetNoteContent(cmd) => cmd.execute(node),
 			CommandType::Translate(cmd) => cmd.execute(node),
 		}
 	}

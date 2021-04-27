@@ -9,6 +9,7 @@ pub struct Note {
 	pub id: Uuid,
 	pub name: Arc<String>,
 	pub position: Arc<Vec2<u32>>,
+	pub content: Arc<String>,
 }
 
 impl Default for Note {
@@ -17,6 +18,7 @@ impl Default for Note {
 			id: Uuid::new_v4(),
 			name: Arc::new("Note".into()),
 			position: Arc::new(Vec2::new(0, 0)),
+			content: Arc::new("".into()),
 		}
 	}
 }
