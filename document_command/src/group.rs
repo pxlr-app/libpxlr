@@ -4,17 +4,40 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum ParentingError {
+	ExistingChild,
+	InvalidChild,
+}
+
+impl std::fmt::Display for ParentingError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			ParentingError::ExistingChild => write!(f, "Child already present"),
+			ParentingError::InvalidChild => write!(f, "Invalid child"),
+		}
+	}
+}
+
+impl std::error::Error for ParentingError {}
+
 pub trait Parenting: NonLeafNode {
-	fn add_child(&self, child: Arc<NodeType>) -> Option<(CommandType, CommandType)> {
+	fn add_child(
+		&self,
+		child: Arc<NodeType>,
+	) -> Result<(CommandType, CommandType), ParentingError> {
+		if !self.is_child_valid(&child) {
+			return Err(ParentingError::InvalidChild);
+		}
 		let child_found = self
 			.children()
 			.iter()
 			.find(|c| c.id() == child.id())
 			.is_some();
 		if child_found {
-			None
+			Err(ParentingError::ExistingChild)
 		} else {
-			Some((
+			Ok((
 				CommandType::AddChild(AddChildCommand {
 					target: *self.id(),
 					child: child.clone(),
@@ -27,10 +50,10 @@ pub trait Parenting: NonLeafNode {
 		}
 	}
 
-	fn remove_child(&self, child_id: Uuid) -> Option<(CommandType, CommandType)> {
+	fn remove_child(&self, child_id: Uuid) -> Result<(CommandType, CommandType), ParentingError> {
 		let child = self.children().iter().find(|child| child.id() == &child_id);
 		match child {
-			Some(child) => Some((
+			Some(child) => Ok((
 				CommandType::RemoveChild(RemoveChildCommand {
 					target: *self.id(),
 					child_id: child_id,
@@ -40,17 +63,21 @@ pub trait Parenting: NonLeafNode {
 					child: child.clone(),
 				}),
 			)),
-			None => None,
+			None => Err(ParentingError::InvalidChild),
 		}
 	}
 
-	fn move_child(&self, child_id: Uuid, position: usize) -> Option<(CommandType, CommandType)> {
+	fn move_child(
+		&self,
+		child_id: Uuid,
+		position: usize,
+	) -> Result<(CommandType, CommandType), ParentingError> {
 		let old_position = self
 			.children()
 			.iter()
 			.position(|child| child.id() == &child_id);
 		match old_position {
-			Some(old_position) => Some((
+			Some(old_position) => Ok((
 				CommandType::MoveChild(MoveChildCommand {
 					target: *self.id(),
 					child_id,
@@ -62,7 +89,7 @@ pub trait Parenting: NonLeafNode {
 					position: old_position,
 				}),
 			)),
-			None => None,
+			None => Err(ParentingError::InvalidChild),
 		}
 	}
 }

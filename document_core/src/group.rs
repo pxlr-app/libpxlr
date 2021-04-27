@@ -22,6 +22,12 @@ impl Node for Group {
 }
 
 impl NonLeafNode for Group {
+	fn is_child_valid(&self, node: &NodeType) -> bool {
+		match node {
+			NodeType::Group(_) | NodeType::Note(_) => true,
+			_ => false,
+		}
+	}
 	fn children(&self) -> &Arc<Vec<Arc<NodeType>>> {
 		&self.children
 	}

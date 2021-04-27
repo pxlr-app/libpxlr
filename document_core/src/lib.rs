@@ -14,6 +14,7 @@ pub trait Node {
 }
 
 pub trait NonLeafNode: Node {
+	fn is_child_valid(&self, _node: &NodeType) -> bool;
 	fn children(&self) -> &Arc<Vec<Arc<NodeType>>>;
 }
 
