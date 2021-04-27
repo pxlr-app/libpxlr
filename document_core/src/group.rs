@@ -4,12 +4,23 @@ use std::sync::Arc;
 use uuid::Uuid;
 use vek::vec::repr_c::vec2::Vec2;
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Group {
 	pub id: Uuid,
 	pub name: Arc<String>,
 	pub position: Arc<Vec2<u32>>,
 	pub children: Arc<Vec<Arc<NodeType>>>,
+}
+
+impl Default for Group {
+	fn default() -> Self {
+		Group {
+			id: Uuid::new_v4(),
+			name: Arc::new("Group".into()),
+			position: Arc::new(Vec2::new(0, 0)),
+			children: Arc::new(vec![]),
+		}
+	}
 }
 
 impl Node for Group {
@@ -41,7 +52,7 @@ mod tests {
 	#[test]
 	fn impl_default() {
 		let group = Group::default();
-		assert_eq!(*group.name, "");
+		assert_eq!(*group.name, "Group");
 		assert_eq!(*group.position, Vec2::new(0, 0));
 		assert_eq!(group.children.len(), 0);
 	}

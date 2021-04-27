@@ -4,11 +4,21 @@ use std::sync::Arc;
 use uuid::Uuid;
 use vek::vec::repr_c::vec2::Vec2;
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Note {
 	pub id: Uuid,
 	pub name: Arc<String>,
 	pub position: Arc<Vec2<u32>>,
+}
+
+impl Default for Note {
+	fn default() -> Self {
+		Note {
+			id: Uuid::new_v4(),
+			name: Arc::new("Note".into()),
+			position: Arc::new(Vec2::new(0, 0)),
+		}
+	}
 }
 
 impl Node for Note {
@@ -28,7 +38,7 @@ mod tests {
 	#[test]
 	fn impl_default() {
 		let note = Note::default();
-		assert_eq!(*note.name, "");
+		assert_eq!(*note.name, "Note");
 		assert_eq!(*note.position, Vec2::new(0, 0));
 	}
 }

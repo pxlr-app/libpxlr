@@ -56,7 +56,7 @@ mod tests {
 	fn rename_note() {
 		use document_core::Note;
 		let note = Note::default();
-		assert_eq!(*note.name, "");
+		assert_eq!(*note.name, "Note");
 
 		let (rename, _) = note.rename("Foo");
 
@@ -71,7 +71,7 @@ mod tests {
 	fn rename_group() {
 		use document_core::Group;
 		let group = Group::default();
-		assert_eq!(*group.name, "");
+		assert_eq!(*group.name, "Group");
 
 		let (rename, _) = group.rename("Foo");
 
