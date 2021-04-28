@@ -14,16 +14,9 @@ pub use node::*;
 pub use note::*;
 pub use parser::*;
 
-#[derive(Debug, Clone, Copy)]
-enum Dirty {
-	META,
-	CONTENT,
-	BOTH,
-}
-
 #[derive(Debug)]
 struct DocumentNode {
-	mode: Dirty,
+	content: bool,
 	shallow: bool,
 	node: Arc<NodeType>,
 }
@@ -213,24 +206,17 @@ impl Document {
 	/// Mark node as dirty (everything) and use it as root node
 	pub fn set_root_node(&mut self, node: Arc<NodeType>) {
 		self.index.root = *node.id();
-		self.dirty_nodes.insert(
-			*node.id(),
-			DocumentNode {
-				mode: Dirty::BOTH,
-				shallow: false,
-				node: node.clone(),
-			},
-		);
+		self.update_node(node, false);
 	}
 
 	/// Mark node as dirty
-	fn mark_dirty_node(&mut self, mode: Dirty, shallow: bool, node: Arc<NodeType>) {
+	fn mark_dirty_node(&mut self, content: bool, shallow: bool, node: Arc<NodeType>) {
 		let id = *node.id();
 		let mut doc_node = match self.dirty_nodes.remove(&id) {
 			Some(node) => node,
 			None => DocumentNode {
 				node: node.clone(),
-				mode,
+				content,
 				shallow,
 			},
 		};
@@ -240,19 +226,19 @@ impl Document {
 
 	/// Mark node and children (shallow?) as dirty (content, meta)
 	pub fn update_node(&mut self, node: Arc<NodeType>, shallow: bool) {
-		self.mark_dirty_node(Dirty::BOTH, shallow, node.clone());
+		self.mark_dirty_node(true, shallow, node.clone());
 	}
 
 	/// Mark node and children (shallow?) as dirty (meta only)
 	pub fn touch_node(&mut self, node: Arc<NodeType>, shallow: bool) {
-		self.mark_dirty_node(Dirty::META, shallow, node.clone());
+		self.mark_dirty_node(false, shallow, node.clone());
 	}
 
 	/// Write node at the end of file and return chunk dependencies
 	fn write_node<W: std::io::Write + std::io::Seek>(
 		&mut self,
 		writer: &mut W,
-		mode: &Dirty,
+		content: bool,
 		shallow: bool,
 		node: Arc<NodeType>,
 	) -> std::io::Result<usize> {
@@ -271,25 +257,24 @@ impl Document {
 		chunk.offset = writer.seek(std::io::SeekFrom::Current(0))?;
 		chunk.name = node.name().to_string();
 
-		let (node_size, node_rect, node_deps) = if let Dirty::CONTENT | Dirty::BOTH = mode {
+		let (node_size, node_rect, node_deps) = if content {
 			node.write(writer)
 		} else {
 			node.write(&mut crate::io::Void)
 		}?;
 
-		if let Dirty::META | Dirty::BOTH = mode {
-			chunk.size = node_size as u32;
-			chunk.rect = node_rect;
-		}
-		if let Dirty::CONTENT | Dirty::BOTH = mode {
+		chunk.size = node_size as u32;
+		chunk.rect = node_rect;
+
+		if content {
 			size += node_size;
 		}
 		if !shallow {
 			for child in node_deps.children.iter() {
-				size += self.write_node(writer, mode, shallow, child.clone())?;
+				size += self.write_node(writer, content, shallow, child.clone())?;
 			}
 			for dep in node_deps.dependencies.iter() {
-				size += self.write_node(writer, mode, shallow, dep.clone())?;
+				size += self.write_node(writer, content, shallow, dep.clone())?;
 			}
 		}
 
@@ -309,7 +294,7 @@ impl Document {
 		for doc_node in dirty_nodes.iter() {
 			size += self.write_node(
 				writer,
-				&doc_node.mode,
+				doc_node.content,
 				doc_node.shallow,
 				doc_node.node.clone(),
 			)?;
@@ -324,16 +309,50 @@ impl Document {
 		self.index.hash = Uuid::new_v4();
 		self.index.prev_offset = prev_offset;
 		self.index.size = index_size as u32;
-		size += self.index.write(writer)?;
 
+		size += self.index.write(writer)?;
 		size += (Footer { version: 0 }).write(writer)?;
 
 		Ok(size)
 	}
 
 	/// Trim unused chunk to a new file
-	pub fn trim(&self) -> std::io::Result<usize> {
-		unimplemented!()
+	pub fn trim<R: std::io::Read + std::io::Seek, W: std::io::Write + std::io::Seek>(
+		&self,
+		source: &mut R,
+		destination: &mut W,
+	) -> Result<usize, DocumentError> {
+		destination.seek(std::io::SeekFrom::Start(0))?;
+		let mut size = 0;
+
+		let mut chunks = vec![];
+		for (_, chunk) in self.chunks.iter() {
+			let mut buffer = vec![0u8; chunk.size as usize];
+			source.seek(std::io::SeekFrom::Start(chunk.offset))?;
+			source.read_exact(&mut buffer)?;
+
+			let mut new_chunk = chunk.clone();
+			new_chunk.offset = size as u64;
+			chunks.push(new_chunk);
+
+			destination.write_all(&buffer)?;
+			size += buffer.len();
+		}
+
+		let mut index_size = 0;
+		for chunk in chunks.drain(..) {
+			index_size += chunk.write(destination)?;
+		}
+		size += index_size;
+
+		let mut index = self.index.clone();
+		index.prev_offset = 0;
+		index.size = index_size as u32;
+
+		size += index.write(destination)?;
+		size += (Footer { version: 0 }).write(destination)?;
+
+		Ok(size)
 	}
 
 	/// Retrieve a new document pointing to previous Index
@@ -412,5 +431,31 @@ mod tests {
 			.expect("Could not read previous");
 		let root4 = doc3.get_root_node(&mut buffer).expect("Could not get root");
 		assert_eq!(*root4, *root);
+	}
+
+	#[test]
+	fn trim_doc() {
+		let mut buffer: std::io::Cursor<Vec<u8>> = std::io::Cursor::new(vec![
+			1, 0, 0, 0, 0, 0, 24, 224, 18, 32, 86, 187, 66, 11, 187, 108, 2, 255, 22, 121, 210,
+			221, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 77, 121, 32, 110, 111, 116, 101, 0, 0, 0,
+			0, 0, 0, 0, 0, 65, 0, 0, 0, 24, 224, 18, 32, 86, 187, 66, 11, 187, 108, 2, 255, 22,
+			121, 210, 221, 195, 112, 8, 189, 227, 99, 69, 139, 143, 161, 176, 32, 202, 148, 6, 201,
+			0, 80, 88, 76, 82, 1, 0, 0, 0, 0, 0, 24, 224, 18, 32, 86, 187, 66, 11, 187, 108, 2,
+			255, 22, 121, 210, 221, 1, 0, 120, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 89, 111, 117, 114,
+			32, 110, 111, 116, 101, 120, 0, 0, 0, 0, 0, 0, 0, 67, 0, 0, 0, 24, 224, 18, 32, 86,
+			187, 66, 11, 187, 108, 2, 255, 22, 121, 210, 221, 31, 232, 217, 133, 171, 17, 79, 69,
+			131, 66, 82, 225, 238, 60, 215, 141, 0, 80, 88, 76, 82,
+		]);
+		let doc = Document::read(&mut buffer).expect("Could not read document");
+		assert_eq!(doc.index.prev_offset, 120);
+
+		let mut buffer2: std::io::Cursor<Vec<u8>> = std::io::Cursor::new(vec![]);
+
+		let size = doc
+			.trim(&mut buffer, &mut buffer2)
+			.expect("Could not trim document");
+		assert_eq!(buffer2.get_ref().len(), size);
 	}
 }
