@@ -90,7 +90,7 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn string_write() {
+	fn string_parse() {
 		let string: String = "Foobar".into();
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
@@ -100,17 +100,13 @@ mod tests {
 			buffer.get_ref(),
 			&vec![6u8, 0, 0, 0, 70, 111, 111, 98, 97, 114]
 		);
+
+		let (_, string2) = String::parse(&buffer.get_ref()).expect("Could not parse");
+		assert_eq!(string2, string);
 	}
 
 	#[test]
-	fn string_parse() {
-		let buffer: Vec<u8> = vec![6u8, 0, 0, 0, 70, 111, 111, 98, 97, 114];
-		let (_, string) = String::parse(&buffer).expect("Could not parse");
-		assert_eq!(string, "Foobar");
-	}
-
-	#[test]
-	fn uuid_write() {
+	fn uuid_parse() {
 		let id = Uuid::parse_str("99d59b4f-1ab8-4103-ba3c-61f4d68a9c48").unwrap();
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
@@ -120,22 +116,13 @@ mod tests {
 			buffer.get_ref(),
 			&vec![153u8, 213, 155, 79, 26, 184, 65, 3, 186, 60, 97, 244, 214, 138, 156, 72]
 		);
+
+		let (_, id2) = Uuid::parse(&buffer.get_ref()).expect("Could not parse");
+		assert_eq!(id2, id);
 	}
 
 	#[test]
-	fn uuid_parse() {
-		let buffer: Vec<u8> = vec![
-			153u8, 213, 155, 79, 26, 184, 65, 3, 186, 60, 97, 244, 214, 138, 156, 72,
-		];
-		let (_, id) = Uuid::parse(&buffer).expect("Could not parse");
-		assert_eq!(
-			id,
-			Uuid::parse_str("99d59b4f-1ab8-4103-ba3c-61f4d68a9c48").unwrap()
-		);
-	}
-
-	#[test]
-	fn rect_write() {
+	fn rect_parse() {
 		let rect: Rect<u32, u32> = Rect::new(1, 2, 3, 4);
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
@@ -145,29 +132,21 @@ mod tests {
 			buffer.get_ref(),
 			&vec![1u8, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0]
 		);
+
+		let (_, rect2) = Rect::<u32, u32>::parse(&buffer.get_ref()).expect("Could not parse");
+		assert_eq!(rect2, rect);
 	}
 
 	#[test]
-	fn rect_parse() {
-		let buffer: Vec<u8> = vec![1u8, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0];
-		let (_, rect) = Rect::<u32, u32>::parse(&buffer).expect("Could not parse");
-		assert_eq!(rect, Rect::new(1, 2, 3, 4));
-	}
-
-	#[test]
-	fn vec_write() {
+	fn vec_parse() {
 		let vec: Vec2<u32> = Vec2::new(1, 2);
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
 		let size = vec.write(&mut buffer).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
 		assert_eq!(buffer.get_ref(), &vec![1u8, 0, 0, 0, 2, 0, 0, 0]);
-	}
 
-	#[test]
-	fn vec_parse() {
-		let buffer: Vec<u8> = vec![1u8, 0, 0, 0, 2, 0, 0, 0];
-		let (_, rect) = Vec2::<u32>::parse(&buffer).expect("Could not parse");
-		assert_eq!(rect, Vec2::new(1, 2));
+		let (_, vec2) = Vec2::<u32>::parse(&buffer.get_ref()).expect("Could not parse");
+		assert_eq!(vec2, vec);
 	}
 }

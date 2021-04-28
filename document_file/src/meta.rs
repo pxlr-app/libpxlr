@@ -31,7 +31,7 @@ pub struct Index {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Chunk {
 	pub id: Uuid,
-	pub node: u16,
+	pub node_type: u16,
 	pub offset: u64,
 	pub size: u32,
 	pub rect: Rect<u32, u32>,
@@ -61,7 +61,7 @@ impl Default for Chunk {
 	fn default() -> Self {
 		Chunk {
 			id: Uuid::new_v4(),
-			node: 0,
+			node_type: 0,
 			offset: 0,
 			size: 0,
 			rect: Rect::new(0, 0, 0, 0),
@@ -134,7 +134,7 @@ impl Parse for Chunk {
 			bytes,
 			Chunk {
 				id,
-				node,
+				node_type: node,
 				offset,
 				size,
 				rect,
@@ -150,7 +150,7 @@ impl Write for Chunk {
 	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
 		let mut b: usize = 54;
 		self.id.write(writer)?;
-		writer.write_all(&self.node.to_le_bytes())?;
+		writer.write_all(&self.node_type.to_le_bytes())?;
 		writer.write_all(&self.offset.to_le_bytes())?;
 		writer.write_all(&self.size.to_le_bytes())?;
 		self.rect.write(writer)?;
@@ -179,13 +179,9 @@ mod tests {
 		let size = footer.write(&mut buffer).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
 		assert_eq!(buffer.get_ref(), &vec![1, 80, 88, 76, 82]);
-	}
 
-	#[test]
-	fn footer_write() {
-		let buffer: Vec<u8> = vec![1u8, 80, 88, 76, 82];
-		let (_, footer) = Footer::parse(&buffer).expect("Could not parse");
-		assert_eq!(footer, Footer { version: 1 });
+		let (_, footer2) = Footer::parse(&buffer.get_ref()).expect("Could not parse");
+		assert_eq!(footer2, footer);
 	}
 
 	#[test]
@@ -208,32 +204,16 @@ mod tests {
 				253, 25, 232, 222
 			]
 		);
-	}
 
-	#[test]
-	fn index_write() {
-		let buffer: Vec<u8> = vec![
-			2u8, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 74, 137, 201, 85, 84, 254, 74, 72, 179, 103, 55,
-			138, 138, 71, 171, 52, 104, 32, 73, 112, 165, 58, 78, 181, 190, 228, 147, 227, 253, 25,
-			232, 222,
-		];
-		let (_, index) = Index::parse(&buffer).expect("Could not parse");
-		assert_eq!(
-			index,
-			Index {
-				hash: Uuid::parse_str("68204970-a53a-4eb5-bee4-93e3fd19e8de").unwrap(),
-				root: Uuid::parse_str("4a89c955-54fe-4a48-b367-378a8a47ab34").unwrap(),
-				size: 1,
-				prev_offset: 2,
-			}
-		);
+		let (_, index2) = Index::parse(&buffer.get_ref()).expect("Could not parse");
+		assert_eq!(index2, index);
 	}
 
 	#[test]
 	fn chunk_parse() {
 		let chunk = Chunk {
 			id: Uuid::parse_str("ac16bacf-9a95-413e-b2f4-fcf94274ad62").unwrap(),
-			node: 1,
+			node_type: 1,
 			offset: 2,
 			size: 3,
 			rect: Rect::new(4, 5, 6, 7),
@@ -259,34 +239,8 @@ mod tests {
 				112, 80, 135, 75, 57, 239
 			]
 		);
-	}
 
-	#[test]
-	fn chunk_write() {
-		let buffer: Vec<u8> = vec![
-			172u8, 22, 186, 207, 154, 149, 65, 62, 178, 244, 252, 249, 66, 116, 173, 98, 1, 0, 2,
-			0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0, 2, 0,
-			0, 0, 1, 0, 0, 0, 5, 0, 0, 0, 67, 104, 117, 110, 107, 41, 22, 102, 215, 233, 226, 68,
-			1, 142, 123, 195, 23, 122, 47, 133, 54, 90, 237, 73, 14, 228, 240, 74, 24, 148, 237, 1,
-			71, 47, 141, 82, 167, 177, 224, 42, 241, 70, 139, 74, 148, 184, 15, 112, 80, 135, 75,
-			57, 239,
-		];
-		let (_, chunk) = Chunk::parse(&buffer).expect("Could not parse");
-		assert_eq!(
-			chunk,
-			Chunk {
-				id: Uuid::parse_str("ac16bacf-9a95-413e-b2f4-fcf94274ad62").unwrap(),
-				node: 1,
-				offset: 2,
-				size: 3,
-				rect: Rect::new(4, 5, 6, 7),
-				name: "Chunk".into(),
-				children: vec![
-					Uuid::parse_str("291666d7-e9e2-4401-8e7b-c3177a2f8536").unwrap(),
-					Uuid::parse_str("5aed490e-e4f0-4a18-94ed-01472f8d52a7").unwrap(),
-				],
-				dependencies: vec![Uuid::parse_str("b1e02af1-468b-4a94-b80f-7050874b39ef").unwrap()],
-			}
-		);
+		let (_, chunk2) = Chunk::parse(&buffer.get_ref()).expect("Could not parse");
+		assert_eq!(chunk2, chunk);
 	}
 }

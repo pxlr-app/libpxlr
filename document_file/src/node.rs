@@ -22,6 +22,19 @@ pub trait NodeWrite {
 	) -> io::Result<(usize, Rect<u32, u32>, ChunkDependencies)>;
 }
 
+pub(crate) trait NodeTypeNodeId {
+	fn node_id(&self) -> u16;
+}
+
+impl NodeTypeNodeId for NodeType {
+	fn node_id(&self) -> u16 {
+		match self {
+			NodeType::Group(_) => 0,
+			NodeType::Note(_) => 1,
+		}
+	}
+}
+
 impl NodeParse for NodeType {
 	fn parse<'bytes>(
 		version: u8,

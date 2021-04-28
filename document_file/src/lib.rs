@@ -21,6 +21,7 @@ enum Dirty {
 	BOTH,
 }
 
+#[derive(Debug)]
 struct DocumentNode {
 	mode: Dirty,
 	shallow: bool,
@@ -51,6 +52,7 @@ pub enum DocumentError {
 	Parse(nom::Err<()>),
 	UnsupportedVersion(u8),
 	NodeNotFound(Uuid),
+	NoPreviousVersion,
 }
 
 impl std::error::Error for DocumentError {}
@@ -62,6 +64,7 @@ impl std::fmt::Display for DocumentError {
 			DocumentError::IO(err) => write!(f, "File IO error: {}", err),
 			DocumentError::UnsupportedVersion(ver) => write!(f, "Unsupported version: {}", ver),
 			DocumentError::NodeNotFound(id) => write!(f, "Node {} not found", id),
+			DocumentError::NoPreviousVersion => write!(f, "No previous version"),
 		}
 	}
 }
@@ -223,14 +226,15 @@ impl Document {
 	/// Mark node as dirty
 	fn mark_dirty_node(&mut self, mode: Dirty, shallow: bool, node: Arc<NodeType>) {
 		let id = *node.id();
-		let doc_node = match self.dirty_nodes.remove(&id) {
+		let mut doc_node = match self.dirty_nodes.remove(&id) {
 			Some(node) => node,
 			None => DocumentNode {
-				node,
+				node: node.clone(),
 				mode,
 				shallow,
 			},
 		};
+		doc_node.node = node.clone();
 		self.dirty_nodes.insert(id, doc_node);
 	}
 
@@ -257,12 +261,16 @@ impl Document {
 			Some(chunk) => chunk,
 			None => Chunk {
 				id: *node.id(),
-				node: 0,
-				offset: writer.seek(std::io::SeekFrom::Current(0))?,
-				name: node.name().to_string(),
+				node_type: 0,
+				offset: 0,
+				name: "".to_string(),
 				..Default::default()
 			},
 		};
+		chunk.node_type = node.node_id();
+		chunk.offset = writer.seek(std::io::SeekFrom::Current(0))?;
+		chunk.name = node.name().to_string();
+
 		let (node_size, node_rect, node_deps) = if let Dirty::CONTENT | Dirty::BOTH = mode {
 			node.write(writer)
 		} else {
@@ -313,6 +321,7 @@ impl Document {
 		}
 		size += index_size;
 
+		self.index.hash = Uuid::new_v4();
 		self.index.prev_offset = prev_offset;
 		self.index.size = index_size as u32;
 		size += self.index.write(writer)?;
@@ -328,14 +337,22 @@ impl Document {
 	}
 
 	/// Retrieve a new document pointing to previous Index
-	pub fn previous_version(&self) -> std::io::Result<Document> {
-		unimplemented!()
+	pub fn read_previous<R: std::io::Read + std::io::Seek>(
+		&self,
+		reader: &mut R,
+	) -> Result<Self, DocumentError> {
+		if self.index.prev_offset == 0 {
+			Err(DocumentError::NoPreviousVersion)
+		} else {
+			Self::read_at(reader, self.index.prev_offset)
+		}
 	}
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use document_command::*;
 	use document_core::*;
 
 	#[test]
@@ -356,5 +373,44 @@ mod tests {
 
 		let root2 = doc2.get_root_node(&mut buffer).expect("Could not get root");
 		assert_eq!(*root2, *root);
+	}
+
+	#[test]
+	fn rename_read_previous_doc() {
+		let mut doc = Document::default();
+		let mut note = Note::default();
+		note.name = Arc::new("My note".into());
+		let root = Arc::new(NodeType::Note(note));
+		doc.set_root_node(root.clone());
+
+		let mut buffer: std::io::Cursor<Vec<u8>> = std::io::Cursor::new(Vec::new());
+		let written = doc.append(&mut buffer).expect("Could not write");
+		assert_eq!(buffer.get_ref().len(), written);
+
+		let rename = RenameCommand {
+			target: *root.id(),
+			name: "Your note".into(),
+		};
+		let root2 = Arc::new(rename.execute(&*root).expect("Could not rename"));
+		assert_eq!(root2.name(), "Your note");
+		assert_ne!(*root2, *root);
+
+		doc.update_node(root2.clone(), false);
+
+		let written2 = doc.append(&mut buffer).expect("Could not write");
+		assert_eq!(buffer.get_ref().len(), written + written2);
+
+		let doc2 = Document::read(&mut buffer).expect("Could not read");
+		assert_eq!(doc.index, doc2.index);
+		assert_eq!(doc.chunks, doc2.chunks);
+
+		let root3 = doc2.get_root_node(&mut buffer).expect("Could not get root");
+		assert_eq!(*root3, *root2);
+
+		let doc3 = doc2
+			.read_previous(&mut buffer)
+			.expect("Could not read previous");
+		let root4 = doc3.get_root_node(&mut buffer).expect("Could not get root");
+		assert_eq!(*root4, *root);
 	}
 }
