@@ -28,6 +28,7 @@ struct DocumentNode {
 }
 
 pub struct Document {
+	pub footer: Footer,
 	pub index: Index,
 	pub chunks: HashMap<Uuid, Chunk>,
 	pub(crate) dirty_nodes: HashMap<Uuid, DocumentNode>,
@@ -36,6 +37,7 @@ pub struct Document {
 impl Default for Document {
 	fn default() -> Self {
 		Document {
+			footer: Footer::default(),
 			index: Index::default(),
 			chunks: HashMap::default(),
 			dirty_nodes: HashMap::default(),
@@ -48,6 +50,7 @@ pub enum DocumentError {
 	IO(std::io::Error),
 	Parse(nom::Err<()>),
 	UnsupportedVersion(u8),
+	NodeNotFound(Uuid),
 }
 
 impl std::error::Error for DocumentError {}
@@ -58,6 +61,7 @@ impl std::fmt::Display for DocumentError {
 			DocumentError::Parse(err) => write!(f, "Parse error: {}", err),
 			DocumentError::IO(err) => write!(f, "File IO error: {}", err),
 			DocumentError::UnsupportedVersion(ver) => write!(f, "Unsupported version: {}", ver),
+			DocumentError::NodeNotFound(id) => write!(f, "Node {} not found", id),
 		}
 	}
 }
@@ -115,7 +119,10 @@ impl Document {
 					chunk_map.insert(chunk.id, chunk);
 				}
 
+				// TODO assert chunks tree is sound (all children/deps ID exists)
+
 				Ok(Document {
+					footer,
 					index,
 					chunks: chunk_map,
 					dirty_nodes: HashMap::default(),
@@ -133,13 +140,71 @@ impl Document {
 		self.get_node_by_id(reader, self.index.root)
 	}
 
+	/// Gather chunk by walking dependency tree from node
+	fn get_chunk_dependencies(&self, id: Uuid) -> Vec<&Chunk> {
+		let mut deps = vec![];
+		let mut queue: Vec<Uuid> = Vec::with_capacity(self.chunks.len());
+		queue.push(id);
+		while let Some(id) = queue.pop() {
+			if let Some(chunk) = self.chunks.get(&id) {
+				deps.push(chunk);
+				queue.extend_from_slice(&chunk.children);
+				queue.extend_from_slice(&chunk.dependencies);
+			}
+		}
+		deps
+	}
+
 	/// Retrieve a node by it's ID
 	pub fn get_node_by_id<R: std::io::Read + std::io::Seek>(
 		&self,
-		_reader: &mut R,
-		_id: Uuid,
+		reader: &mut R,
+		id: Uuid,
 	) -> Result<Arc<NodeType>, DocumentError> {
-		unimplemented!()
+		if !self.chunks.contains_key(&id) {
+			Err(DocumentError::NodeNotFound(id))
+		} else {
+			let mut nodes: HashMap<Uuid, Arc<NodeType>> = HashMap::default();
+			let mut deps = self.get_chunk_dependencies(id);
+			deps.reverse();
+
+			for chunk in deps.drain(..) {
+				if !nodes.contains_key(&chunk.id) {
+					let mut buffer = vec![0u8; chunk.size as usize];
+					reader.seek(std::io::SeekFrom::Start(chunk.offset))?;
+					reader.read_exact(&mut buffer)?;
+
+					let children: Arc<Vec<Arc<NodeType>>> = Arc::new(
+						chunk
+							.children
+							.iter()
+							.map(|id| nodes.get(&id).unwrap().clone())
+							.collect(),
+					);
+					let dependencies: Arc<Vec<Arc<NodeType>>> = Arc::new(
+						chunk
+							.dependencies
+							.iter()
+							.map(|id| nodes.get(&id).unwrap().clone())
+							.collect(),
+					);
+
+					let (_, node) = NodeType::parse(
+						self.footer.version,
+						&chunk,
+						ChunkDependencies {
+							children,
+							dependencies,
+						},
+						&buffer,
+					)?;
+					nodes.insert(*node.id(), node);
+				}
+			}
+
+			let node = nodes.get(&id).unwrap().clone();
+			Ok(node)
+		}
 	}
 
 	/// Mark node as dirty (everything) and use it as root node
@@ -276,8 +341,10 @@ mod tests {
 	#[test]
 	fn write_and_read_simple_doc() {
 		let mut doc = Document::default();
-		let root = Arc::new(NodeType::Note(Note::default()));
-		doc.set_root_node(root);
+		let mut note = Note::default();
+		note.name = Arc::new("My note".into());
+		let root = Arc::new(NodeType::Note(note));
+		doc.set_root_node(root.clone());
 
 		let mut buffer: std::io::Cursor<Vec<u8>> = std::io::Cursor::new(Vec::new());
 		let written = doc.append(&mut buffer).expect("Could not write");
@@ -287,6 +354,7 @@ mod tests {
 		assert_eq!(doc.index, doc2.index);
 		assert_eq!(doc.chunks, doc2.chunks);
 
-		let _root = doc2.get_root_node(&mut buffer).expect("Could not get root");
+		let root2 = doc2.get_root_node(&mut buffer).expect("Could not get root");
+		assert_eq!(*root2, *root);
 	}
 }

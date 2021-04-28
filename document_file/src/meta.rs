@@ -10,7 +10,7 @@ use std::{io, sync::Arc};
 use uuid::Uuid;
 use vek::geom::repr_c::Rect;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct Footer {
 	pub version: u8,
 }
