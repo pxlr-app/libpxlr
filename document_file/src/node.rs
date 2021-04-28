@@ -6,6 +6,7 @@ use vek::geom::repr_c::Rect;
 
 pub trait NodeParse {
 	fn parse<'bytes>(
+		version: u8,
 		chunk: &Chunk,
 		dependencies: ChunkDependencies,
 		bytes: &'bytes [u8],
@@ -23,14 +24,15 @@ pub trait NodeWrite {
 
 impl NodeParse for NodeType {
 	fn parse<'bytes>(
+		version: u8,
 		chunk: &Chunk,
 		dependencies: ChunkDependencies,
 		bytes: &'bytes [u8],
 	) -> IResult<&'bytes [u8], Arc<NodeType>> {
 		let (bytes, node_type) = le_u16(bytes)?;
 		match node_type {
-			0u16 => document_core::Group::parse(chunk, dependencies, bytes),
-			1u16 => document_core::Note::parse(chunk, dependencies, bytes),
+			0u16 => document_core::Group::parse(version, chunk, dependencies, bytes),
+			1u16 => document_core::Note::parse(version, chunk, dependencies, bytes),
 			_ => unreachable!(),
 		}
 	}

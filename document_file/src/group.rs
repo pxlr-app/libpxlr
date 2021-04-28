@@ -6,6 +6,7 @@ use vek::{geom::repr_c::Rect, vec::repr_c::vec2::Vec2};
 
 impl NodeParse for Group {
 	fn parse<'bytes>(
+		_version: u8,
 		chunk: &Chunk,
 		dependencies: ChunkDependencies,
 		bytes: &'bytes [u8],
