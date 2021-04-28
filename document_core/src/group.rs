@@ -32,6 +32,7 @@ impl Node for Group {
 	}
 }
 
+#[allow(unreachable_patterns)]
 impl NonLeafNode for Group {
 	fn is_child_valid(&self, node: &NodeType) -> bool {
 		match node {

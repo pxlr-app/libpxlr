@@ -1,5 +1,5 @@
 use crate::{Command, CommandType};
-use document_core::{Node, NodeType, NonLeafNode, Note};
+use document_core::{NodeType, Note};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
