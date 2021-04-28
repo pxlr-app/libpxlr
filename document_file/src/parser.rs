@@ -90,7 +90,7 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn string_parse() {
+	fn string_write() {
 		let string: String = "Foobar".into();
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
@@ -103,14 +103,14 @@ mod tests {
 	}
 
 	#[test]
-	fn string_write() {
+	fn string_parse() {
 		let buffer: Vec<u8> = vec![6u8, 0, 0, 0, 70, 111, 111, 98, 97, 114];
 		let (_, string) = String::parse(&buffer).expect("Could not parse");
 		assert_eq!(string, "Foobar");
 	}
 
 	#[test]
-	fn uuid_parse() {
+	fn uuid_write() {
 		let id = Uuid::parse_str("99d59b4f-1ab8-4103-ba3c-61f4d68a9c48").unwrap();
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
@@ -123,7 +123,7 @@ mod tests {
 	}
 
 	#[test]
-	fn uuid_write() {
+	fn uuid_parse() {
 		let buffer: Vec<u8> = vec![
 			153u8, 213, 155, 79, 26, 184, 65, 3, 186, 60, 97, 244, 214, 138, 156, 72,
 		];
@@ -135,7 +135,7 @@ mod tests {
 	}
 
 	#[test]
-	fn rect_parse() {
+	fn rect_write() {
 		let rect: Rect<u32, u32> = Rect::new(1, 2, 3, 4);
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
@@ -148,14 +148,14 @@ mod tests {
 	}
 
 	#[test]
-	fn rect_write() {
+	fn rect_parse() {
 		let buffer: Vec<u8> = vec![1u8, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0];
 		let (_, rect) = Rect::<u32, u32>::parse(&buffer).expect("Could not parse");
 		assert_eq!(rect, Rect::new(1, 2, 3, 4));
 	}
 
 	#[test]
-	fn vec_parse() {
+	fn vec_write() {
 		let vec: Vec2<u32> = Vec2::new(1, 2);
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
@@ -165,7 +165,7 @@ mod tests {
 	}
 
 	#[test]
-	fn vec_write() {
+	fn vec_parse() {
 		let buffer: Vec<u8> = vec![1u8, 0, 0, 0, 2, 0, 0, 0];
 		let (_, rect) = Vec2::<u32>::parse(&buffer).expect("Could not parse");
 		assert_eq!(rect, Vec2::new(1, 2));

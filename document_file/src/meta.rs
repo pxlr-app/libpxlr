@@ -1,10 +1,12 @@
 use crate::parser::{Parse, Write};
+use document_core::NodeType;
 use nom::{
+	bytes::complete::tag,
 	multi::many_m_n,
 	number::complete::{le_u16, le_u32, le_u64},
 	IResult,
 };
-use std::io;
+use std::{io, sync::Arc};
 use uuid::Uuid;
 use vek::geom::repr_c::Rect;
 
@@ -38,6 +40,12 @@ pub struct Chunk {
 	pub dependencies: Vec<Uuid>,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct ChunkDependencies {
+	pub children: Arc<Vec<Arc<NodeType>>>,
+	pub dependencies: Arc<Vec<Arc<NodeType>>>,
+}
+
 impl Default for Index {
 	fn default() -> Self {
 		Index {
@@ -59,7 +67,7 @@ impl Default for Chunk {
 			rect: Rect::new(0, 0, 0, 0),
 			name: "Chunk".into(),
 			children: vec![],
-			dependencies: vec![]
+			dependencies: vec![],
 		}
 	}
 }
@@ -67,7 +75,7 @@ impl Default for Chunk {
 impl Parse for Footer {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], Footer> {
 		let (bytes, version) = nom::number::complete::le_u8(bytes)?;
-		let (bytes, _) = nom::bytes::complete::tag(MAGIC_NUMBER)(bytes)?;
+		let (bytes, _) = tag(MAGIC_NUMBER)(bytes)?;
 		Ok((bytes, Footer { version }))
 	}
 }
@@ -115,11 +123,11 @@ impl Parse for Chunk {
 		let (bytes, offset) = le_u64(bytes)?;
 		let (bytes, size) = le_u32(bytes)?;
 		let (bytes, rect) = Rect::<u32, u32>::parse(bytes)?;
-		let (bytes, item_count) = le_u32(bytes)?;
+		let (bytes, child_count) = le_u32(bytes)?;
 		let (bytes, dep_count) = le_u32(bytes)?;
 		let (bytes, name) = String::parse(bytes)?;
 		let (bytes, children) =
-			many_m_n(item_count as usize, item_count as usize, Uuid::parse)(bytes)?;
+			many_m_n(child_count as usize, child_count as usize, Uuid::parse)(bytes)?;
 		let (bytes, dependencies) =
 			many_m_n(dep_count as usize, dep_count as usize, Uuid::parse)(bytes)?;
 		Ok((
@@ -256,12 +264,12 @@ mod tests {
 	#[test]
 	fn chunk_write() {
 		let buffer: Vec<u8> = vec![
-			172u8, 22, 186, 207, 154, 149, 65, 62, 178, 244, 252, 249, 66, 116, 173, 98, 1, 0,
-			2, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0,
-			2, 0, 0, 0, 1, 0, 0, 0, 5, 0, 0, 0, 67, 104, 117, 110, 107, 41, 22, 102, 215, 233,
-			226, 68, 1, 142, 123, 195, 23, 122, 47, 133, 54, 90, 237, 73, 14, 228, 240, 74, 24,
-			148, 237, 1, 71, 47, 141, 82, 167, 177, 224, 42, 241, 70, 139, 74, 148, 184, 15,
-			112, 80, 135, 75, 57, 239,
+			172u8, 22, 186, 207, 154, 149, 65, 62, 178, 244, 252, 249, 66, 116, 173, 98, 1, 0, 2,
+			0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0, 2, 0,
+			0, 0, 1, 0, 0, 0, 5, 0, 0, 0, 67, 104, 117, 110, 107, 41, 22, 102, 215, 233, 226, 68,
+			1, 142, 123, 195, 23, 122, 47, 133, 54, 90, 237, 73, 14, 228, 240, 74, 24, 148, 237, 1,
+			71, 47, 141, 82, 167, 177, 224, 42, 241, 70, 139, 74, 148, 184, 15, 112, 80, 135, 75,
+			57, 239,
 		];
 		let (_, chunk) = Chunk::parse(&buffer).expect("Could not parse");
 		assert_eq!(
