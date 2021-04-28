@@ -4,7 +4,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 use vek::vec::repr_c::vec2::Vec2;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Note {
 	pub id: Uuid,
 	pub name: Arc<String>,

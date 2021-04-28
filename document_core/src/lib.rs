@@ -22,7 +22,7 @@ pub use group::Group;
 pub use note::Note;
 pub use walk::*;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum NodeType {
 	Note(note::Note),
 	Group(group::Group),
