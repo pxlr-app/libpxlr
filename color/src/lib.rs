@@ -13,7 +13,7 @@ pub trait Color: Default {
 	fn from_slice_mut(slice: &mut [u8]) -> &mut Self;
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Alpha<C: Color> {
 	pub color: C,
 	pub alpha: u8,
@@ -612,6 +612,7 @@ impl<'data> PixelMut<'data> {
 		frt: &'frt Pixel,
 		bck: &'bck Pixel,
 	) -> Result<(), ChannelError> {
+		// TODO allow blending between color with conversion?
 		assert_eq!(self.channel, frt.channel);
 		assert_eq!(self.channel, bck.channel);
 
@@ -670,13 +671,19 @@ impl<'data> PixelMut<'data> {
 
 		Ok(())
 	}
+
+	/// As immutable
+	pub fn as_immutable(&self) -> Pixel {
+		Pixel {
+			data: self.data,
+			channel: self.channel,
+		}
+	}
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use image::{DynamicImage, ImageBuffer};
-	use std::path::Path;
 
 	#[test]
 	fn color_sizes() {
@@ -870,80 +877,132 @@ mod tests {
 		);
 	}
 
-	#[allow(dead_code)]
-	fn load_image(path: &Path) -> Result<(Channel, u32, u32, Vec<u8>), ()> {
-		match image::open(path).map_err(|_| ())? {
-			DynamicImage::ImageRgb8(img) => {
-				let (w, h) = img.dimensions();
-				let channel = Channel::Rgb;
-				let stride = channel.pixel_stride();
-				let mut pixels = vec![0u8; w as usize * h as usize * stride];
-
-				for (x, y, rgb) in img.enumerate_pixels() {
-					let index = (x as u32 + w * y as u32) as usize;
-					let buf = &mut pixels[(index * stride)..((index + 1) * stride)];
-					let mut pixel = PixelMut::from_buffer_mut(buf, channel);
-					*pixel.rgb().unwrap() = Rgb::new(rgb[0], rgb[1], rgb[2]);
-				}
-
-				Ok((channel, w, h, pixels))
-			}
-			DynamicImage::ImageRgba8(img) => {
-				let (w, h) = img.dimensions();
-				let channel = Channel::Rgba;
-				let stride = channel.pixel_stride();
-				let mut pixels = vec![0u8; w as usize * h as usize * stride];
-
-				for (x, y, rgba) in img.enumerate_pixels() {
-					let index = (x as u32 + w * y as u32) as usize;
-					let buf = &mut pixels[(index * stride)..((index + 1) * stride)];
-					let mut pixel = PixelMut::from_buffer_mut(buf, channel);
-					*pixel.rgba().unwrap() =
-						Rgba::new(Rgb::new(rgba[0], rgba[1], rgba[2]), rgba[3]);
-				}
-
-				Ok((channel, w, h, pixels))
-			}
-			_ => Err(()),
-		}
+	fn blend_pixels(front: Rgba, back: Rgba, blend_mode: Blend, compose_op: Compose) -> Rgba {
+		let mut frt_buf = Channel::Rgba.default_pixel();
+		let mut bck_buf = Channel::Rgba.default_pixel();
+		let mut dst_buf = Channel::Rgba.default_pixel();
+		let mut frt_px = PixelMut::from_buffer_mut(&mut frt_buf, Channel::Rgba);
+		let mut bck_px = PixelMut::from_buffer_mut(&mut bck_buf, Channel::Rgba);
+		let mut dst_px = PixelMut::from_buffer_mut(&mut dst_buf, Channel::Rgba);
+		*frt_px.rgba().unwrap() = front;
+		*bck_px.rgba().unwrap() = back;
+		dst_px
+			.blend(
+				blend_mode,
+				compose_op,
+				&frt_px.as_immutable(),
+				&bck_px.as_immutable(),
+			)
+			.unwrap();
+		*dst_px.rgba().unwrap()
 	}
 
-	#[allow(dead_code)]
-	fn save_pixels(
-		path: &Path,
-		channel: Channel,
-		width: u32,
-		height: u32,
-		data: &[u8],
-	) -> Result<(), ()> {
-		let len = channel.pixel_stride();
-		match channel {
-			Channel::Rgb => {
-				let mut img = ImageBuffer::new(width, height);
-				for (x, y, rgb) in img.enumerate_pixels_mut() {
-					let index = (x as u32 + width * y as u32) as usize;
-					let buf = &data[(index * len)..((index + 1) * len)];
-					let pixel = Pixel::from_buffer(buf, channel);
-					let Rgb { red, green, blue } = pixel.rgb().unwrap();
-					*rgb = image::Rgb([*red, *green, *blue]);
-				}
-				img.save(path).map_err(|_| ())
-			}
-			Channel::Rgba => {
-				let mut img = ImageBuffer::new(width, height);
-				for (x, y, rgba) in img.enumerate_pixels_mut() {
-					let index = (x as u32 + width * y as u32) as usize;
-					let buf = &data[(index * len)..((index + 1) * len)];
-					let pixel = Pixel::from_buffer(buf, channel);
-					let Rgba {
-						color: Rgb { red, green, blue },
-						alpha,
-					} = pixel.rgba().unwrap();
-					*rgba = image::Rgba([*red, *green, *blue, *alpha]);
-				}
-				img.save(path).map_err(|_| ())
-			}
-			_ => Err(()),
-		}
+	#[test]
+	fn blend_pixel_compositing() {
+		let redish = Rgba::new(Rgb::new(255, 0, 32), 255);
+		let greenish = Rgba::new(Rgb::new(0, 255, 128), 255);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::Normal, Compose::Clear),
+			Rgba::new(Rgb::new(0, 0, 0), 255)
+		);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::Normal, Compose::Copy),
+			Rgba::new(Rgb::new(255, 0, 32), 255)
+		);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::Normal, Compose::SourceOver),
+			Rgba::new(Rgb::new(255, 0, 32), 255)
+		);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::Normal, Compose::DestinationOver),
+			Rgba::new(Rgb::new(0, 255, 128), 255)
+		);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::Normal, Compose::SourceIn),
+			Rgba::new(Rgb::new(255, 0, 32), 255)
+		);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::Normal, Compose::DestinationIn),
+			Rgba::new(Rgb::new(0, 255, 128), 255)
+		);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::Normal, Compose::SourceOut),
+			Rgba::new(Rgb::new(0, 0, 0), 255)
+		);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::Normal, Compose::DestinationOut),
+			Rgba::new(Rgb::new(0, 0, 0), 255)
+		);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::Normal, Compose::SourceAtop),
+			Rgba::new(Rgb::new(255, 0, 32), 255)
+		);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::Normal, Compose::DestinationAtop),
+			Rgba::new(Rgb::new(0, 255, 128), 255)
+		);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::Normal, Compose::XOR),
+			Rgba::new(Rgb::new(0, 0, 0), 255)
+		);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::Normal, Compose::Lighter),
+			Rgba::new(Rgb::new(255, 255, 160), 255)
+		);
+	}
+
+	#[test]
+	fn blend_pixel_blending() {
+		let redish = Rgba::new(Rgb::new(255, 0, 32), 128);
+		let greenish = Rgba::new(Rgb::new(0, 255, 128), 255);
+
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::Normal, Compose::Lighter),
+			Rgba::new(Rgb::new(128, 255, 144), 255)
+		);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::Multiply, Compose::Lighter),
+			Rgba::new(Rgb::new(0, 255, 136), 255)
+		);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::Screen, Compose::Lighter),
+			Rgba::new(Rgb::new(128, 255, 200), 255)
+		);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::Overlay, Compose::Lighter),
+			Rgba::new(Rgb::new(0, 255, 200), 255)
+		);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::Darken, Compose::Lighter),
+			Rgba::new(Rgb::new(0, 255, 144), 255)
+		);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::Lighten, Compose::Lighter),
+			Rgba::new(Rgb::new(128, 255, 192), 255)
+		);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::ColorDodge, Compose::Lighter),
+			Rgba::new(Rgb::new(0, 255, 201), 255)
+		);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::ColorBurn, Compose::Lighter),
+			Rgba::new(Rgb::new(0, 255, 128), 255)
+		);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::HardLight, Compose::Lighter),
+			Rgba::new(Rgb::new(128, 255, 136), 255)
+		);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::SoftLight, Compose::Lighter),
+			Rgba::new(Rgb::new(0, 255, 168), 255)
+		);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::Difference, Compose::Lighter),
+			Rgba::new(Rgb::new(0, 255, 176), 255)
+		);
+		assert_eq!(
+			blend_pixels(redish, greenish, Blend::Exclusion, Compose::Lighter),
+			Rgba::new(Rgb::new(128, 255, 192), 255)
+		);
 	}
 }
