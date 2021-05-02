@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
-mod color;
 mod group;
 mod note;
 mod walk;
@@ -19,7 +18,6 @@ pub trait NonLeafNode: Node {
 	fn children(&self) -> &Arc<Vec<Arc<NodeType>>>;
 }
 
-pub use color::*;
 pub use group::*;
 pub use note::*;
 pub use walk::*;

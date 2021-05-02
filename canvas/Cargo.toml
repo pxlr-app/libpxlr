@@ -1,16 +1,13 @@
 [package]
-name = "document_command"
+name = "canvas"
 version = "0.2.0"
 edition = "2018"
 
 [dependencies]
-document_core = { path = "../document_core" }
+bitvec = { version = "0", features = ["serde"] }
+color = { path = "../color" }
 serde = { version = "1.0", features = ["rc"] }
-uuid = { version = "0.8", features = ["serde", "stdweb", "v4"] }
 vek = { version = "0.15", features = ["serde"] }
-
-[build-dependencies]
-rustc_version = "0.2.3"
 
 [dev-dependencies.cargo-husky]
 version = "1"

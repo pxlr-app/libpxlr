@@ -1,5 +1,8 @@
+mod blending;
 use serde::{Deserialize, Serialize};
 use vek::ops::Lerp;
+
+pub use blending::*;
 
 pub trait Color: Default {
 	const SIZE: usize;
@@ -116,6 +119,7 @@ macro_rules! define_color {
 }
 
 define_color!(Luma, (luma), u8);
+pub type Lumaa = Alpha<Luma>;
 define_color!(Rgb, (red, green, blue), u8);
 pub type Rgba = Alpha<Rgb>;
 define_color!(Uv, (u, v), f32);
@@ -259,11 +263,13 @@ impl<C: Lerp<f32, Output = C> + Copy + Color> Lerp<f32> for Alpha<C> {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Channel {
 	Luma,
+	Lumaa,
 	Rgb,
 	Rgba,
 	Uv,
 	Normal,
 	LumaNormal,
+	LumaaNormal,
 	RgbNormal,
 	RgbaNormal,
 	UvNormal,
@@ -273,11 +279,13 @@ impl std::fmt::Display for Channel {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match self {
 			Channel::Luma => write!(f, "Channel::Luma"),
+			Channel::Lumaa => write!(f, "Channel::Lumaa"),
 			Channel::Rgb => write!(f, "Channel::Rgb"),
 			Channel::Rgba => write!(f, "Channel::Rgba"),
 			Channel::Uv => write!(f, "Channel::Uv"),
 			Channel::Normal => write!(f, "Channel::Normal"),
 			Channel::LumaNormal => write!(f, "Channel::LumaNormal"),
+			Channel::LumaaNormal => write!(f, "Channel::LumaaNormal"),
 			Channel::RgbNormal => write!(f, "Channel::RgbNormal"),
 			Channel::RgbaNormal => write!(f, "Channel::RgbaNormal"),
 			Channel::UvNormal => write!(f, "Channel::UvNormal"),
@@ -305,11 +313,13 @@ impl Channel {
 	pub fn pixel_stride(&self) -> usize {
 		match self {
 			Channel::Luma => 1,
+			Channel::Lumaa => 2,
 			Channel::Rgb => 3,
 			Channel::Rgba => 4,
 			Channel::Uv => 8,
 			Channel::Normal => 12,
 			Channel::LumaNormal => 13,
+			Channel::LumaaNormal => 14,
 			Channel::RgbNormal => 15,
 			Channel::RgbaNormal => 16,
 			Channel::UvNormal => 20,
@@ -323,6 +333,9 @@ impl Channel {
 			Channel::Luma | Channel::LumaNormal => {
 				data.extend_from_slice(Luma::default().to_slice())
 			}
+			Channel::Lumaa | Channel::LumaaNormal => {
+				data.extend_from_slice(Lumaa::default().to_slice())
+			}
 			Channel::Rgb | Channel::RgbNormal => data.extend_from_slice(Rgb::default().to_slice()),
 			Channel::Rgba | Channel::RgbaNormal => {
 				data.extend_from_slice(Rgba::default().to_slice())
@@ -332,6 +345,7 @@ impl Channel {
 		}
 		match self {
 			Channel::LumaNormal
+			| Channel::LumaaNormal
 			| Channel::RgbNormal
 			| Channel::RgbaNormal
 			| Channel::UvNormal
@@ -347,7 +361,7 @@ impl Channel {
 	/// Offset is equal to the size of Rgba.
 	///
 	/// ```
-	/// use document_core::*;
+	/// use color::*;
 	/// let channel = Channel::RgbaNormal;
 	/// assert_eq!(channel.offset_of(Channel::Rgba), Ok(0));
 	/// assert_eq!(channel.offset_of(Channel::Normal), Ok(std::mem::size_of::<Rgba>()));
@@ -355,15 +369,18 @@ impl Channel {
 	pub fn offset_of(&self, channel: Channel) -> Result<usize, ChannelError> {
 		match (self, channel) {
 			(Channel::Luma, Channel::Luma)
+			| (Channel::Lumaa, Channel::Lumaa)
 			| (Channel::Rgb, Channel::Rgb)
 			| (Channel::Rgba, Channel::Rgba)
 			| (Channel::Uv, Channel::Uv)
 			| (Channel::Normal, Channel::Normal)
 			| (Channel::LumaNormal, Channel::Luma)
+			| (Channel::LumaaNormal, Channel::Lumaa)
 			| (Channel::RgbNormal, Channel::Rgb)
 			| (Channel::RgbaNormal, Channel::Rgba)
 			| (Channel::UvNormal, Channel::Uv) => Ok(0),
 			(Channel::LumaNormal, Channel::Normal) => Ok(std::mem::size_of::<Luma>()),
+			(Channel::LumaaNormal, Channel::Normal) => Ok(std::mem::size_of::<Lumaa>()),
 			(Channel::RgbNormal, Channel::Normal) => Ok(std::mem::size_of::<Rgb>()),
 			(Channel::RgbaNormal, Channel::Normal) => Ok(std::mem::size_of::<Rgba>()),
 			(Channel::UvNormal, Channel::Normal) => Ok(std::mem::size_of::<Uv>()),
@@ -400,7 +417,7 @@ impl<'data> Pixel<'data> {
 	/// Retrieve Luma color from Channel
 	///
 	/// ```
-	/// use document_core::*;
+	/// use color::*;
 	/// let color = Luma::new(1);
 	/// let pixel = Pixel::from_buffer(color.to_slice(), Channel::Luma);
 	/// assert!(pixel.luma().is_ok());
@@ -411,10 +428,24 @@ impl<'data> Pixel<'data> {
 		Ok(Luma::from_slice(&self.data[offset..offset + Luma::SIZE]))
 	}
 
+	/// Retrieve Lumaa color from Channel
+	///
+	/// ```
+	/// use color::*;
+	/// let color = Lumaa::new(Luma::new(1), 128);
+	/// let pixel = Pixel::from_buffer(color.to_slice(), Channel::Lumaa);
+	/// assert!(pixel.lumaa().is_ok());
+	/// assert_eq!(pixel.lumaa().unwrap(), &color);
+	/// ```
+	pub fn lumaa(&self) -> Result<&Lumaa, ChannelError> {
+		let offset = self.channel.offset_of(Channel::Lumaa)?;
+		Ok(Lumaa::from_slice(&self.data[offset..offset + Lumaa::SIZE]))
+	}
+
 	/// Retrieve Rgb color from Channel
 	///
 	/// ```
-	/// use document_core::*;
+	/// use color::*;
 	/// let color = Rgb::new(32, 64, 96);
 	/// let pixel = Pixel::from_buffer(color.to_slice(), Channel::Rgb);
 	/// assert!(pixel.rgb().is_ok());
@@ -428,7 +459,7 @@ impl<'data> Pixel<'data> {
 	/// Retrieve Rgba color from Channel
 	///
 	/// ```
-	/// use document_core::*;
+	/// use color::*;
 	/// let color = Rgba::new(Rgb::new(32, 64, 96), 128);
 	/// let pixel = Pixel::from_buffer(color.to_slice(), Channel::Rgba);
 	/// assert!(pixel.rgba().is_ok());
@@ -442,7 +473,7 @@ impl<'data> Pixel<'data> {
 	/// Retrieve Uv color from Channel
 	///
 	/// ```
-	/// use document_core::*;
+	/// use color::*;
 	/// let color = Uv::new(0.25, 0.75);
 	/// let pixel = Pixel::from_buffer(color.to_slice(), Channel::Uv);
 	/// assert!(pixel.uv().is_ok());
@@ -456,7 +487,7 @@ impl<'data> Pixel<'data> {
 	/// Retrieve Normal color from Channel
 	///
 	/// ```
-	/// use document_core::*;
+	/// use color::*;
 	/// let color = Normal::new(0.25, 0.75, 0.33);
 	/// let pixel = Pixel::from_buffer(color.to_slice(), Channel::Normal);
 	/// assert!(pixel.normal().is_ok());
@@ -480,7 +511,7 @@ impl<'data> PixelMut<'data> {
 	/// Retrieve Luma color from Channel
 	///
 	/// ```
-	/// use document_core::*;
+	/// use color::*;
 	/// let mut color = Luma::new(1);
 	/// let mut pixel = PixelMut::from_buffer_mut(color.to_slice_mut(), Channel::Luma);
 	/// assert!(pixel.luma().is_ok());
@@ -493,10 +524,26 @@ impl<'data> PixelMut<'data> {
 		))
 	}
 
+	/// Retrieve Lumaa color from Channel
+	///
+	/// ```
+	/// use color::*;
+	/// let mut color = Lumaa::new(Luma::new(1), 128);
+	/// let mut pixel = PixelMut::from_buffer_mut(color.to_slice_mut(), Channel::Lumaa);
+	/// assert!(pixel.lumaa().is_ok());
+	/// assert_eq!(pixel.lumaa().unwrap(), &Lumaa::new(Luma::new(1), 128));
+	/// ```
+	pub fn lumaa(&mut self) -> Result<&mut Lumaa, ChannelError> {
+		let offset = self.channel.offset_of(Channel::Lumaa)?;
+		Ok(Lumaa::from_slice_mut(
+			&mut self.data[offset..offset + Lumaa::SIZE],
+		))
+	}
+
 	/// Retrieve Rgb color from Channel
 	///
 	/// ```
-	/// use document_core::*;
+	/// use color::*;
 	/// let mut color = Rgb::new(32, 64, 96);
 	/// let mut pixel = PixelMut::from_buffer_mut(color.to_slice_mut(), Channel::Rgb);
 	/// assert!(pixel.rgb().is_ok());
@@ -512,7 +559,7 @@ impl<'data> PixelMut<'data> {
 	/// Retrieve Rgba color from Channel
 	///
 	/// ```
-	/// use document_core::*;
+	/// use color::*;
 	/// let mut color = Rgba::new(Rgb::new(32, 64, 96), 128);
 	/// let mut pixel = PixelMut::from_buffer_mut(color.to_slice_mut(), Channel::Rgba);
 	/// assert!(pixel.rgba().is_ok());
@@ -528,7 +575,7 @@ impl<'data> PixelMut<'data> {
 	/// Retrieve Uv color from Channel
 	///
 	/// ```
-	/// use document_core::*;
+	/// use color::*;
 	/// let mut color = Uv::new(0.25, 0.75);
 	/// let mut pixel = PixelMut::from_buffer_mut(color.to_slice_mut(), Channel::Uv);
 	/// assert!(pixel.uv().is_ok());
@@ -544,7 +591,7 @@ impl<'data> PixelMut<'data> {
 	/// Retrieve Normal color from Channel
 	///
 	/// ```
-	/// use document_core::*;
+	/// use color::*;
 	/// let mut color = Normal::new(0.25, 0.75, 0.33);
 	/// let mut pixel = PixelMut::from_buffer_mut(color.to_slice_mut(), Channel::Normal);
 	/// assert!(pixel.normal().is_ok());
@@ -556,15 +603,85 @@ impl<'data> PixelMut<'data> {
 			&mut self.data[offset..offset + Normal::SIZE],
 		))
 	}
+
+	/// Blend pixel together
+	pub fn blend<'frt, 'bck>(
+		&mut self,
+		blend_mode: Blend,
+		compose_op: Compose,
+		frt: &'frt Pixel,
+		bck: &'bck Pixel,
+	) -> Result<(), ChannelError> {
+		assert_eq!(self.channel, frt.channel);
+		assert_eq!(self.channel, bck.channel);
+
+		match self.channel {
+			Channel::Lumaa | Channel::LumaaNormal | Channel::Rgba | Channel::RgbaNormal => {
+				if let Channel::LumaaNormal | Channel::RgbaNormal = self.channel {
+					*self.normal().unwrap() = *frt.normal().unwrap();
+				}
+				match self.channel {
+					Channel::Lumaa | Channel::LumaaNormal => {
+						*self.luma().unwrap() = *frt.luma().unwrap();
+					}
+					Channel::Rgba | Channel::RgbaNormal => {
+						let f = frt.rgba().unwrap();
+						let b = bck.rgba().unwrap();
+
+						let fr = f.color.red as f32 / 255f32;
+						let fg = f.color.green as f32 / 255f32;
+						let fb = f.color.blue as f32 / 255f32;
+						let fa = f.alpha as f32 / 255f32;
+						let ba = b.alpha as f32 / 255f32;
+						let br = b.color.red as f32 / 255f32;
+						let bg = b.color.green as f32 / 255f32;
+						let bb = b.color.blue as f32 / 255f32;
+
+						#[allow(non_snake_case)]
+						let (Fa, Fb) = compose_op.compose(fa, ba);
+
+						// Apply blend
+						let or = (1. - ba) * fr + ba * blend_mode.blend(br, fr);
+						let og = (1. - ba) * fg + ba * blend_mode.blend(bg, fg);
+						let ob = (1. - ba) * fb + ba * blend_mode.blend(bb, fb);
+						// Compose
+						let rr = fa * Fa * or + ba * Fb * br;
+						let rg = fa * Fa * og + ba * Fb * bg;
+						let rb = fa * Fa * ob + ba * Fb * bb;
+						let ra = fa + ba * (1. - fa);
+
+						*self.rgba().unwrap() = Rgba::new(
+							Rgb::new(
+								(rr * 255_f32).round() as u8,
+								(rg * 255_f32).round() as u8,
+								(rb * 255_f32).round() as u8,
+							),
+							(ra * 255_f32).round() as u8,
+						)
+					}
+					_ => unreachable!(),
+				};
+			}
+			// Without alpha, no blending
+			_ => {
+				self.data.copy_from_slice(frt.data);
+			}
+		};
+
+		Ok(())
+	}
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use image::{DynamicImage, ImageBuffer};
+	use std::path::Path;
 
 	#[test]
 	fn color_sizes() {
 		assert_eq!(std::mem::size_of::<Luma>(), 1);
+		assert_eq!(std::mem::size_of::<Lumaa>(), 2);
 		assert_eq!(std::mem::size_of::<Rgb>(), 3);
 		assert_eq!(std::mem::size_of::<Rgba>(), 4);
 		assert_eq!(std::mem::size_of::<Uv>(), 8);
@@ -575,6 +692,10 @@ mod tests {
 	fn color_conversion() {
 		let luma_to_rgb: Rgb = Luma::new(128).into();
 		assert_eq!(luma_to_rgb, Rgb::new(128, 128, 128));
+		let luma_to_lumaa: Lumaa = Luma::new(128).into();
+		assert_eq!(luma_to_lumaa, Alpha::new(Luma::new(128), 255));
+		let lumaa_to_luma: Luma = *Alpha::new(Luma::new(128), 255);
+		assert_eq!(lumaa_to_luma, Luma::new(128));
 		let rgb_to_luma: Luma = Rgb::new(128, 128, 128).into();
 		assert_eq!(rgb_to_luma, Luma::new(128));
 		let rgb_to_rgba: Rgba = Rgb::new(1, 2, 3).into();
@@ -596,11 +717,13 @@ mod tests {
 	#[test]
 	fn channel_strides() {
 		assert_eq!(Channel::Luma.pixel_stride(), 1);
+		assert_eq!(Channel::Lumaa.pixel_stride(), 2);
 		assert_eq!(Channel::Rgb.pixel_stride(), 3);
 		assert_eq!(Channel::Rgba.pixel_stride(), 4);
 		assert_eq!(Channel::Uv.pixel_stride(), 8);
 		assert_eq!(Channel::Normal.pixel_stride(), 12);
 		assert_eq!(Channel::LumaNormal.pixel_stride(), 13);
+		assert_eq!(Channel::LumaaNormal.pixel_stride(), 14);
 		assert_eq!(Channel::RgbNormal.pixel_stride(), 15);
 		assert_eq!(Channel::RgbaNormal.pixel_stride(), 16);
 		assert_eq!(Channel::UvNormal.pixel_stride(), 20);
@@ -609,6 +732,7 @@ mod tests {
 	#[test]
 	fn channel_default_pixel() {
 		assert_eq!(Channel::Luma.default_pixel(), vec![0]);
+		assert_eq!(Channel::Lumaa.default_pixel(), vec![0, 255]);
 		assert_eq!(Channel::Rgb.default_pixel(), vec![0, 0, 0]);
 		assert_eq!(Channel::Rgba.default_pixel(), vec![0, 0, 0, 255]);
 		assert_eq!(Channel::Uv.default_pixel(), vec![0, 0, 0, 0, 0, 0, 0, 0]);
@@ -619,6 +743,10 @@ mod tests {
 		assert_eq!(
 			Channel::LumaNormal.default_pixel(),
 			vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+		);
+		assert_eq!(
+			Channel::LumaaNormal.default_pixel(),
+			vec![0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 		);
 		assert_eq!(
 			Channel::RgbNormal.default_pixel(),
@@ -641,6 +769,13 @@ mod tests {
 		assert!(pixel.luma().is_ok());
 		assert!(pixel.normal().is_ok());
 		assert_eq!(pixel.luma().unwrap(), &Luma::default());
+		assert_eq!(pixel.normal().unwrap(), &Normal::default());
+
+		let buffer = Channel::LumaaNormal.default_pixel();
+		let pixel = Pixel::from_buffer(&buffer, Channel::LumaaNormal);
+		assert!(pixel.lumaa().is_ok());
+		assert!(pixel.normal().is_ok());
+		assert_eq!(pixel.lumaa().unwrap(), &Lumaa::default());
 		assert_eq!(pixel.normal().unwrap(), &Normal::default());
 
 		let buffer = Channel::RgbNormal.default_pixel();
@@ -678,6 +813,19 @@ mod tests {
 		assert_eq!(
 			buffer,
 			vec![128, 205, 204, 76, 62, 0, 0, 0, 63, 205, 204, 76, 63]
+		);
+
+		let mut buffer = Channel::LumaaNormal.default_pixel();
+		let mut pixel = PixelMut::from_buffer_mut(&mut buffer, Channel::LumaaNormal);
+		assert!(pixel.lumaa().is_ok());
+		assert!(pixel.normal().is_ok());
+		*pixel.lumaa().unwrap() = Lumaa::new(Luma::new(64), 128);
+		*pixel.normal().unwrap() = Normal::new(0.2, 0.5, 0.8);
+		assert_eq!(pixel.lumaa().unwrap(), &Lumaa::new(Luma::new(64), 128));
+		assert_eq!(pixel.normal().unwrap(), &Normal::new(0.2, 0.5, 0.8));
+		assert_eq!(
+			buffer,
+			vec![64, 128, 205, 204, 76, 62, 0, 0, 0, 63, 205, 204, 76, 63]
 		);
 
 		let mut buffer = Channel::RgbNormal.default_pixel();
@@ -720,5 +868,82 @@ mod tests {
 				205, 204, 76, 62, 205, 204, 76, 63, 205, 204, 76, 62, 0, 0, 0, 63, 205, 204, 76, 63
 			]
 		);
+	}
+
+	#[allow(dead_code)]
+	fn load_image(path: &Path) -> Result<(Channel, u32, u32, Vec<u8>), ()> {
+		match image::open(path).map_err(|_| ())? {
+			DynamicImage::ImageRgb8(img) => {
+				let (w, h) = img.dimensions();
+				let channel = Channel::Rgb;
+				let stride = channel.pixel_stride();
+				let mut pixels = vec![0u8; w as usize * h as usize * stride];
+
+				for (x, y, rgb) in img.enumerate_pixels() {
+					let index = (x as u32 + w * y as u32) as usize;
+					let buf = &mut pixels[(index * stride)..((index + 1) * stride)];
+					let mut pixel = PixelMut::from_buffer_mut(buf, channel);
+					*pixel.rgb().unwrap() = Rgb::new(rgb[0], rgb[1], rgb[2]);
+				}
+
+				Ok((channel, w, h, pixels))
+			}
+			DynamicImage::ImageRgba8(img) => {
+				let (w, h) = img.dimensions();
+				let channel = Channel::Rgba;
+				let stride = channel.pixel_stride();
+				let mut pixels = vec![0u8; w as usize * h as usize * stride];
+
+				for (x, y, rgba) in img.enumerate_pixels() {
+					let index = (x as u32 + w * y as u32) as usize;
+					let buf = &mut pixels[(index * stride)..((index + 1) * stride)];
+					let mut pixel = PixelMut::from_buffer_mut(buf, channel);
+					*pixel.rgba().unwrap() =
+						Rgba::new(Rgb::new(rgba[0], rgba[1], rgba[2]), rgba[3]);
+				}
+
+				Ok((channel, w, h, pixels))
+			}
+			_ => Err(()),
+		}
+	}
+
+	#[allow(dead_code)]
+	fn save_pixels(
+		path: &Path,
+		channel: Channel,
+		width: u32,
+		height: u32,
+		data: &[u8],
+	) -> Result<(), ()> {
+		let len = channel.pixel_stride();
+		match channel {
+			Channel::Rgb => {
+				let mut img = ImageBuffer::new(width, height);
+				for (x, y, rgb) in img.enumerate_pixels_mut() {
+					let index = (x as u32 + width * y as u32) as usize;
+					let buf = &data[(index * len)..((index + 1) * len)];
+					let pixel = Pixel::from_buffer(buf, channel);
+					let Rgb { red, green, blue } = pixel.rgb().unwrap();
+					*rgb = image::Rgb([*red, *green, *blue]);
+				}
+				img.save(path).map_err(|_| ())
+			}
+			Channel::Rgba => {
+				let mut img = ImageBuffer::new(width, height);
+				for (x, y, rgba) in img.enumerate_pixels_mut() {
+					let index = (x as u32 + width * y as u32) as usize;
+					let buf = &data[(index * len)..((index + 1) * len)];
+					let pixel = Pixel::from_buffer(buf, channel);
+					let Rgba {
+						color: Rgb { red, green, blue },
+						alpha,
+					} = pixel.rgba().unwrap();
+					*rgba = image::Rgba([*red, *green, *blue, *alpha]);
+				}
+				img.save(path).map_err(|_| ())
+			}
+			_ => Err(()),
+		}
 	}
 }

@@ -1,5 +1,7 @@
 [workspace]
 members = [
+	"canvas",
+	"color",
 	"document_command",
 	"document_core",
 	"document_file",

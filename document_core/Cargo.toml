@@ -1,10 +1,9 @@
 [package]
 name = "document_core"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2018"
 
 [dependencies]
-palette = { version = "0.5" }
 serde = { version = "1.0", features = ["rc"] }
 uuid = { version = "0.8", features = ["serde", "stdweb", "v4"] }
 vek = { version = "0.15", features = ["serde"] }
