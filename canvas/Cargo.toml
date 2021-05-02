@@ -9,6 +9,9 @@ color = { path = "../color" }
 serde = { version = "1.0", features = ["rc"] }
 vek = { version = "0.15", features = ["serde"] }
 
+[dev-dependencies]
+image = { version = "0.23" }
+
 [dev-dependencies.cargo-husky]
 version = "1"
 default-features = false
