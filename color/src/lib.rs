@@ -296,6 +296,7 @@ impl std::fmt::Display for Channel {
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ChannelError {
 	NotFound(Channel),
+	Mismatch((Channel, Channel)),
 }
 
 impl std::error::Error for ChannelError {}
@@ -304,6 +305,7 @@ impl std::fmt::Display for ChannelError {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match self {
 			ChannelError::NotFound(chan) => write!(f, "Channel {} not found", chan),
+			ChannelError::Mismatch((a, b)) => write!(f, "Channel mismatch {} != {}", a, b),
 		}
 	}
 }
@@ -613,8 +615,12 @@ impl<'data> PixelMut<'data> {
 		bck: &'bck Pixel,
 	) -> Result<(), ChannelError> {
 		// TODO allow blending between color with conversion?
-		assert_eq!(self.channel, frt.channel);
-		assert_eq!(self.channel, bck.channel);
+		if self.channel != frt.channel {
+			return Err(ChannelError::Mismatch((self.channel, frt.channel)));
+		}
+		if frt.channel != bck.channel {
+			return Err(ChannelError::Mismatch((frt.channel, bck.channel)));
+		}
 
 		match self.channel {
 			Channel::Lumaa | Channel::LumaaNormal | Channel::Rgba | Channel::RgbaNormal => {
@@ -623,7 +629,7 @@ impl<'data> PixelMut<'data> {
 				}
 				match self.channel {
 					Channel::Lumaa | Channel::LumaaNormal => {
-						*self.luma().unwrap() = *frt.luma().unwrap();
+						*self.lumaa().unwrap() = *frt.lumaa().unwrap();
 					}
 					Channel::Rgba | Channel::RgbaNormal => {
 						let f = frt.rgba().unwrap();
