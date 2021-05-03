@@ -2,47 +2,59 @@ use crate::braille::braille_fmt2;
 use bitvec::{bitvec, order::Lsb0, vec::BitVec};
 use color::*;
 use serde::{Deserialize, Serialize};
-use vek::{geom::repr_c::Rect, vec::repr_c::extent2::Extent2};
+use vek::geom::repr_c::Rect;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Stencil {
-	pub rect: Rect<i32, i32>,
-	pub mask: BitVec<Lsb0, u8>,
-	pub channel: Channel,
-	pub data: Vec<u8>,
+	rect: Rect<i32, i32>,
+	mask: BitVec<Lsb0, u8>,
+	channel: Channel,
+	empty_pixel: Vec<u8>,
+	data: Vec<u8>,
 }
 
 impl Stencil {
+	/// Retrieve rectangle
+	pub fn rect(&self) -> Rect<i32, i32> {
+		self.rect
+	}
+
+	/// Retrieve channel
+	pub fn channel(&self) -> Channel {
+		self.channel
+	}
+
 	/// Create a new empty stencil
-	pub fn new(size: Extent2<i32>, channel: Channel) -> Self {
-		let len = (size.w * size.h) as usize;
+	pub fn new(rect: Rect<i32, i32>, channel: Channel) -> Self {
+		let len = (rect.w * rect.h) as usize;
 		let mut buffer = Vec::with_capacity(len * channel.pixel_stride());
 		let default_pixel = channel.default_pixel();
 		for _ in 0..len {
 			buffer.extend_from_slice(&default_pixel);
 		}
-		Self::from_buffer(size, channel, buffer)
+		Self::from_buffer(rect, channel, buffer)
 	}
 
 	/// Create a stencil from pixel data
-	pub fn from_buffer(size: Extent2<i32>, channel: Channel, buffer: Vec<u8>) -> Self {
-		let len = (size.w * size.h) as usize;
+	pub fn from_buffer(rect: Rect<i32, i32>, channel: Channel, buffer: Vec<u8>) -> Self {
+		let len = (rect.w * rect.h) as usize;
 		assert_eq!(len * channel.pixel_stride(), buffer.len());
 		let mut mask = bitvec![Lsb0, u8; 1; len];
 		mask.set_uninitialized(false);
 		Self {
-			rect: Rect::new(0, 0, size.w, size.h),
+			rect,
 			mask,
 			channel,
+			empty_pixel: channel.default_pixel(),
 			data: buffer,
 		}
 	}
 
 	/// Create a stencil from pixel data and masking invisible one based on alpha
-	pub fn from_buffer_mask_alpha(size: Extent2<i32>, channel: Channel, buffer: Vec<u8>) -> Self {
+	pub fn from_buffer_mask_alpha(rect: Rect<i32, i32>, channel: Channel, buffer: Vec<u8>) -> Self {
 		match channel {
 			Channel::Lumaa | Channel::LumaaNormal | Channel::Rgba | Channel::RgbaNormal => {
-				let len = (size.w * size.h) as usize;
+				let len = (rect.w * rect.h) as usize;
 				let stride = channel.pixel_stride();
 				assert_eq!(len * stride, buffer.len());
 				let mut mask = bitvec![Lsb0, u8; 0; len];
@@ -71,13 +83,14 @@ impl Stencil {
 					.collect::<Vec<_>>();
 
 				Self {
-					rect: Rect::new(0, 0, size.w, size.h),
+					rect,
 					mask,
 					channel,
+					empty_pixel: channel.default_pixel(),
 					data,
 				}
 			}
-			_ => Self::from_buffer(size, channel, buffer),
+			_ => Self::from_buffer(rect, channel, buffer),
 		}
 	}
 
@@ -155,6 +168,7 @@ impl Stencil {
 			rect,
 			mask,
 			channel,
+			empty_pixel: channel.default_pixel(),
 			data,
 		}
 	}
@@ -204,6 +218,30 @@ impl std::ops::Add for &Stencil {
 
 	fn add(self, other: Self) -> Self::Output {
 		Stencil::merge(self, other, Blend::Normal, Compose::Lighter)
+	}
+}
+
+impl std::ops::Index<(i32, i32)> for Stencil {
+	type Output = [u8];
+
+	fn index(&self, index: (i32, i32)) -> &Self::Output {
+		if let Some(pixel) = self.try_get(index.0, index.1) {
+			pixel
+		} else {
+			&self.empty_pixel
+		}
+	}
+}
+
+impl std::ops::Index<usize> for Stencil {
+	type Output = [u8];
+
+	fn index(&self, index: usize) -> &Self::Output {
+		if let Some(pixel) = self.try_index(index) {
+			pixel
+		} else {
+			&self.empty_pixel
+		}
 	}
 }
 
@@ -288,7 +326,7 @@ mod tests {
 
 	#[test]
 	fn test_from_buffer() {
-		let s = Stencil::from_buffer(Extent2::new(2, 2), Channel::Luma, vec![1, 2, 3, 4]);
+		let s = Stencil::from_buffer(Rect::new(0, 0, 2, 2), Channel::Luma, vec![1, 2, 3, 4]);
 		assert_eq!(*s.mask, bitvec![1, 1, 1, 1]);
 		assert_eq!(*s.data, [1, 2, 3, 4]);
 	}
@@ -296,7 +334,7 @@ mod tests {
 	#[test]
 	fn test_from_buffer_mask_alpha() {
 		let s = Stencil::from_buffer_mask_alpha(
-			Extent2::new(2, 2),
+			Rect::new(0, 0, 2, 2),
 			Channel::Lumaa,
 			vec![1, 255, 0, 0, 0, 0, 4, 1],
 		);
@@ -306,22 +344,22 @@ mod tests {
 
 	#[test]
 	fn test_debug() {
-		let s = Stencil::new(Extent2::new(3, 1), Channel::Luma);
+		let s = Stencil::new(Rect::new(0, 0, 3, 1), Channel::Luma);
 		assert_eq!(format!("{:?}", s), "Stencil ( ⠉⠁ )");
-		let s = Stencil::new(Extent2::new(1, 3), Channel::Luma);
+		let s = Stencil::new(Rect::new(0, 0, 1, 3), Channel::Luma);
 		assert_eq!(format!("{:?}", s), "Stencil ( ⠇ )");
 	}
 
 	#[test]
 	fn test_merge() {
 		let a = Stencil::from_buffer_mask_alpha(
-			Extent2::new(2, 2),
+			Rect::new(0, 0, 2, 2),
 			Channel::Lumaa,
 			vec![1, 255, 0, 0, 0, 0, 4, 255],
 		);
 		assert_eq!(format!("{:?}", a), "Stencil ( ⠑ )");
 		let b = Stencil::from_buffer_mask_alpha(
-			Extent2::new(2, 2),
+			Rect::new(0, 0, 2, 2),
 			Channel::Lumaa,
 			vec![0, 0, 2, 255, 3, 255, 0, 0],
 		);
@@ -331,13 +369,13 @@ mod tests {
 		assert_eq!(c.data, vec![1, 255, 2, 255, 3, 255, 4, 255]);
 
 		let a = Stencil::from_buffer_mask_alpha(
-			Extent2::new(2, 2),
+			Rect::new(0, 0, 2, 2),
 			Channel::Lumaa,
 			vec![1, 255, 2, 255, 0, 0, 4, 255],
 		);
 		assert_eq!(format!("{:?}", a), "Stencil ( ⠙ )");
 		let b = Stencil::from_buffer_mask_alpha(
-			Extent2::new(2, 2),
+			Rect::new(0, 0, 2, 2),
 			Channel::Lumaa,
 			vec![0, 0, 20, 255, 3, 255, 0, 0],
 		);
@@ -347,17 +385,16 @@ mod tests {
 		assert_eq!(c.data, vec![1, 255, 2, 255, 3, 255, 4, 255]);
 
 		let a = Stencil::from_buffer_mask_alpha(
-			Extent2::new(1, 2),
+			Rect::new(0, 0, 1, 2),
 			Channel::Lumaa,
 			vec![1, 255, 2, 255],
 		);
 		assert_eq!(format!("{:?}", a), "Stencil ( ⠃ )");
-		let mut b = Stencil::from_buffer_mask_alpha(
-			Extent2::new(1, 2),
+		let b = Stencil::from_buffer_mask_alpha(
+			Rect::new(2, 0, 1, 2),
 			Channel::Lumaa,
 			vec![3, 255, 4, 255],
 		);
-		b.rect.x = 2;
 		assert_eq!(format!("{:?}", b), "Stencil ( ⠃ )");
 		let c = Stencil::merge(&a, &b, Blend::Normal, Compose::Lighter);
 		assert_eq!(format!("{:?}", c), "Stencil ( ⠃⠃ )");
@@ -367,7 +404,7 @@ mod tests {
 	#[test]
 	fn iter() {
 		let a = Stencil::from_buffer(
-			Extent2::new(2, 2),
+			Rect::new(0, 0, 2, 2),
 			Channel::Lumaa,
 			vec![1, 255, 2, 255, 3, 255, 4, 255],
 		);
@@ -379,7 +416,7 @@ mod tests {
 		assert_eq!(pixels, vec![1, 255, 2, 255, 3, 255, 4, 255]);
 
 		let a = Stencil::from_buffer_mask_alpha(
-			Extent2::new(2, 2),
+			Rect::new(0, 0, 2, 2),
 			Channel::Lumaa,
 			vec![1, 255, 0, 0, 0, 0, 4, 255],
 		);
@@ -394,7 +431,7 @@ mod tests {
 	#[test]
 	fn iter_mut() {
 		let mut a = Stencil::from_buffer(
-			Extent2::new(2, 2),
+			Rect::new(0, 0, 2, 2),
 			Channel::Lumaa,
 			vec![1, 255, 2, 255, 3, 255, 4, 255],
 		);
@@ -406,7 +443,7 @@ mod tests {
 		assert_eq!(pixels, vec![1, 255, 2, 255, 3, 255, 4, 255]);
 
 		let mut a = Stencil::from_buffer_mask_alpha(
-			Extent2::new(2, 2),
+			Rect::new(0, 0, 2, 2),
 			Channel::Lumaa,
 			vec![1, 255, 0, 0, 0, 0, 4, 255],
 		);
