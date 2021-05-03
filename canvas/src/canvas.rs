@@ -21,13 +21,8 @@ impl RTreeObject for StencilObject {
 	type Envelope = AABB<[i32; 2]>;
 
 	fn envelope(&self) -> Self::Envelope {
-		AABB::from_corners(
-			[self.stencil.rect.x, self.stencil.rect.y],
-			[
-				self.stencil.rect.x + self.stencil.rect.w,
-				self.stencil.rect.y + self.stencil.rect.h,
-			],
-		)
+		let Rect { x, y, w, h } = self.stencil.rect();
+		AABB::from_corners([x, y], [x + w, y + h])
 	}
 }
 
@@ -97,7 +92,7 @@ impl Canvas {
 
 	/// Create a canvas from a stencil
 	pub fn from_stencil(stencil: Stencil) -> Self {
-		Self::new(stencil.channel).apply_stencil(stencil).unwrap()
+		Self::new(stencil.channel()).apply_stencil(stencil).unwrap()
 	}
 
 	/// Apply a stencil on this canvas
@@ -113,10 +108,10 @@ impl Canvas {
 		blend_mode: Blend,
 		compose_op: Compose,
 	) -> Result<Canvas, CanvasError> {
-		if self.channel != stencil.channel {
+		if self.channel != stencil.channel() {
 			return Err(CanvasError::ChannelError(ChannelError::Mismatch(
 				self.channel,
-				stencil.channel,
+				stencil.channel(),
 			)));
 		}
 		let channel = self.channel;
@@ -132,12 +127,12 @@ impl Canvas {
 			}
 		}
 		cloned.stencils.push(Arc::new(stencil));
-		cloned.rebuild_rtree_from_brushes();
+		cloned.rebuild_rtree_from_stencils();
 		Ok(cloned)
 	}
 
 	/// Rebuild RTree from brushes
-	fn rebuild_rtree_from_brushes(&mut self) {
+	fn rebuild_rtree_from_stencils(&mut self) {
 		self.rtree = Arc::new(RTree::bulk_load(
 			self.stencils
 				.iter()
@@ -153,11 +148,10 @@ impl Canvas {
 		if self.stencils.len() == 0 {
 			Rect::new(0, 0, 0, 0)
 		} else {
-			let mut rect = self.stencils[0].rect;
-			for stencil in self.stencils.iter().skip(1) {
-				rect.expand_to_contain(stencil.rect);
-			}
-			rect
+			let aabb = self.rtree.root().envelope();
+			let lower = aabb.lower();
+			let upper = aabb.upper();
+			Rect::new(lower[0], lower[1], upper[0], upper[1])
 		}
 	}
 
@@ -182,10 +176,29 @@ impl Canvas {
 	/// Allocate a copy of this canvas
 	pub fn copy_to_stencil(&self) -> Stencil {
 		Stencil::from_buffer(
-			self.rect().extent(),
+			self.rect(),
 			self.channel,
 			self.iter().flatten().map(|b| *b).collect::<Vec<u8>>(),
 		)
+	}
+
+	/// Crop canvas
+	pub fn crop(&self, region: Rect<i32, i32>) -> Self {
+		let mut canvas = self.clone();
+		canvas.stencils = canvas
+			.stencils
+			.drain(..)
+			.filter_map(|stencil| {
+				if region.contains_rect(stencil.rect()) || region.collides_with_rect(stencil.rect())
+				{
+					Some(stencil.clone())
+				} else {
+					None
+				}
+			})
+			.collect();
+		canvas.rebuild_rtree_from_stencils();
+		canvas
 	}
 }
 
@@ -238,7 +251,6 @@ mod tests {
 	use color::*;
 	use image::{DynamicImage, ImageBuffer};
 	use std::path::Path;
-	use vek::vec::repr_c::extent2::Extent2;
 
 	#[allow(dead_code)]
 	fn load_image(path: &Path) -> Result<(Channel, u32, u32, Vec<u8>), ()> {
@@ -327,7 +339,7 @@ mod tests {
 	fn apply_stencil() {
 		let a = Canvas::new(Channel::Lumaa);
 		let stencil = Stencil::from_buffer_mask_alpha(
-			Extent2::new(2, 2),
+			Rect::new(0, 0, 2, 2),
 			Channel::Lumaa,
 			vec![1, 255, 0, 0, 0, 0, 4, 1],
 		);
@@ -339,7 +351,7 @@ mod tests {
 	fn iter() {
 		let a = Canvas::new(Channel::Lumaa);
 		let stencil = Stencil::from_buffer_mask_alpha(
-			Extent2::new(2, 2),
+			Rect::new(0, 0, 2, 2),
 			Channel::Lumaa,
 			vec![1, 255, 0, 0, 0, 0, 4, 1],
 		);
@@ -350,5 +362,26 @@ mod tests {
 		assert_eq!(pixels, vec![&0, &255, &4, &1]);
 		let pixels: Vec<_> = b.iter_region(Rect::new(-10, -10, 2, 2)).flatten().collect();
 		assert_eq!(pixels, vec![&0, &255, &0, &255, &0, &255, &0, &255]);
+	}
+
+	#[test]
+	fn crop() {
+		let a = Canvas::from_stencil(Stencil::from_buffer_mask_alpha(
+			Rect::new(0, 0, 2, 2),
+			Channel::Lumaa,
+			vec![1, 255, 0, 0, 0, 0, 4, 1],
+		));
+		let pixels: Vec<_> = a.iter().flatten().collect();
+		assert_eq!(pixels, vec![&1, &255, &0, &255, &0, &255, &4, &1]);
+		let b = a
+			.apply_stencil(Stencil::from_buffer_mask_alpha(
+				Rect::new(10, 10, 2, 2),
+				Channel::Lumaa,
+				vec![1, 255, 0, 0, 0, 0, 4, 1],
+			))
+			.unwrap();
+		let c = b.crop(Rect::new(1, 0, 1, 2));
+		let pixels: Vec<_> = c.iter().flatten().collect();
+		assert_eq!(pixels, vec![&1, &255, &0, &255, &0, &255, &4, &1]);
 	}
 }
