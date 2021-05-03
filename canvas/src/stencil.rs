@@ -288,9 +288,9 @@ mod tests {
 
 	#[test]
 	fn test_from_buffer() {
-		let s = Stencil::from_buffer(Extent2::new(2, 2), Channel::Luma, vec![1u8, 2, 3, 4]);
+		let s = Stencil::from_buffer(Extent2::new(2, 2), Channel::Luma, vec![1, 2, 3, 4]);
 		assert_eq!(*s.mask, bitvec![1, 1, 1, 1]);
-		assert_eq!(*s.data, [1u8, 2, 3, 4]);
+		assert_eq!(*s.data, [1, 2, 3, 4]);
 	}
 
 	#[test]
@@ -298,10 +298,10 @@ mod tests {
 		let s = Stencil::from_buffer_mask_alpha(
 			Extent2::new(2, 2),
 			Channel::Lumaa,
-			vec![1u8, 255, 0, 0, 0, 0, 4, 1],
+			vec![1, 255, 0, 0, 0, 0, 4, 1],
 		);
 		assert_eq!(*s.mask, bitvec![1, 0, 0, 1]);
-		assert_eq!(*s.data, [1u8, 255, 4, 1]);
+		assert_eq!(*s.data, [1, 255, 4, 1]);
 	}
 
 	#[test]

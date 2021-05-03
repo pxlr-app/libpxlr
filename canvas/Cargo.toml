@@ -6,6 +6,7 @@ edition = "2018"
 [dependencies]
 bitvec = { version = "0", features = ["serde"] }
 color = { path = "../color" }
+rstar = { version = "0.8", features = ["serde"] }
 serde = { version = "1.0", features = ["rc"] }
 vek = { version = "0.15", features = ["serde"] }
 
