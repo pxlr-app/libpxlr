@@ -1,5 +1,5 @@
 use crate::Stencil;
-use color::{Blend, Channel, ChannelError, Compose, Pixel, PixelMut};
+use color::{Blending, Channel, ChannelError, Compositing, Pixel, PixelMut};
 use rstar::{Envelope, Point, PointDistance, RTree, RTreeObject, AABB};
 use std::sync::Arc;
 use vek::geom::repr_c::Rect;
@@ -97,7 +97,7 @@ impl Canvas {
 
 	/// Apply a stencil on this canvas
 	pub fn apply_stencil(&self, stencil: Stencil) -> Result<Canvas, CanvasError> {
-		self.apply_stencil_with_blend(stencil, Blend::Normal, Compose::Lighter)
+		self.apply_stencil_with_blend(stencil, Blending::Normal, Compositing::Lighter)
 	}
 
 	/// Apply a stencil on this canvas by blending the stencil on top
@@ -105,8 +105,8 @@ impl Canvas {
 	pub fn apply_stencil_with_blend(
 		&self,
 		mut stencil: Stencil,
-		blend_mode: Blend,
-		compose_op: Compose,
+		blend_mode: Blending,
+		compose_op: Compositing,
 	) -> Result<Canvas, CanvasError> {
 		if self.channel != stencil.channel() {
 			return Err(CanvasError::ChannelError(ChannelError::Mismatch(

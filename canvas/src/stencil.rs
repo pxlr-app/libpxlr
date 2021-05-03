@@ -122,7 +122,7 @@ impl Stencil {
 	}
 
 	/// Merge two stencil and blend them together if need be
-	pub fn merge(frt: &Self, bck: &Self, blend_mode: Blend, compose_op: Compose) -> Self {
+	pub fn merge(frt: &Self, bck: &Self, blend_mode: Blending, compose_op: Compositing) -> Self {
 		assert_eq!(frt.channel, bck.channel);
 		let channel = frt.channel;
 
@@ -217,7 +217,7 @@ impl std::ops::Add for &Stencil {
 	type Output = Stencil;
 
 	fn add(self, other: Self) -> Self::Output {
-		Stencil::merge(self, other, Blend::Normal, Compose::Lighter)
+		Stencil::merge(self, other, Blending::Normal, Compositing::Lighter)
 	}
 }
 
@@ -364,7 +364,7 @@ mod tests {
 			vec![0, 0, 2, 255, 3, 255, 0, 0],
 		);
 		assert_eq!(format!("{:?}", b), "Stencil ( ⠊ )");
-		let c = Stencil::merge(&a, &b, Blend::Normal, Compose::Lighter);
+		let c = Stencil::merge(&a, &b, Blending::Normal, Compositing::Lighter);
 		assert_eq!(format!("{:?}", c), "Stencil ( ⠛ )");
 		assert_eq!(c.data, vec![1, 255, 2, 255, 3, 255, 4, 255]);
 
@@ -380,7 +380,7 @@ mod tests {
 			vec![0, 0, 20, 255, 3, 255, 0, 0],
 		);
 		assert_eq!(format!("{:?}", b), "Stencil ( ⠊ )");
-		let c = Stencil::merge(&a, &b, Blend::Normal, Compose::Lighter);
+		let c = Stencil::merge(&a, &b, Blending::Normal, Compositing::Lighter);
 		assert_eq!(format!("{:?}", c), "Stencil ( ⠛ )");
 		assert_eq!(c.data, vec![1, 255, 2, 255, 3, 255, 4, 255]);
 
@@ -396,7 +396,7 @@ mod tests {
 			vec![3, 255, 4, 255],
 		);
 		assert_eq!(format!("{:?}", b), "Stencil ( ⠃ )");
-		let c = Stencil::merge(&a, &b, Blend::Normal, Compose::Lighter);
+		let c = Stencil::merge(&a, &b, Blending::Normal, Compositing::Lighter);
 		assert_eq!(format!("{:?}", c), "Stencil ( ⠃⠃ )");
 		assert_eq!(c.data, vec![1, 255, 3, 255, 2, 255, 4, 255]);
 	}

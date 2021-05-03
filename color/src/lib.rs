@@ -609,8 +609,8 @@ impl<'data> PixelMut<'data> {
 	/// Blend pixel together
 	pub fn blend<'frt, 'bck>(
 		&mut self,
-		blend_mode: Blend,
-		compose_op: Compose,
+		blend_mode: Blending,
+		compose_op: Compositing,
 		frt: &'frt Pixel,
 		bck: &'bck Pixel,
 	) -> Result<(), ChannelError> {
@@ -883,7 +883,12 @@ mod tests {
 		);
 	}
 
-	fn blend_pixels(front: Rgba, back: Rgba, blend_mode: Blend, compose_op: Compose) -> Rgba {
+	fn blend_pixels(
+		front: Rgba,
+		back: Rgba,
+		blend_mode: Blending,
+		compose_op: Compositing,
+	) -> Rgba {
 		let mut frt_buf = Channel::Rgba.default_pixel();
 		let mut bck_buf = Channel::Rgba.default_pixel();
 		let mut dst_buf = Channel::Rgba.default_pixel();
@@ -908,51 +913,71 @@ mod tests {
 		let redish = Rgba::new(Rgb::new(255, 0, 32), 255);
 		let greenish = Rgba::new(Rgb::new(0, 255, 128), 255);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::Normal, Compose::Clear),
+			blend_pixels(redish, greenish, Blending::Normal, Compositing::Clear),
 			Rgba::new(Rgb::new(0, 0, 0), 255)
 		);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::Normal, Compose::Copy),
+			blend_pixels(redish, greenish, Blending::Normal, Compositing::Copy),
 			Rgba::new(Rgb::new(255, 0, 32), 255)
 		);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::Normal, Compose::SourceOver),
+			blend_pixels(redish, greenish, Blending::Normal, Compositing::SourceOver),
 			Rgba::new(Rgb::new(255, 0, 32), 255)
 		);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::Normal, Compose::DestinationOver),
+			blend_pixels(
+				redish,
+				greenish,
+				Blending::Normal,
+				Compositing::DestinationOver
+			),
 			Rgba::new(Rgb::new(0, 255, 128), 255)
 		);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::Normal, Compose::SourceIn),
+			blend_pixels(redish, greenish, Blending::Normal, Compositing::SourceIn),
 			Rgba::new(Rgb::new(255, 0, 32), 255)
 		);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::Normal, Compose::DestinationIn),
+			blend_pixels(
+				redish,
+				greenish,
+				Blending::Normal,
+				Compositing::DestinationIn
+			),
 			Rgba::new(Rgb::new(0, 255, 128), 255)
 		);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::Normal, Compose::SourceOut),
+			blend_pixels(redish, greenish, Blending::Normal, Compositing::SourceOut),
 			Rgba::new(Rgb::new(0, 0, 0), 255)
 		);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::Normal, Compose::DestinationOut),
+			blend_pixels(
+				redish,
+				greenish,
+				Blending::Normal,
+				Compositing::DestinationOut
+			),
 			Rgba::new(Rgb::new(0, 0, 0), 255)
 		);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::Normal, Compose::SourceAtop),
+			blend_pixels(redish, greenish, Blending::Normal, Compositing::SourceAtop),
 			Rgba::new(Rgb::new(255, 0, 32), 255)
 		);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::Normal, Compose::DestinationAtop),
+			blend_pixels(
+				redish,
+				greenish,
+				Blending::Normal,
+				Compositing::DestinationAtop
+			),
 			Rgba::new(Rgb::new(0, 255, 128), 255)
 		);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::Normal, Compose::XOR),
+			blend_pixels(redish, greenish, Blending::Normal, Compositing::XOR),
 			Rgba::new(Rgb::new(0, 0, 0), 255)
 		);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::Normal, Compose::Lighter),
+			blend_pixels(redish, greenish, Blending::Normal, Compositing::Lighter),
 			Rgba::new(Rgb::new(255, 255, 160), 255)
 		);
 	}
@@ -963,51 +988,51 @@ mod tests {
 		let greenish = Rgba::new(Rgb::new(0, 255, 128), 255);
 
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::Normal, Compose::Lighter),
+			blend_pixels(redish, greenish, Blending::Normal, Compositing::Lighter),
 			Rgba::new(Rgb::new(128, 255, 144), 255)
 		);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::Multiply, Compose::Lighter),
+			blend_pixels(redish, greenish, Blending::Multiply, Compositing::Lighter),
 			Rgba::new(Rgb::new(0, 255, 136), 255)
 		);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::Screen, Compose::Lighter),
+			blend_pixels(redish, greenish, Blending::Screen, Compositing::Lighter),
 			Rgba::new(Rgb::new(128, 255, 200), 255)
 		);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::Overlay, Compose::Lighter),
+			blend_pixels(redish, greenish, Blending::Overlay, Compositing::Lighter),
 			Rgba::new(Rgb::new(0, 255, 200), 255)
 		);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::Darken, Compose::Lighter),
+			blend_pixels(redish, greenish, Blending::Darken, Compositing::Lighter),
 			Rgba::new(Rgb::new(0, 255, 144), 255)
 		);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::Lighten, Compose::Lighter),
+			blend_pixels(redish, greenish, Blending::Lighten, Compositing::Lighter),
 			Rgba::new(Rgb::new(128, 255, 192), 255)
 		);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::ColorDodge, Compose::Lighter),
+			blend_pixels(redish, greenish, Blending::ColorDodge, Compositing::Lighter),
 			Rgba::new(Rgb::new(0, 255, 201), 255)
 		);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::ColorBurn, Compose::Lighter),
+			blend_pixels(redish, greenish, Blending::ColorBurn, Compositing::Lighter),
 			Rgba::new(Rgb::new(0, 255, 128), 255)
 		);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::HardLight, Compose::Lighter),
+			blend_pixels(redish, greenish, Blending::HardLight, Compositing::Lighter),
 			Rgba::new(Rgb::new(128, 255, 136), 255)
 		);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::SoftLight, Compose::Lighter),
+			blend_pixels(redish, greenish, Blending::SoftLight, Compositing::Lighter),
 			Rgba::new(Rgb::new(0, 255, 168), 255)
 		);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::Difference, Compose::Lighter),
+			blend_pixels(redish, greenish, Blending::Difference, Compositing::Lighter),
 			Rgba::new(Rgb::new(0, 255, 176), 255)
 		);
 		assert_eq!(
-			blend_pixels(redish, greenish, Blend::Exclusion, Compose::Lighter),
+			blend_pixels(redish, greenish, Blending::Exclusion, Compositing::Lighter),
 			Rgba::new(Rgb::new(128, 255, 192), 255)
 		);
 	}

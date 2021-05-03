@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// Based on [SVG specs](https://www.w3.org/TR/compositing-1/#porterduffcompositingoperators)
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub enum Blend {
+pub enum Blending {
 	Normal,
 	Multiply,
 	Screen,
@@ -17,35 +17,35 @@ pub enum Blend {
 	Exclusion,
 }
 
-impl Blend {
+impl Blending {
 	#[inline(always)]
 	pub fn blend(&self, a: f32, b: f32) -> f32 {
 		match self {
-			Blend::Normal => normal(a, b),
-			Blend::Multiply => multiply(a, b),
-			Blend::Screen => screen(a, b),
-			Blend::Overlay => overlay(a, b),
-			Blend::Darken => darken(a, b),
-			Blend::Lighten => lighten(a, b),
-			Blend::ColorDodge => colordodge(a, b),
-			Blend::ColorBurn => colorburn(a, b),
-			Blend::HardLight => hardlight(a, b),
-			Blend::SoftLight => softlight(a, b),
-			Blend::Difference => difference(a, b),
-			Blend::Exclusion => exclusion(a, b),
+			Blending::Normal => normal(a, b),
+			Blending::Multiply => multiply(a, b),
+			Blending::Screen => screen(a, b),
+			Blending::Overlay => overlay(a, b),
+			Blending::Darken => darken(a, b),
+			Blending::Lighten => lighten(a, b),
+			Blending::ColorDodge => colordodge(a, b),
+			Blending::ColorBurn => colorburn(a, b),
+			Blending::HardLight => hardlight(a, b),
+			Blending::SoftLight => softlight(a, b),
+			Blending::Difference => difference(a, b),
+			Blending::Exclusion => exclusion(a, b),
 		}
 	}
 }
 
-impl Default for Blend {
+impl Default for Blending {
 	fn default() -> Self {
-		Blend::Normal
+		Blending::Normal
 	}
 }
 
 /// Based on [SVG specs](https://www.w3.org/TR/compositing-1/#porterduffcompositingoperators)
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub enum Compose {
+pub enum Compositing {
 	Clear,
 	Copy,
 	Destination,
@@ -61,29 +61,29 @@ pub enum Compose {
 	Lighter,
 }
 
-impl Compose {
+impl Compositing {
 	pub fn compose(&self, fa: f32, ba: f32) -> (f32, f32) {
 		match self {
-			Compose::Clear => (0., 0.),
-			Compose::Copy => (1., 0.),
-			Compose::Destination => (0., 1.),
-			Compose::SourceOver => (1., 1. - fa),
-			Compose::DestinationOver => (1. - ba, 1.),
-			Compose::SourceIn => (ba, 0.),
-			Compose::DestinationIn => (0., fa),
-			Compose::SourceOut => (1. - ba, 0.),
-			Compose::DestinationOut => (0., 1. - fa),
-			Compose::SourceAtop => (ba, 1. - fa),
-			Compose::DestinationAtop => (1. - ba, fa),
-			Compose::XOR => (1. - ba, 1. - fa),
-			Compose::Lighter => (1., 1.),
+			Compositing::Clear => (0., 0.),
+			Compositing::Copy => (1., 0.),
+			Compositing::Destination => (0., 1.),
+			Compositing::SourceOver => (1., 1. - fa),
+			Compositing::DestinationOver => (1. - ba, 1.),
+			Compositing::SourceIn => (ba, 0.),
+			Compositing::DestinationIn => (0., fa),
+			Compositing::SourceOut => (1. - ba, 0.),
+			Compositing::DestinationOut => (0., 1. - fa),
+			Compositing::SourceAtop => (ba, 1. - fa),
+			Compositing::DestinationAtop => (1. - ba, fa),
+			Compositing::XOR => (1. - ba, 1. - fa),
+			Compositing::Lighter => (1., 1.),
 		}
 	}
 }
 
-impl Default for Compose {
+impl Default for Compositing {
 	fn default() -> Self {
-		Compose::Lighter
+		Compositing::Lighter
 	}
 }
 
