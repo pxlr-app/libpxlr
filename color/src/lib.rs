@@ -296,7 +296,7 @@ impl std::fmt::Display for Channel {
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ChannelError {
 	NotFound(Channel),
-	Mismatch((Channel, Channel)),
+	Mismatch(Channel, Channel),
 }
 
 impl std::error::Error for ChannelError {}
@@ -305,7 +305,7 @@ impl std::fmt::Display for ChannelError {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match self {
 			ChannelError::NotFound(chan) => write!(f, "Channel {} not found", chan),
-			ChannelError::Mismatch((a, b)) => write!(f, "Channel mismatch {} != {}", a, b),
+			ChannelError::Mismatch(a, b) => write!(f, "Channel mismatch {} != {}", a, b),
 		}
 	}
 }
@@ -616,10 +616,10 @@ impl<'data> PixelMut<'data> {
 	) -> Result<(), ChannelError> {
 		// TODO allow blending between color with conversion?
 		if self.channel != frt.channel {
-			return Err(ChannelError::Mismatch((self.channel, frt.channel)));
+			return Err(ChannelError::Mismatch(self.channel, frt.channel));
 		}
 		if frt.channel != bck.channel {
-			return Err(ChannelError::Mismatch((frt.channel, bck.channel)));
+			return Err(ChannelError::Mismatch(frt.channel, bck.channel));
 		}
 
 		match self.channel {
