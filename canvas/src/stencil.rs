@@ -2,10 +2,7 @@ use crate::braille::braille_fmt2;
 use bitvec::{bitvec, order::Lsb0, vec::BitVec};
 use color::*;
 use serde::{Deserialize, Serialize};
-use vek::{
-	geom::repr_c::{Aabr, Rect},
-	vec::repr_c::{extent2::Extent2, vec2::Vec2},
-};
+use vek::{geom::repr_c::Rect, vec::repr_c::extent2::Extent2};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Stencil {
@@ -161,6 +158,30 @@ impl Stencil {
 			data,
 		}
 	}
+
+	/// Iterate over pixel of this stencil
+	pub fn iter(&self) -> StencilIterator {
+		StencilIterator {
+			bit_offset: 0,
+			data_offset: 0,
+			rect: self.rect,
+			mask: &self.mask,
+			pixel_stride: self.channel.pixel_stride(),
+			data: &self.data,
+		}
+	}
+
+	/// Iterate over pixel of this stencil
+	pub fn iter_mut(&mut self) -> StencilMutIterator {
+		StencilMutIterator {
+			bit_offset: 0,
+			data_offset: 0,
+			rect: self.rect,
+			mask: &self.mask,
+			pixel_stride: self.channel.pixel_stride(),
+			data: &mut self.data,
+		}
+	}
 }
 
 impl std::fmt::Debug for Stencil {
@@ -175,6 +196,89 @@ impl std::fmt::Debug for Stencil {
 				"\n           "
 			)
 		)
+	}
+}
+
+impl std::ops::Add for &Stencil {
+	type Output = Stencil;
+
+	fn add(self, other: Self) -> Self::Output {
+		Stencil::merge(self, other, Blend::Normal, Compose::Lighter)
+	}
+}
+
+pub struct StencilIterator<'stencil> {
+	bit_offset: usize,
+	data_offset: usize,
+	rect: Rect<i32, i32>,
+	mask: &'stencil BitVec<Lsb0, u8>,
+	pixel_stride: usize,
+	data: &'stencil Vec<u8>,
+}
+
+impl<'stencil> Iterator for StencilIterator<'stencil> {
+	type Item = (i32, i32, &'stencil [u8]);
+
+	fn next(&mut self) -> Option<(i32, i32, &'stencil [u8])> {
+		while self.bit_offset < self.mask.len() {
+			let bit_offset = self.bit_offset;
+			self.bit_offset += 1;
+			let bit = self.mask[bit_offset];
+			if bit {
+				let x = bit_offset % self.rect.w as usize;
+				let y = (bit_offset / self.rect.w as usize) | 0;
+				self.data_offset += 1;
+				return Some((
+					x as i32 + self.rect.x,
+					y as i32 + self.rect.y,
+					&self.data[(self.data_offset.wrapping_sub(1) * self.pixel_stride)
+						..(self.data_offset * self.pixel_stride)],
+				));
+			}
+		}
+		return None;
+	}
+}
+
+impl<'stencil> IntoIterator for &'stencil Stencil {
+	type Item = (i32, i32, &'stencil [u8]);
+	type IntoIter = StencilIterator<'stencil>;
+
+	fn into_iter(self) -> Self::IntoIter {
+		self.iter()
+	}
+}
+
+pub struct StencilMutIterator<'stencil> {
+	bit_offset: usize,
+	data_offset: usize,
+	rect: Rect<i32, i32>,
+	mask: &'stencil BitVec<Lsb0, u8>,
+	pixel_stride: usize,
+	data: &'stencil mut Vec<u8>,
+}
+
+impl<'stencil> Iterator for StencilMutIterator<'stencil> {
+	type Item = (i32, i32, &'stencil mut [u8]);
+
+	fn next<'iter>(&'iter mut self) -> Option<(i32, i32, &'stencil mut [u8])> {
+		while self.bit_offset < self.mask.len() {
+			let bit_offset = self.bit_offset;
+			self.bit_offset += 1;
+			let bit = self.mask[bit_offset];
+			if bit {
+				let x = bit_offset % self.rect.w as usize;
+				let y = (bit_offset / self.rect.w as usize) | 0;
+				self.data_offset += 1;
+				let data: &'iter mut [u8] = &mut self.data[(self.data_offset.wrapping_sub(1)
+					* self.pixel_stride)
+					..(self.data_offset * self.pixel_stride)];
+				let data =
+					unsafe { std::mem::transmute::<&'iter mut [u8], &'stencil mut [u8]>(data) };
+				return Some((x as i32 + self.rect.x, y as i32 + self.rect.y, data));
+			}
+		}
+		return None;
 	}
 }
 
@@ -258,5 +362,59 @@ mod tests {
 		let c = Stencil::merge(&a, &b, Blend::Normal, Compose::Lighter);
 		assert_eq!(format!("{:?}", c), "Stencil ( ⠃⠃ )");
 		assert_eq!(c.data, vec![1, 255, 3, 255, 2, 255, 4, 255]);
+	}
+
+	#[test]
+	fn iter() {
+		let a = Stencil::from_buffer(
+			Extent2::new(2, 2),
+			Channel::Lumaa,
+			vec![1, 255, 2, 255, 3, 255, 4, 255],
+		);
+		let pixels: Vec<_> = a
+			.iter()
+			.map(|(_, _, data)| data.to_vec())
+			.flatten()
+			.collect();
+		assert_eq!(pixels, vec![1, 255, 2, 255, 3, 255, 4, 255]);
+
+		let a = Stencil::from_buffer_mask_alpha(
+			Extent2::new(2, 2),
+			Channel::Lumaa,
+			vec![1, 255, 0, 0, 0, 0, 4, 255],
+		);
+		let pixels: Vec<_> = a
+			.iter()
+			.map(|(_, _, data)| data.to_vec())
+			.flatten()
+			.collect();
+		assert_eq!(pixels, vec![1, 255, 4, 255]);
+	}
+
+	#[test]
+	fn iter_mut() {
+		let mut a = Stencil::from_buffer(
+			Extent2::new(2, 2),
+			Channel::Lumaa,
+			vec![1, 255, 2, 255, 3, 255, 4, 255],
+		);
+		let pixels: Vec<_> = a
+			.iter_mut()
+			.map(|(_, _, data)| data.to_vec())
+			.flatten()
+			.collect();
+		assert_eq!(pixels, vec![1, 255, 2, 255, 3, 255, 4, 255]);
+
+		let mut a = Stencil::from_buffer_mask_alpha(
+			Extent2::new(2, 2),
+			Channel::Lumaa,
+			vec![1, 255, 0, 0, 0, 0, 4, 255],
+		);
+		let pixels: Vec<_> = a
+			.iter_mut()
+			.map(|(_, _, data)| data.to_vec())
+			.flatten()
+			.collect();
+		assert_eq!(pixels, vec![1, 255, 4, 255]);
 	}
 }

@@ -1,10 +1,9 @@
 mod braille;
 mod stencil;
-use color::*;
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use color::*;
 	use image::{DynamicImage, ImageBuffer};
 	use std::path::Path;
 
