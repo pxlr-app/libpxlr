@@ -9,20 +9,16 @@ pub enum Sampling {
 	// Bicubic,
 }
 
-pub trait Sampler {
+pub trait Samplable {
 	type Output;
 
-	fn sample2d<'target>(&self, position: (f32, f32), sampling: Sampling) -> Self::Output;
+	fn sample2d(&self, position: (f32, f32), sampling: Sampling) -> Self::Output;
 }
 
-impl Sampler for Canvas {
+impl Samplable for Canvas {
 	type Output = Result<Vec<u8>, ChannelError>;
 
-	fn sample2d<'target>(
-		&self,
-		position: (f32, f32),
-		sampling: Sampling,
-	) -> Result<Vec<u8>, ChannelError> {
+	fn sample2d(&self, position: (f32, f32), sampling: Sampling) -> Result<Vec<u8>, ChannelError> {
 		let rect = self.rect();
 		match sampling {
 			Sampling::Nearest => {
