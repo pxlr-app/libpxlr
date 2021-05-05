@@ -192,6 +192,12 @@ mod tests {
 			Mat3::identity(),
 			&Path::new("tests/character-nearest-identity.png"),
 		);
+		assert_transform_image(
+			&Path::new("tests/character.png"),
+			Sampling::Bilinear,
+			Mat3::identity(),
+			&Path::new("tests/character-bilinear-identity.png"),
+		);
 	}
 
 	#[test]
@@ -202,19 +208,35 @@ mod tests {
 			Mat3::scaling_3d(Vec3::new(-1., 1., 1.)),
 			&Path::new("tests/character-nearest-flip-x.png"),
 		);
-
 		assert_transform_image(
 			&Path::new("tests/character.png"),
 			Sampling::Nearest,
 			Mat3::scaling_3d(Vec3::new(1., -1., 1.)),
 			&Path::new("tests/character-nearest-flip-y.png"),
 		);
-
 		assert_transform_image(
 			&Path::new("tests/character.png"),
 			Sampling::Nearest,
 			Mat3::scaling_3d(Vec3::new(-1., -1., 1.)),
 			&Path::new("tests/character-nearest-flip-xy.png"),
+		);
+		assert_transform_image(
+			&Path::new("tests/character.png"),
+			Sampling::Bilinear,
+			Mat3::scaling_3d(Vec3::new(-1., 1., 1.)),
+			&Path::new("tests/character-bilinear-flip-x.png"),
+		);
+		assert_transform_image(
+			&Path::new("tests/character.png"),
+			Sampling::Bilinear,
+			Mat3::scaling_3d(Vec3::new(1., -1., 1.)),
+			&Path::new("tests/character-bilinear-flip-y.png"),
+		);
+		assert_transform_image(
+			&Path::new("tests/character.png"),
+			Sampling::Bilinear,
+			Mat3::scaling_3d(Vec3::new(-1., -1., 1.)),
+			&Path::new("tests/character-bilinear-flip-xy.png"),
 		);
 	}
 
@@ -231,6 +253,18 @@ mod tests {
 			Sampling::Nearest,
 			Mat3::scaling_3d(Vec3::new(0.5, 0.5, 1.)),
 			&Path::new("tests/character-nearest-scale-half.png"),
+		);
+		assert_transform_image(
+			&Path::new("tests/character.png"),
+			Sampling::Bilinear,
+			Mat3::scaling_3d(Vec3::new(2., 2., 1.)),
+			&Path::new("tests/character-bilinear-scale-2x.png"),
+		);
+		assert_transform_image(
+			&Path::new("tests/character.png"),
+			Sampling::Bilinear,
+			Mat3::scaling_3d(Vec3::new(0.5, 0.5, 1.)),
+			&Path::new("tests/character-bilinear-scale-half.png"),
 		);
 	}
 
@@ -253,6 +287,24 @@ mod tests {
 			Sampling::Nearest,
 			Mat3::rotation_z(180. * (std::f32::consts::PI / 180.)),
 			&Path::new("tests/character-nearest-rotate-180deg.png"),
+		);
+		assert_transform_image(
+			&Path::new("tests/character.png"),
+			Sampling::Bilinear,
+			Mat3::rotation_z(45. * (std::f32::consts::PI / 180.)),
+			&Path::new("tests/character-bilinear-rotate-45deg.png"),
+		);
+		assert_transform_image(
+			&Path::new("tests/character.png"),
+			Sampling::Bilinear,
+			Mat3::rotation_z(90. * (std::f32::consts::PI / 180.)),
+			&Path::new("tests/character-bilinear-rotate-90deg.png"),
+		);
+		assert_transform_image(
+			&Path::new("tests/character.png"),
+			Sampling::Bilinear,
+			Mat3::rotation_z(180. * (std::f32::consts::PI / 180.)),
+			&Path::new("tests/character-bilinear-rotate-180deg.png"),
 		);
 	}
 }
