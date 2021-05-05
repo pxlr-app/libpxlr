@@ -196,7 +196,7 @@ impl Lerp<f32> for Luma {
 
 	fn lerp_unclamped(from: Self, to: Self, factor: f32) -> Self::Output {
 		Luma {
-			luma: Lerp::lerp_unclamped(&from.luma, &to.luma, factor),
+			luma: Lerp::lerp_unclamped(from.luma as i32, to.luma as i32, factor) as u8,
 		}
 	}
 }
@@ -251,7 +251,7 @@ impl<C: Lerp<f32, Output = C> + Copy + Color> Lerp<f32> for Alpha<C> {
 	fn lerp_unclamped(from: Self, to: Self, factor: f32) -> Self::Output {
 		Alpha {
 			color: Lerp::lerp_unclamped(from.color, to.color, factor),
-			alpha: Lerp::lerp_unclamped(&from.alpha, &to.alpha, factor),
+			alpha: Lerp::lerp_unclamped(from.alpha as i32, to.alpha as i32, factor) as u8,
 		}
 	}
 }
