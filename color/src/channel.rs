@@ -160,9 +160,9 @@ mod tests {
 	#[test]
 	fn channel_default_pixel() {
 		assert_eq!(Channel::Luma.default_pixel(), vec![0]);
-		assert_eq!(Channel::Lumaa.default_pixel(), vec![0, 255]);
+		assert_eq!(Channel::Lumaa.default_pixel(), vec![0, 0]);
 		assert_eq!(Channel::Rgb.default_pixel(), vec![0, 0, 0]);
-		assert_eq!(Channel::Rgba.default_pixel(), vec![0, 0, 0, 255]);
+		assert_eq!(Channel::Rgba.default_pixel(), vec![0, 0, 0, 0]);
 		assert_eq!(Channel::Uv.default_pixel(), vec![0, 0, 0, 0, 0, 0, 0, 0]);
 		assert_eq!(
 			Channel::Normal.default_pixel(),
@@ -174,7 +174,7 @@ mod tests {
 		);
 		assert_eq!(
 			Channel::LumaaNormal.default_pixel(),
-			vec![0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+			vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 		);
 		assert_eq!(
 			Channel::RgbNormal.default_pixel(),
@@ -182,7 +182,7 @@ mod tests {
 		);
 		assert_eq!(
 			Channel::RgbaNormal.default_pixel(),
-			vec![0, 0, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+			vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 		);
 		assert_eq!(
 			Channel::UvNormal.default_pixel(),

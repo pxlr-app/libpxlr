@@ -57,7 +57,7 @@ impl<C: Color> Default for Alpha<C> {
 	fn default() -> Self {
 		Self {
 			color: Default::default(),
-			alpha: 255,
+			alpha: 0,
 		}
 	}
 }

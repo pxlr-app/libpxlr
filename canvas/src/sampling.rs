@@ -10,27 +10,51 @@ pub enum Sampling {
 }
 
 pub trait Samplable {
-	type Output;
+	type Error: std::error::Error;
 
-	fn sample2d(&self, position: (f32, f32), sampling: Sampling) -> Self::Output;
+	fn sample2d<'samplable, 'out>(
+		&'samplable self,
+		position: (f32, f32),
+		sampling: Sampling,
+		out: &'out mut [u8],
+	) -> Result<(), Self::Error>;
 }
 
 impl Samplable for Canvas {
-	type Output = Result<Vec<u8>, ChannelError>;
+	type Error = ChannelError;
 
-	fn sample2d(&self, position: (f32, f32), sampling: Sampling) -> Result<Vec<u8>, ChannelError> {
-		let rect = self.rect();
+	fn sample2d<'samplable, 'out>(
+		&'samplable self,
+		position: (f32, f32),
+		sampling: Sampling,
+		out: &'out mut [u8],
+	) -> Result<(), Self::Error> {
+		assert_eq!(out.len(), self.channel.pixel_stride());
+		let bounds = self.bounds();
 		match sampling {
 			Sampling::Nearest => {
-				let x = position.0.round().clamp(rect.x as f32, rect.w as f32 - 1.);
-				let y = position.1.round().clamp(rect.y as f32, rect.h as f32 - 1.);
-				Ok(self[(x as i32, y as i32)].to_vec())
+				let x = position
+					.0
+					.round()
+					.clamp(bounds.x as f32, bounds.w as f32 - 1.);
+				let y = position
+					.1
+					.round()
+					.clamp(bounds.y as f32, bounds.h as f32 - 1.);
+				out.copy_from_slice(&self[(x as i32, y as i32)]);
+				Ok(())
 			}
 			Sampling::Bilinear => {
-				let l = position.0.floor().clamp(rect.x as f32, rect.w as f32 - 1.);
-				let r = (l + 1f32).clamp(rect.x as f32, rect.w as f32 - 1.);
-				let t = position.1.floor().clamp(rect.y as f32, rect.h as f32 - 1.);
-				let b = (t + 1f32).clamp(rect.y as f32, rect.h as f32 - 1.);
+				let l = position
+					.0
+					.floor()
+					.clamp(bounds.x as f32, bounds.w as f32 - 1.);
+				let r = (l + 1f32).clamp(bounds.x as f32, bounds.w as f32 - 1.);
+				let t = position
+					.1
+					.floor()
+					.clamp(bounds.y as f32, bounds.h as f32 - 1.);
+				let b = (t + 1f32).clamp(bounds.y as f32, bounds.h as f32 - 1.);
 				let hw = position.0 - l;
 				let vw = position.1 - t;
 
@@ -63,7 +87,8 @@ impl Samplable for Canvas {
 					let to = Pixel::from_buffer(&v_buf, self.channel);
 					tmp.lerp(&from, &to, vw)?;
 				}
-				Ok(r_buf)
+				out.copy_from_slice(&r_buf);
+				Ok(())
 			}
 		}
 	}
@@ -84,17 +109,35 @@ mod tests {
 			vec![5, 255, 10, 255, 15, 255, 20, 255],
 		));
 
-		let buffer = canvas.sample2d((0., 0.), Sampling::Nearest).unwrap();
+		let mut buffer = Channel::Lumaa.default_pixel();
+		canvas
+			.sample2d((0., 0.), Sampling::Nearest, &mut buffer)
+			.unwrap();
 		assert_eq!(buffer, vec![5, 255]);
-		let buffer = canvas.sample2d((0.5, 0.), Sampling::Nearest).unwrap();
+		let mut buffer = Channel::Lumaa.default_pixel();
+		canvas
+			.sample2d((0.5, 0.), Sampling::Nearest, &mut buffer)
+			.unwrap();
 		assert_eq!(buffer, vec![10, 255]);
-		let buffer = canvas.sample2d((1., 0.), Sampling::Nearest).unwrap();
+		let mut buffer = Channel::Lumaa.default_pixel();
+		canvas
+			.sample2d((1., 0.), Sampling::Nearest, &mut buffer)
+			.unwrap();
 		assert_eq!(buffer, vec![10, 255]);
-		let buffer = canvas.sample2d((0., 0.5), Sampling::Nearest).unwrap();
+		let mut buffer = Channel::Lumaa.default_pixel();
+		canvas
+			.sample2d((0., 0.5), Sampling::Nearest, &mut buffer)
+			.unwrap();
 		assert_eq!(buffer, vec![15, 255]);
-		let buffer = canvas.sample2d((0.5, 0.5), Sampling::Nearest).unwrap();
+		let mut buffer = Channel::Lumaa.default_pixel();
+		canvas
+			.sample2d((0.5, 0.5), Sampling::Nearest, &mut buffer)
+			.unwrap();
 		assert_eq!(buffer, vec![20, 255]);
-		let buffer = canvas.sample2d((1., 1.), Sampling::Nearest).unwrap();
+		let mut buffer = Channel::Lumaa.default_pixel();
+		canvas
+			.sample2d((1., 1.), Sampling::Nearest, &mut buffer)
+			.unwrap();
 		assert_eq!(buffer, vec![20, 255]);
 	}
 
@@ -106,17 +149,35 @@ mod tests {
 			vec![5, 255, 10, 255, 15, 255, 20, 255],
 		));
 
-		let buffer = canvas.sample2d((0., 0.), Sampling::Bilinear).unwrap();
+		let mut buffer = Channel::Lumaa.default_pixel();
+		canvas
+			.sample2d((0., 0.), Sampling::Bilinear, &mut buffer)
+			.unwrap();
 		assert_eq!(buffer, vec![5, 255]);
-		let buffer = canvas.sample2d((0.5, 0.), Sampling::Bilinear).unwrap();
+		let mut buffer = Channel::Lumaa.default_pixel();
+		canvas
+			.sample2d((0.5, 0.), Sampling::Bilinear, &mut buffer)
+			.unwrap();
 		assert_eq!(buffer, vec![8, 255]);
-		let buffer = canvas.sample2d((1., 0.), Sampling::Bilinear).unwrap();
+		let mut buffer = Channel::Lumaa.default_pixel();
+		canvas
+			.sample2d((1., 0.), Sampling::Bilinear, &mut buffer)
+			.unwrap();
 		assert_eq!(buffer, vec![10, 255]);
-		let buffer = canvas.sample2d((0., 0.5), Sampling::Bilinear).unwrap();
+		let mut buffer = Channel::Lumaa.default_pixel();
+		canvas
+			.sample2d((0., 0.5), Sampling::Bilinear, &mut buffer)
+			.unwrap();
 		assert_eq!(buffer, vec![10, 255]);
-		let buffer = canvas.sample2d((0.5, 0.5), Sampling::Bilinear).unwrap();
+		let mut buffer = Channel::Lumaa.default_pixel();
+		canvas
+			.sample2d((0.5, 0.5), Sampling::Bilinear, &mut buffer)
+			.unwrap();
 		assert_eq!(buffer, vec![13, 255]);
-		let buffer = canvas.sample2d((1., 1.), Sampling::Bilinear).unwrap();
+		let mut buffer = Channel::Lumaa.default_pixel();
+		canvas
+			.sample2d((1., 1.), Sampling::Bilinear, &mut buffer)
+			.unwrap();
 		assert_eq!(buffer, vec![20, 255]);
 	}
 }

@@ -6,7 +6,7 @@ use vek::geom::repr_c::Rect;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Stencil {
-	rect: Rect<i32, i32>,
+	bounds: Rect<i32, i32>,
 	mask: BitVec<Lsb0, u8>,
 	channel: Channel,
 	empty_pixel: Vec<u8>,
@@ -15,8 +15,8 @@ pub struct Stencil {
 
 impl Stencil {
 	/// Retrieve rectangle
-	pub fn rect(&self) -> Rect<i32, i32> {
-		self.rect
+	pub fn bounds(&self) -> Rect<i32, i32> {
+		self.bounds
 	}
 
 	/// Retrieve channel
@@ -42,7 +42,7 @@ impl Stencil {
 		let mut mask = bitvec![Lsb0, u8; 1; len];
 		mask.set_uninitialized(false);
 		Self {
-			rect,
+			bounds: rect,
 			mask,
 			channel,
 			empty_pixel: channel.default_pixel(),
@@ -83,7 +83,7 @@ impl Stencil {
 					.collect::<Vec<_>>();
 
 				Self {
-					rect,
+					bounds: rect,
 					mask,
 					channel,
 					empty_pixel: channel.default_pixel(),
@@ -96,14 +96,14 @@ impl Stencil {
 
 	/// Try to retrieve a pixel at coordinate
 	pub fn try_get(&self, x: i32, y: i32) -> Option<&[u8]> {
-		// if self.rect.contains_point(Vec2::new(x, y)) {
-		if self.rect.x <= x
-			&& x < self.rect.x + self.rect.w
-			&& self.rect.y <= y
-			&& y < self.rect.y + self.rect.h
+		// if self.bounds.contains_point(Vec2::new(x, y)) {
+		if self.bounds.x <= x
+			&& x < self.bounds.x + self.bounds.w
+			&& self.bounds.y <= y
+			&& y < self.bounds.y + self.bounds.h
 		{
-			let index =
-				(y.wrapping_sub(self.rect.y) * self.rect.w + x.wrapping_sub(self.rect.x)) as usize;
+			let index = (y.wrapping_sub(self.bounds.y) * self.bounds.w
+				+ x.wrapping_sub(self.bounds.x)) as usize;
 			self.try_index(index)
 		} else {
 			None
@@ -127,7 +127,7 @@ impl Stencil {
 		let channel = frt.channel;
 
 		// Calculate new size
-		let rect = frt.rect.union(bck.rect);
+		let rect = frt.bounds.union(bck.bounds);
 
 		// Allocate new buffers
 		let stride = frt.channel.pixel_stride();
@@ -165,7 +165,7 @@ impl Stencil {
 			}
 		}
 		Self {
-			rect,
+			bounds: rect,
 			mask,
 			channel,
 			empty_pixel: channel.default_pixel(),
@@ -178,7 +178,7 @@ impl Stencil {
 		StencilIterator {
 			bit_offset: 0,
 			data_offset: 0,
-			rect: self.rect,
+			bounds: self.bounds,
 			mask: &self.mask,
 			pixel_stride: self.channel.pixel_stride(),
 			data: &self.data,
@@ -190,7 +190,7 @@ impl Stencil {
 		StencilMutIterator {
 			bit_offset: 0,
 			data_offset: 0,
-			rect: self.rect,
+			bounds: self.bounds,
 			mask: &self.mask,
 			pixel_stride: self.channel.pixel_stride(),
 			data: &mut self.data,
@@ -205,8 +205,8 @@ impl std::fmt::Debug for Stencil {
 			"Stencil ( {} )",
 			braille_fmt2(
 				&self.mask,
-				self.rect.w as usize,
-				self.rect.h as usize,
+				self.bounds.w as usize,
+				self.bounds.h as usize,
 				"\n           "
 			)
 		)
@@ -248,7 +248,7 @@ impl std::ops::Index<usize> for Stencil {
 pub struct StencilIterator<'stencil> {
 	bit_offset: usize,
 	data_offset: usize,
-	rect: Rect<i32, i32>,
+	bounds: Rect<i32, i32>,
 	mask: &'stencil BitVec<Lsb0, u8>,
 	pixel_stride: usize,
 	data: &'stencil Vec<u8>,
@@ -263,12 +263,12 @@ impl<'stencil> Iterator for StencilIterator<'stencil> {
 			self.bit_offset += 1;
 			let bit = self.mask[bit_offset];
 			if bit {
-				let x = bit_offset % self.rect.w as usize;
-				let y = (bit_offset / self.rect.w as usize) | 0;
+				let x = bit_offset % self.bounds.w as usize;
+				let y = (bit_offset / self.bounds.w as usize) | 0;
 				self.data_offset += 1;
 				return Some((
-					x as i32 + self.rect.x,
-					y as i32 + self.rect.y,
+					x as i32 + self.bounds.x,
+					y as i32 + self.bounds.y,
 					&self.data[(self.data_offset.wrapping_sub(1) * self.pixel_stride)
 						..(self.data_offset * self.pixel_stride)],
 				));
@@ -290,7 +290,7 @@ impl<'stencil> IntoIterator for &'stencil Stencil {
 pub struct StencilMutIterator<'stencil> {
 	bit_offset: usize,
 	data_offset: usize,
-	rect: Rect<i32, i32>,
+	bounds: Rect<i32, i32>,
 	mask: &'stencil BitVec<Lsb0, u8>,
 	pixel_stride: usize,
 	data: &'stencil mut Vec<u8>,
@@ -305,15 +305,15 @@ impl<'stencil> Iterator for StencilMutIterator<'stencil> {
 			self.bit_offset += 1;
 			let bit = self.mask[bit_offset];
 			if bit {
-				let x = bit_offset % self.rect.w as usize;
-				let y = (bit_offset / self.rect.w as usize) | 0;
+				let x = bit_offset % self.bounds.w as usize;
+				let y = (bit_offset / self.bounds.w as usize) | 0;
 				self.data_offset += 1;
 				let data: &'iter mut [u8] = &mut self.data[(self.data_offset.wrapping_sub(1)
 					* self.pixel_stride)
 					..(self.data_offset * self.pixel_stride)];
 				let data =
 					unsafe { std::mem::transmute::<&'iter mut [u8], &'stencil mut [u8]>(data) };
-				return Some((x as i32 + self.rect.x, y as i32 + self.rect.y, data));
+				return Some((x as i32 + self.bounds.x, y as i32 + self.bounds.y, data));
 			}
 		}
 		return None;

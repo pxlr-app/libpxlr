@@ -21,8 +21,8 @@ impl RTreeObject for StencilObject {
 	type Envelope = AABB<[i32; 2]>;
 
 	fn envelope(&self) -> Self::Envelope {
-		let Rect { x, y, w, h } = self.stencil.rect();
-		AABB::from_corners([x, y], [x + w, y + h])
+		let Rect { x, y, w, h } = self.stencil.bounds();
+		AABB::from_corners([x, y], [w, h])
 	}
 }
 
@@ -143,8 +143,17 @@ impl Canvas {
 		));
 	}
 
-	/// Retrieve the rectangle that cover all stencils
-	pub fn rect(&self) -> Rect<i32, i32> {
+	/// Try to retrieve a pixel at coordinate
+	pub fn try_get(&self, x: i32, y: i32) -> Option<&[u8]> {
+		if let Some(node) = self.rtree.locate_at_point(&[x, y]) {
+			node.stencil.try_get(x, y)
+		} else {
+			None
+		}
+	}
+
+	/// Retrieve canvas bounds
+	pub fn bounds(&self) -> Rect<i32, i32> {
 		if self.stencils.len() == 0 {
 			Rect::new(0, 0, 0, 0)
 		} else {
@@ -159,7 +168,7 @@ impl Canvas {
 	pub fn iter(&self) -> CanvasIterator {
 		CanvasIterator {
 			canvas: self,
-			region: self.rect(),
+			region: self.bounds(),
 			index: 0,
 		}
 	}
@@ -176,7 +185,7 @@ impl Canvas {
 	/// Allocate a copy of this canvas
 	pub fn copy_to_stencil(&self) -> Stencil {
 		Stencil::from_buffer(
-			self.rect(),
+			self.bounds(),
 			self.channel,
 			self.iter().flatten().map(|b| *b).collect::<Vec<u8>>(),
 		)
@@ -189,7 +198,8 @@ impl Canvas {
 			.stencils
 			.drain(..)
 			.filter_map(|stencil| {
-				if region.contains_rect(stencil.rect()) || region.collides_with_rect(stencil.rect())
+				if region.contains_rect(stencil.bounds())
+					|| region.collides_with_rect(stencil.bounds())
 				{
 					Some(stencil.clone())
 				} else {
@@ -207,12 +217,11 @@ impl std::ops::Index<(i32, i32)> for Canvas {
 
 	fn index(&self, index: (i32, i32)) -> &Self::Output {
 		let (x, y) = index;
-		if let Some(node) = self.rtree.locate_at_point(&[x, y]) {
-			if let Some(pixel) = node.stencil.try_get(x, y) {
-				return pixel;
-			}
+		if let Some(pixel) = self.try_get(x, y) {
+			pixel
+		} else {
+			&self.empty_pixel
 		}
-		&self.empty_pixel
 	}
 }
 
@@ -252,7 +261,7 @@ mod tests {
 	#[test]
 	fn default_canvas() {
 		let a = Canvas::new(Channel::default());
-		assert_eq!(a.rect(), Rect::new(0, 0, 0, 0));
+		assert_eq!(a.bounds(), Rect::new(0, 0, 0, 0));
 	}
 
 	#[test]
@@ -264,7 +273,7 @@ mod tests {
 			vec![1, 255, 0, 0, 0, 0, 4, 1],
 		);
 		let b = a.apply_stencil(stencil).unwrap();
-		assert_eq!(b.rect(), Rect::new(0, 0, 2, 2));
+		assert_eq!(b.bounds(), Rect::new(0, 0, 2, 2));
 	}
 
 	#[test]
@@ -277,11 +286,11 @@ mod tests {
 		);
 		let b = a.apply_stencil(stencil).unwrap();
 		let pixels: Vec<_> = b.iter().flatten().collect();
-		assert_eq!(pixels, vec![&1, &255, &0, &255, &0, &255, &4, &1]);
+		assert_eq!(pixels, vec![&1, &255, &0, &0, &0, &0, &4, &1]);
 		let pixels: Vec<_> = b.iter_region(Rect::new(1, 0, 1, 2)).flatten().collect();
-		assert_eq!(pixels, vec![&0, &255, &4, &1]);
+		assert_eq!(pixels, vec![&0, &0, &4, &1]);
 		let pixels: Vec<_> = b.iter_region(Rect::new(-10, -10, 2, 2)).flatten().collect();
-		assert_eq!(pixels, vec![&0, &255, &0, &255, &0, &255, &0, &255]);
+		assert_eq!(pixels, vec![&0, &0, &0, &0, &0, &0, &0, &0]);
 	}
 
 	#[test]
@@ -292,7 +301,7 @@ mod tests {
 			vec![1, 255, 0, 0, 0, 0, 4, 1],
 		));
 		let pixels: Vec<_> = a.iter().flatten().collect();
-		assert_eq!(pixels, vec![&1, &255, &0, &255, &0, &255, &4, &1]);
+		assert_eq!(pixels, vec![&1, &255, &0, &0, &0, &0, &4, &1]);
 		let b = a
 			.apply_stencil(Stencil::from_buffer_mask_alpha(
 				Rect::new(10, 10, 2, 2),
@@ -302,6 +311,6 @@ mod tests {
 			.unwrap();
 		let c = b.crop(Rect::new(1, 0, 1, 2));
 		let pixels: Vec<_> = c.iter().flatten().collect();
-		assert_eq!(pixels, vec![&1, &255, &0, &255, &0, &255, &4, &1]);
+		assert_eq!(pixels, vec![&1, &255, &0, &0, &0, &0, &4, &1]);
 	}
 }

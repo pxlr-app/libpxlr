@@ -113,6 +113,7 @@ dependencies = [
  "cargo-husky",
  "color",
  "image",
+ "rayon",
  "rstar",
  "serde",
  "vek",
