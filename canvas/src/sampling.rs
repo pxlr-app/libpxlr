@@ -1,6 +1,7 @@
 use crate::Canvas;
 use color::{ChannelError, Pixel, PixelMut};
 use serde::{Deserialize, Serialize};
+use vek::vec::repr_c::vec2::Vec2;
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Sampling {
@@ -31,6 +32,10 @@ impl Samplable for Canvas {
 	) -> Result<(), Self::Error> {
 		assert_eq!(out.len(), self.channel.pixel_stride());
 		let bounds = self.bounds();
+		if !bounds.contains_point(Vec2::new(position.0 as i32, position.1 as i32)) {
+			out.copy_from_slice(&self.channel.default_pixel());
+			return Ok(());
+		}
 		match sampling {
 			Sampling::Nearest => {
 				let x = position

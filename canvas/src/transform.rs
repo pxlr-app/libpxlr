@@ -5,7 +5,7 @@ use rayon::prelude::*;
 use vek::{
 	geom::repr_c::{Aabr, Rect},
 	mat::repr_c::column_major::{Mat3, Mat4},
-	vec::repr_c::{extent2::Extent2, vec2::Vec2, vec3::Vec3, vec4::Vec4},
+	vec::repr_c::vec2::Vec2,
 };
 
 pub trait Transformable {
@@ -15,13 +15,14 @@ pub trait Transformable {
 }
 
 impl Transformable for Canvas {
-	type Output = Result<Stencil, ChannelError>;
+	type Output = Result<Canvas, ChannelError>;
 
-	fn transform(&self, sampling: Sampling, matrix: &Mat3<f32>) -> Result<Stencil, ChannelError> {
+	fn transform(&self, sampling: Sampling, matrix: &Mat3<f32>) -> Result<Canvas, ChannelError> {
 		let stride = self.channel.pixel_stride();
+		let old_bounds = self.bounds();
 
 		// Calculate new bounds
-		let half_size: Aabr<f32> = self.bounds().into_aabr().as_();
+		let half_size: Aabr<f32> = old_bounds.into_aabr().as_();
 		let half_size = half_size.half_size();
 		let tl = matrix.mul_point_2d(Vec2::new(-half_size.w, -half_size.h));
 		let tr = matrix.mul_point_2d(Vec2::new(half_size.w, -half_size.h));
@@ -32,15 +33,26 @@ impl Transformable for Canvas {
 		let r = tl.x.max(tr.x).max(bl.x).max(br.x);
 		let b = tl.y.max(tr.y).max(bl.y).max(br.y);
 		let new_bounds = Rect::new(
-			// (l + half_size.w).floor() as i32,
-			// (t + half_size.h).floor() as i32,
-			0,
-			0,
+			old_bounds.x,
+			old_bounds.y,
 			(r - l).ceil() as i32,
 			(b - t).ceil() as i32,
 		);
 
-		let projection = Into::<Mat3<f32>>::into(Into::<Mat4<f32>>::into(*matrix).inverted());
+		// Center canvas
+		let projection = Mat3::<f32>::translation_2d(Vec2::new(
+			old_bounds.w as f32 / -2f32 + 0.5,
+			old_bounds.h as f32 / -2f32 + 0.5,
+		));
+		// Apply transformation
+		let projection = (*matrix) * projection;
+		// Decenter canvas
+		let projection = Mat3::<f32>::translation_2d(-Vec2::new(
+			new_bounds.w as f32 / -2f32 + 0.5,
+			new_bounds.h as f32 / -2f32 + 0.5,
+		)) * projection;
+		// Invert matrix
+		let projection = Into::<Mat3<f32>>::into(Into::<Mat4<f32>>::into(projection).inverted());
 
 		let mut data: Vec<u8> = vec![0u8; new_bounds.w as usize * new_bounds.h as usize * stride];
 		let pitch = new_bounds.w as usize * stride;
@@ -54,14 +66,13 @@ impl Transformable for Canvas {
 			for (x, slice) in row.chunks_mut(stride).enumerate() {
 				let pos = projection.mul_point_2d(Vec2::new(x as f32, y as f32));
 				let _ = self.sample2d((pos.x, pos.y), sampling, slice);
-				// dbg!(x, y, pos.x, pos.y, slice);
 			}
 		});
-		Ok(Stencil::from_buffer_mask_alpha(
+		Ok(Canvas::from_stencil(Stencil::from_buffer_mask_alpha(
 			new_bounds,
 			self.channel,
 			data,
-		))
+		)))
 	}
 }
 
@@ -72,10 +83,7 @@ mod tests {
 	use color::*;
 	use image::{DynamicImage, ImageBuffer};
 	use std::path::Path;
-	use vek::{
-		geom::repr_c::Rect,
-		vec::repr_c::{vec2::Vec2, vec3::Vec3},
-	};
+	use vek::{geom::repr_c::Rect, vec::repr_c::vec3::Vec3};
 
 	fn load_image(path: &Path) -> Result<(Channel, u32, u32, Vec<u8>), ()> {
 		match image::open(path).map_err(|_| ())? {
@@ -148,221 +156,103 @@ mod tests {
 		}
 	}
 
-	#[test]
-	fn transform_identity() {
-		let a = Canvas::from_stencil(Stencil::from_buffer_mask_alpha(
-			Rect::new(0, 0, 2, 2),
-			Channel::Lumaa,
-			vec![5, 255, 10, 255, 15, 255, 20, 255],
-		));
-		// let b = a
-		// 	.transform(Sampling::Nearest, &Mat3::rotation_z(0.785398))
-		// 	.unwrap();
-		let b = a.transform(Sampling::Nearest, &Mat3::identity()).unwrap();
-		let pixels: Vec<_> = b
-			.iter()
-			.map(|(_, _, data)| data.to_vec())
-			.flatten()
-			.collect();
-		assert_eq!(pixels, vec![5, 255, 10, 255, 15, 255, 20, 255]);
+	fn assert_transform_image(
+		in_image: &Path,
+		sampling: Sampling,
+		transform: Mat3<f32>,
+		out_image: &Path,
+	) {
+		let (channel, width, height, pixels) = load_image(in_image).unwrap();
 
-		let (channel, width, height, pixels) =
-			load_image(&Path::new("tests/character.png")).unwrap();
-
-		let c = Canvas::from_stencil(Stencil::from_buffer(
+		let canvas = Canvas::from_stencil(Stencil::from_buffer(
 			Rect::new(0, 0, width as i32, height as i32),
 			channel,
 			pixels,
 		));
-		let d = c.transform(Sampling::Nearest, &Mat3::identity()).unwrap();
-		let d = Canvas::from_stencil(d);
-		save_pixels(
-			&Path::new("tests/transform-nearest-identity.png"),
-			channel,
-			d.bounds(),
-			d,
-		)
-		.unwrap();
+		let canvas = canvas.transform(sampling, &transform).unwrap();
+		let bounds = canvas.bounds();
+		let transformed_pixels: Vec<_> = canvas.iter().flatten().map(|b| *b).collect();
+
+		if let Some(_) = std::option_env!("PXLR_TEST_SAVE_IMAGE") {
+			save_pixels(out_image, channel, bounds, canvas).unwrap();
+		}
+
+		let (out_channel, out_width, out_height, out_pixels) = load_image(out_image).unwrap();
+		assert_eq!(channel, out_channel);
+		assert_eq!(out_width, bounds.w as u32);
+		assert_eq!(out_height, bounds.h as u32);
+		assert_eq!(transformed_pixels, out_pixels);
+	}
+
+	#[test]
+	fn transform_identity() {
+		assert_transform_image(
+			&Path::new("tests/character.png"),
+			Sampling::Nearest,
+			Mat3::identity(),
+			&Path::new("tests/character-nearest-identity.png"),
+		);
 	}
 
 	#[test]
 	fn transform_flip() {
-		let a = Canvas::from_stencil(Stencil::from_buffer_mask_alpha(
-			Rect::new(0, 0, 2, 2),
-			Channel::Lumaa,
-			vec![5, 255, 10, 255, 15, 255, 20, 255],
-		));
-		let b = a
-			.transform(
-				Sampling::Nearest,
-				&Mat3::translation_2d(Vec2::new(-0.5, 0.))
-					.scaled_3d(Vec3::new(-1., 1., 1.))
-					.translated_2d(Vec2::new(0.5, 0.)),
-			)
-			.unwrap();
-		let pixels: Vec<_> = b
-			.iter()
-			.map(|(_, _, data)| data.to_vec())
-			.flatten()
-			.collect();
-		assert_eq!(pixels, vec![10, 255, 5, 255, 20, 255, 15, 255]);
+		assert_transform_image(
+			&Path::new("tests/character.png"),
+			Sampling::Nearest,
+			Mat3::scaling_3d(Vec3::new(-1., 1., 1.)),
+			&Path::new("tests/character-nearest-flip-x.png"),
+		);
 
-		let c = a
-			.transform(
-				Sampling::Nearest,
-				&Mat3::translation_2d(Vec2::new(0., -0.5))
-					.scaled_3d(Vec3::new(1., -1., 1.))
-					.translated_2d(Vec2::new(0., 0.5)),
-			)
-			.unwrap();
-		let pixels: Vec<_> = c
-			.iter()
-			.map(|(_, _, data)| data.to_vec())
-			.flatten()
-			.collect();
-		assert_eq!(pixels, vec![15, 255, 20, 255, 5, 255, 10, 255]);
+		assert_transform_image(
+			&Path::new("tests/character.png"),
+			Sampling::Nearest,
+			Mat3::scaling_3d(Vec3::new(1., -1., 1.)),
+			&Path::new("tests/character-nearest-flip-y.png"),
+		);
 
-		{
-			let (channel, width, height, pixels) =
-				load_image(&Path::new("tests/character.png")).unwrap();
-
-			let c = Canvas::from_stencil(Stencil::from_buffer(
-				Rect::new(0, 0, width as i32, height as i32),
-				channel,
-				pixels,
-			));
-			let d = c
-				.transform(
-					Sampling::Nearest,
-					&Mat3::translation_2d(Vec2::new(width as f32 / -2. + 0.5, 0.))
-						.scaled_3d(Vec3::new(-1., 1., 1.))
-						.translated_2d(Vec2::new(width as f32 / 2. - 0.5, 0.)),
-				)
-				.unwrap();
-			let d = Canvas::from_stencil(d);
-			save_pixels(
-				&Path::new("tests/transform-nearest-flip-x.png"),
-				channel,
-				d.bounds(),
-				d,
-			)
-			.unwrap();
-		}
-
-		{
-			let (channel, width, height, pixels) =
-				load_image(&Path::new("tests/character.png")).unwrap();
-
-			let c = Canvas::from_stencil(Stencil::from_buffer(
-				Rect::new(0, 0, width as i32, height as i32),
-				channel,
-				pixels,
-			));
-			let d = c
-				.transform(
-					Sampling::Nearest,
-					&Mat3::translation_2d(Vec2::new(0., height as f32 / -2. + 0.5))
-						.scaled_3d(Vec3::new(1., -1., 1.))
-						.translated_2d(Vec2::new(0., height as f32 / 2. - 0.5)),
-				)
-				.unwrap();
-			let d = Canvas::from_stencil(d);
-			save_pixels(
-				&Path::new("tests/transform-nearest-flip-y.png"),
-				channel,
-				d.bounds(),
-				d,
-			)
-			.unwrap();
-		}
-
-		{
-			let (channel, width, height, pixels) =
-				load_image(&Path::new("tests/character.png")).unwrap();
-
-			let c = Canvas::from_stencil(Stencil::from_buffer(
-				Rect::new(0, 0, width as i32, height as i32),
-				channel,
-				pixels,
-			));
-			let d = c
-				.transform(
-					Sampling::Nearest,
-					&Mat3::translation_2d(Vec2::new(
-						width as f32 / -2. + 0.5,
-						height as f32 / -2. + 0.5,
-					))
-					.scaled_3d(Vec3::new(-1., -1., 1.))
-					.translated_2d(Vec2::new(width as f32 / 2. - 0.5, height as f32 / 2. - 0.5)),
-				)
-				.unwrap();
-			let d = Canvas::from_stencil(d);
-			save_pixels(
-				&Path::new("tests/transform-nearest-flip-xy.png"),
-				channel,
-				d.bounds(),
-				d,
-			)
-			.unwrap();
-		}
+		assert_transform_image(
+			&Path::new("tests/character.png"),
+			Sampling::Nearest,
+			Mat3::scaling_3d(Vec3::new(-1., -1., 1.)),
+			&Path::new("tests/character-nearest-flip-xy.png"),
+		);
 	}
 
 	#[test]
 	fn transform_scale() {
-		let a = Canvas::from_stencil(Stencil::from_buffer_mask_alpha(
-			Rect::new(0, 0, 2, 2),
-			Channel::Lumaa,
-			vec![5, 255, 10, 255, 15, 255, 20, 255],
-		));
-		let b = a
-			.transform(
-				Sampling::Nearest,
-				&Mat3::translation_2d(Vec2::new(-0.5, -0.5))
-					.scaled_3d(Vec3::new(2., 2., 1.))
-					.translated_2d(Vec2::new(0.5, 0.5)),
-			)
-			.unwrap();
-		let pixels: Vec<_> = b
-			.iter()
-			.map(|(_, _, data)| data.to_vec())
-			.flatten()
-			.collect();
-		assert_eq!(
-			pixels,
-			vec![
-				5, 255, 10, 255, 10, 255, 10, 255, 15, 255, 20, 255, 20, 255, 20, 255, 15, 255, 20,
-				255, 20, 255, 20, 255, 15, 255, 20, 255, 20, 255, 20, 255
-			]
+		assert_transform_image(
+			&Path::new("tests/character.png"),
+			Sampling::Nearest,
+			Mat3::scaling_3d(Vec3::new(2., 2., 1.)),
+			&Path::new("tests/character-nearest-scale-2x.png"),
 		);
+		assert_transform_image(
+			&Path::new("tests/character.png"),
+			Sampling::Nearest,
+			Mat3::scaling_3d(Vec3::new(0.5, 0.5, 1.)),
+			&Path::new("tests/character-nearest-scale-half.png"),
+		);
+	}
 
-		{
-			let (channel, width, height, pixels) =
-				load_image(&Path::new("tests/character.png")).unwrap();
-
-			let c = Canvas::from_stencil(Stencil::from_buffer(
-				Rect::new(0, 0, width as i32, height as i32),
-				channel,
-				pixels,
-			));
-			let d = c
-				.transform(
-					Sampling::Nearest,
-					&Mat3::translation_2d(Vec2::new(
-						width as f32 / -2. + 0.5,
-						height as f32 / -2. + 0.5,
-					))
-					.scaled_3d(Vec3::new(2., 2., 1.))
-					.translated_2d(Vec2::new(width as f32 - 0.5, height as f32 - 0.5)),
-				)
-				.unwrap();
-			let d = Canvas::from_stencil(d);
-			save_pixels(
-				&Path::new("tests/transform-nearest-scale2x.png"),
-				channel,
-				d.bounds(),
-				d,
-			)
-			.unwrap();
-		}
+	#[test]
+	fn transform_rotate() {
+		assert_transform_image(
+			&Path::new("tests/character.png"),
+			Sampling::Nearest,
+			Mat3::rotation_z(45. * (std::f32::consts::PI / 180.)),
+			&Path::new("tests/character-nearest-rotate-45deg.png"),
+		);
+		assert_transform_image(
+			&Path::new("tests/character.png"),
+			Sampling::Nearest,
+			Mat3::rotation_z(90. * (std::f32::consts::PI / 180.)),
+			&Path::new("tests/character-nearest-rotate-90deg.png"),
+		);
+		assert_transform_image(
+			&Path::new("tests/character.png"),
+			Sampling::Nearest,
+			Mat3::rotation_z(180. * (std::f32::consts::PI / 180.)),
+			&Path::new("tests/character-nearest-rotate-180deg.png"),
+		);
 	}
 }
