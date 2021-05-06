@@ -279,7 +279,7 @@ impl<'data> PixelMut<'data> {
 
 				// Compose
 				let rl = fl * Fa + bl * Fb;
-				let ra = fa + ba * (1. - fa);
+				let ra = fa * Fa + ba * Fb;
 
 				*self.lumaa().unwrap() = Lumaa::new(
 					Luma::new((rl * 255.).round() as u8),
@@ -343,7 +343,7 @@ impl<'data> PixelMut<'data> {
 				let rr = fa * Fa * or + ba * Fb * br;
 				let rg = fa * Fa * og + ba * Fb * bg;
 				let rb = fa * Fa * ob + ba * Fb * bb;
-				let ra = fa + ba * (1. - fa);
+				let ra = fa * Fa + ba * Fb;
 
 				*self.rgba().unwrap() = Rgba::new(
 					Rgb::new(
