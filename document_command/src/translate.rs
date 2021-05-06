@@ -53,6 +53,9 @@ impl Command for TranslateCommand {
 			NodeType::Group(ref mut cloned) => {
 				cloned.position = Arc::new(self.position.clone());
 			}
+			NodeType::Palette(ref mut cloned) => {
+				cloned.position = Arc::new(self.position.clone());
+			}
 		}
 
 		Some(cloned)

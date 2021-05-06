@@ -8,6 +8,7 @@ pub mod io;
 mod meta;
 mod node;
 mod note;
+mod palette;
 mod parser;
 
 pub use crate::canvas::*;
@@ -16,6 +17,7 @@ pub use group::*;
 pub use meta::*;
 pub use node::*;
 pub use note::*;
+pub use palette::*;
 pub use parser::*;
 
 #[derive(Debug)]

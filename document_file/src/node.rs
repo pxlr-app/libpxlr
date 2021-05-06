@@ -31,6 +31,7 @@ impl NodeTypeNodeId for NodeType {
 		match self {
 			NodeType::Group(_) => 0,
 			NodeType::Note(_) => 1,
+			NodeType::Palette(_) => 1,
 		}
 	}
 }
@@ -46,6 +47,7 @@ impl NodeParse for NodeType {
 		match node_type {
 			0u16 => document_core::Group::parse(version, chunk, dependencies, bytes),
 			1u16 => document_core::Note::parse(version, chunk, dependencies, bytes),
+			2u16 => document_core::Palette::parse(version, chunk, dependencies, bytes),
 			_ => unreachable!(),
 		}
 	}
@@ -63,6 +65,10 @@ impl NodeWrite for NodeType {
 			}
 			NodeType::Note(node) => {
 				writer.write_all(&1u16.to_le_bytes())?;
+				node.write(writer)
+			}
+			NodeType::Palette(node) => {
+				writer.write_all(&2u16.to_le_bytes())?;
 				node.write(writer)
 			}
 		}?;

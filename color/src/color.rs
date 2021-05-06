@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use vek::ops::Lerp;
 
 pub trait Color: Default {
@@ -9,7 +10,7 @@ pub trait Color: Default {
 	fn from_slice_mut(slice: &mut [u8]) -> &mut Self;
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Alpha<C: Color> {
 	pub color: C,
 	pub alpha: u8,
@@ -79,7 +80,7 @@ impl<C: Color> std::ops::DerefMut for Alpha<C> {
 macro_rules! define_color {
 	($name:ident, ($($comp:ident),+), $type:ty) => {
 		#[repr(C)]
-		#[derive(Debug, Default, Clone, Copy, PartialEq)]
+		#[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize)]
 		pub struct $name {
 			$(pub $comp: $type),+
 		}

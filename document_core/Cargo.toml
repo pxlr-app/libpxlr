@@ -4,6 +4,8 @@ version = "0.2.0"
 edition = "2018"
 
 [dependencies]
+canvas = { path = "../canvas" }
+color = { path = "../color" }
 serde = { version = "1.0", features = ["rc"] }
 uuid = { version = "0.8", features = ["serde", "stdweb", "v4"] }
 vek = { version = "0.15", features = ["serde"] }

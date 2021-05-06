@@ -3,6 +3,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 mod group;
 mod note;
+mod palette;
 mod walk;
 
 pub static DOCUMENT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -20,12 +21,14 @@ pub trait NonLeafNode: Node {
 
 pub use group::*;
 pub use note::*;
+pub use palette::*;
 pub use walk::*;
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum NodeType {
 	Note(note::Note),
 	Group(group::Group),
+	Palette(palette::Palette),
 }
 
 impl Node for NodeType {
@@ -33,12 +36,14 @@ impl Node for NodeType {
 		match self {
 			NodeType::Note(node) => node.id(),
 			NodeType::Group(node) => node.id(),
+			NodeType::Palette(node) => node.id(),
 		}
 	}
 	fn name(&self) -> &str {
 		match self {
 			NodeType::Note(node) => node.name(),
 			NodeType::Group(node) => node.name(),
+			NodeType::Palette(node) => node.name(),
 		}
 	}
 }
