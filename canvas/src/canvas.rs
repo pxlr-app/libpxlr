@@ -1,5 +1,5 @@
 use crate::Stencil;
-use color::{Blending, Channel, ChannelError, Compositing, Pixel, PixelMut};
+use color::{Blending, Channel, ChannelError, Compositing};
 use rstar::{Envelope, Point, PointDistance, RTree, RTreeObject, AABB};
 use std::sync::Arc;
 use vek::geom::repr_c::Rect;
@@ -104,7 +104,7 @@ impl Canvas {
 	/// of previous stencils.
 	pub fn apply_stencil_with_blend(
 		&self,
-		mut stencil: Stencil,
+		stencil: Stencil,
 		blend_mode: Blending,
 		compose_op: Compositing,
 	) -> Result<Canvas, CanvasError> {
@@ -115,20 +115,31 @@ impl Canvas {
 			)));
 		}
 		let channel = self.channel;
-		let mut cloned = self.clone();
-		for (x, y, dst_buf) in stencil.iter_mut() {
-			let mut dst_px = PixelMut::from_buffer_mut(dst_buf, channel);
-			for node in self.rtree.locate_all_at_point(&[x, y]) {
-				if let Some(bck_buf) = node.stencil.try_get(x, y) {
-					let frt_px = Pixel::from_buffer(bck_buf, channel);
-					let bck_px = Pixel::from_buffer(bck_buf, channel);
-					dst_px.blend(blend_mode, compose_op, &frt_px, &bck_px)?;
-				}
+		let mut stencils: Vec<Arc<Stencil>> = Vec::with_capacity(self.stencils.len());
+		let bounds = stencil.bounds();
+		let mut merged = false;
+		for old_stencil in self.stencils.iter() {
+			let old_bounds = old_stencil.bounds();
+			if bounds.contains_rect(old_bounds) || bounds.collides_with_rect(old_bounds) {
+				let new_stencil = Stencil::merge(old_stencil, &stencil, blend_mode, compose_op);
+				stencils.push(Arc::new(new_stencil));
+				merged = true;
+			} else {
+				stencils.push(old_stencil.clone());
 			}
 		}
-		cloned.stencils.push(Arc::new(stencil));
-		cloned.rebuild_rtree_from_stencils();
-		Ok(cloned)
+		if !merged {
+			stencils.push(Arc::new(stencil));
+		}
+
+		let mut canvas = Canvas {
+			channel,
+			empty_pixel: channel.default_pixel(),
+			rtree: Arc::new(RTree::new()),
+			stencils,
+		};
+		canvas.rebuild_rtree_from_stencils();
+		Ok(canvas)
 	}
 
 	/// Rebuild RTree from brushes
@@ -274,6 +285,35 @@ mod tests {
 		);
 		let b = a.apply_stencil(stencil).unwrap();
 		assert_eq!(b.bounds(), Rect::new(0, 0, 2, 2));
+
+		let a = Canvas::from_stencil(Stencil::from_buffer(
+			Rect::new(0, 0, 4, 4),
+			Channel::Lumaa,
+			vec![
+				1, 255, 2, 255, 3, 255, 4, 255, 5, 255, 6, 255, 7, 255, 8, 255, 9, 255, 10, 255,
+				11, 255, 12, 255, 13, 255, 14, 255, 15, 255, 16, 255,
+			],
+		));
+		let b = a
+			.apply_stencil_with_blend(
+				Stencil::from_buffer(
+					Rect::new(1, 1, 2, 2),
+					Channel::Lumaa,
+					vec![1, 255, 1, 255, 1, 255, 1, 255],
+				),
+				Blending::Normal,
+				Compositing::SourceOut,
+			)
+			.unwrap();
+		assert_eq!(b.bounds(), Rect::new(0, 0, 4, 4));
+		let pixels: Vec<_> = b.iter().flatten().map(|b| *b).collect();
+		assert_eq!(
+			pixels,
+			vec![
+				1, 255, 2, 255, 3, 255, 4, 255, 5, 255, 0, 0, 0, 0, 8, 255, 9, 255, 0, 0, 0, 0, 12,
+				255, 13, 255, 14, 255, 15, 255, 16, 255
+			]
+		);
 	}
 
 	#[test]
@@ -285,12 +325,20 @@ mod tests {
 			vec![1, 255, 0, 0, 0, 0, 4, 1],
 		);
 		let b = a.apply_stencil(stencil).unwrap();
-		let pixels: Vec<_> = b.iter().flatten().collect();
-		assert_eq!(pixels, vec![&1, &255, &0, &0, &0, &0, &4, &1]);
-		let pixels: Vec<_> = b.iter_region(Rect::new(1, 0, 1, 2)).flatten().collect();
-		assert_eq!(pixels, vec![&0, &0, &4, &1]);
-		let pixels: Vec<_> = b.iter_region(Rect::new(-10, -10, 2, 2)).flatten().collect();
-		assert_eq!(pixels, vec![&0, &0, &0, &0, &0, &0, &0, &0]);
+		let pixels: Vec<_> = b.iter().flatten().map(|b| *b).collect();
+		assert_eq!(pixels, vec![1, 255, 0, 0, 0, 0, 4, 1]);
+		let pixels: Vec<_> = b
+			.iter_region(Rect::new(1, 0, 1, 2))
+			.flatten()
+			.map(|b| *b)
+			.collect();
+		assert_eq!(pixels, vec![0, 0, 4, 1]);
+		let pixels: Vec<_> = b
+			.iter_region(Rect::new(-10, -10, 2, 2))
+			.flatten()
+			.map(|b| *b)
+			.collect();
+		assert_eq!(pixels, vec![0, 0, 0, 0, 0, 0, 0, 0]);
 	}
 
 	#[test]
@@ -300,8 +348,8 @@ mod tests {
 			Channel::Lumaa,
 			vec![1, 255, 0, 0, 0, 0, 4, 1],
 		));
-		let pixels: Vec<_> = a.iter().flatten().collect();
-		assert_eq!(pixels, vec![&1, &255, &0, &0, &0, &0, &4, &1]);
+		let pixels: Vec<_> = a.iter().flatten().map(|b| *b).collect();
+		assert_eq!(pixels, vec![1, 255, 0, 0, 0, 0, 4, 1]);
 		let b = a
 			.apply_stencil(Stencil::from_buffer_mask_alpha(
 				Rect::new(10, 10, 2, 2),
@@ -310,7 +358,7 @@ mod tests {
 			))
 			.unwrap();
 		let c = b.crop(Rect::new(1, 0, 1, 2));
-		let pixels: Vec<_> = c.iter().flatten().collect();
-		assert_eq!(pixels, vec![&1, &255, &0, &0, &0, &0, &4, &1]);
+		let pixels: Vec<_> = c.iter().flatten().map(|b| *b).collect();
+		assert_eq!(pixels, vec![1, 255, 0, 0, 0, 0, 4, 1]);
 	}
 }
