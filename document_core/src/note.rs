@@ -8,7 +8,7 @@ use vek::vec::repr_c::vec2::Vec2;
 pub struct Note {
 	pub id: Uuid,
 	pub name: Arc<String>,
-	pub position: Arc<Vec2<u32>>,
+	pub position: Arc<Vec2<i32>>,
 	pub content: Arc<String>,
 }
 

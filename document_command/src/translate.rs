@@ -6,9 +6,9 @@ use uuid::Uuid;
 use vek::vec::repr_c::vec2::Vec2;
 
 pub trait Translatable: Node {
-	fn position(&self) -> &Vec2<u32>;
+	fn position(&self) -> &Vec2<i32>;
 
-	fn translate<P: Into<Vec2<u32>>>(&self, position: P) -> (CommandType, CommandType) {
+	fn translate<P: Into<Vec2<i32>>>(&self, position: P) -> (CommandType, CommandType) {
 		(
 			CommandType::Translate(TranslateCommand {
 				target: *self.id(),
@@ -23,13 +23,13 @@ pub trait Translatable: Node {
 }
 
 impl Translatable for document_core::Note {
-	fn position(&self) -> &Vec2<u32> {
+	fn position(&self) -> &Vec2<i32> {
 		&self.position
 	}
 }
 
 impl Translatable for document_core::Group {
-	fn position(&self) -> &Vec2<u32> {
+	fn position(&self) -> &Vec2<i32> {
 		&self.position
 	}
 }
@@ -37,7 +37,7 @@ impl Translatable for document_core::Group {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TranslateCommand {
 	pub target: Uuid,
-	pub position: Vec2<u32>,
+	pub position: Vec2<i32>,
 }
 
 impl Command for TranslateCommand {

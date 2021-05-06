@@ -34,7 +34,7 @@ pub struct Chunk {
 	pub node_type: u16,
 	pub offset: u64,
 	pub size: u32,
-	pub rect: Rect<u32, u32>,
+	pub rect: Rect<i32, i32>,
 	pub name: String,
 	pub children: Vec<Uuid>,
 	pub dependencies: Vec<Uuid>,
@@ -122,7 +122,7 @@ impl Parse for Chunk {
 		let (bytes, node) = le_u16(bytes)?;
 		let (bytes, offset) = le_u64(bytes)?;
 		let (bytes, size) = le_u32(bytes)?;
-		let (bytes, rect) = Rect::<u32, u32>::parse(bytes)?;
+		let (bytes, rect) = Rect::<i32, i32>::parse(bytes)?;
 		let (bytes, child_count) = le_u32(bytes)?;
 		let (bytes, dep_count) = le_u32(bytes)?;
 		let (bytes, name) = String::parse(bytes)?;

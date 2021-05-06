@@ -28,7 +28,7 @@ impl NodeWrite for Group {
 	fn write<W: io::Write + io::Seek>(
 		&self,
 		_writer: &mut W,
-	) -> io::Result<(usize, Rect<u32, u32>, ChunkDependencies)> {
+	) -> io::Result<(usize, Rect<i32, i32>, ChunkDependencies)> {
 		Ok((
 			0,
 			Rect::default(),

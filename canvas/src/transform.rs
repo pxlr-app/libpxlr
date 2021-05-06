@@ -18,7 +18,8 @@ impl Transformable for Canvas {
 	type Output = Result<Canvas, ChannelError>;
 
 	fn transform(&self, sampling: Sampling, matrix: &Mat3<f32>) -> Result<Canvas, ChannelError> {
-		let stride = self.channel.pixel_stride();
+		let channel = self.channel();
+		let stride = channel.pixel_stride();
 		let old_bounds = self.bounds();
 
 		// Calculate new bounds
@@ -69,9 +70,7 @@ impl Transformable for Canvas {
 			}
 		});
 		Ok(Canvas::from_stencil(Stencil::from_buffer_mask_alpha(
-			new_bounds,
-			self.channel,
-			data,
+			new_bounds, channel, data,
 		)))
 	}
 }

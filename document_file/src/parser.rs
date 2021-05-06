@@ -1,4 +1,8 @@
-use nom::{bytes::complete::take, number::complete::le_u32, IResult};
+use nom::{
+	bytes::complete::take,
+	number::complete::{le_i32, le_u32},
+	IResult,
+};
 use std::io;
 use uuid::Uuid;
 use vek::{geom::repr_c::Rect, vec::repr_c::vec2::Vec2};
@@ -49,17 +53,17 @@ impl Write for Uuid {
 	}
 }
 
-impl Parse for Rect<u32, u32> {
-	fn parse(bytes: &[u8]) -> IResult<&[u8], Rect<u32, u32>> {
-		let (bytes, x) = le_u32(bytes)?;
-		let (bytes, y) = le_u32(bytes)?;
-		let (bytes, w) = le_u32(bytes)?;
-		let (bytes, h) = le_u32(bytes)?;
+impl Parse for Rect<i32, i32> {
+	fn parse(bytes: &[u8]) -> IResult<&[u8], Rect<i32, i32>> {
+		let (bytes, x) = le_i32(bytes)?;
+		let (bytes, y) = le_i32(bytes)?;
+		let (bytes, w) = le_i32(bytes)?;
+		let (bytes, h) = le_i32(bytes)?;
 		Ok((bytes, Rect::new(x, y, w, h)))
 	}
 }
 
-impl Write for Rect<u32, u32> {
+impl Write for Rect<i32, i32> {
 	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
 		writer.write_all(&self.x.to_le_bytes())?;
 		writer.write_all(&self.y.to_le_bytes())?;
@@ -123,7 +127,7 @@ mod tests {
 
 	#[test]
 	fn rect_parse() {
-		let rect: Rect<u32, u32> = Rect::new(1, 2, 3, 4);
+		let rect: Rect<i32, i32> = Rect::new(1, 2, 3, 4);
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
 		let size = rect.write(&mut buffer).expect("Could not write");
@@ -133,7 +137,7 @@ mod tests {
 			&vec![1u8, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0]
 		);
 
-		let (_, rect2) = Rect::<u32, u32>::parse(&buffer.get_ref()).expect("Could not parse");
+		let (_, rect2) = Rect::<i32, i32>::parse(&buffer.get_ref()).expect("Could not parse");
 		assert_eq!(rect2, rect);
 	}
 

@@ -1,6 +1,7 @@
 use document_core::{Node, NodeType};
 use std::{collections::HashMap, sync::Arc};
 use uuid::Uuid;
+mod canvas;
 mod color;
 mod group;
 pub mod io;
@@ -9,6 +10,7 @@ mod node;
 mod note;
 mod parser;
 
+pub use crate::canvas::*;
 pub use crate::color::*;
 pub use group::*;
 pub use meta::*;

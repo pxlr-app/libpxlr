@@ -30,10 +30,11 @@ impl Samplable for Canvas {
 		sampling: Sampling,
 		out: &'out mut [u8],
 	) -> Result<(), Self::Error> {
-		assert_eq!(out.len(), self.channel.pixel_stride());
+		let channel = self.channel();
+		assert_eq!(out.len(), channel.pixel_stride());
 		let bounds = self.bounds();
 		if !bounds.contains_point(Vec2::new(position.0 as i32, position.1 as i32)) {
-			out.copy_from_slice(&self.channel.default_pixel());
+			out.copy_from_slice(&channel.default_pixel());
 			return Ok(());
 		}
 		match sampling {
@@ -70,26 +71,26 @@ impl Samplable for Canvas {
 					&self[(r as i32, b as i32)],
 				);
 
-				let mut w_buf = self.channel.default_pixel();
-				let mut v_buf = self.channel.default_pixel();
-				let mut r_buf = self.channel.default_pixel();
+				let mut w_buf = channel.default_pixel();
+				let mut v_buf = channel.default_pixel();
+				let mut r_buf = channel.default_pixel();
 				{
-					let mut tmp = PixelMut::from_buffer_mut(&mut w_buf, self.channel);
-					let from = Pixel::from_buffer(tl, self.channel);
-					let to = Pixel::from_buffer(tr, self.channel);
+					let mut tmp = PixelMut::from_buffer_mut(&mut w_buf, channel);
+					let from = Pixel::from_buffer(tl, channel);
+					let to = Pixel::from_buffer(tr, channel);
 					tmp.lerp(&from, &to, hw)?;
 				}
 				{
-					let mut tmp = PixelMut::from_buffer_mut(&mut v_buf, self.channel);
-					let from = Pixel::from_buffer(bl, self.channel);
-					let to = Pixel::from_buffer(br, self.channel);
+					let mut tmp = PixelMut::from_buffer_mut(&mut v_buf, channel);
+					let from = Pixel::from_buffer(bl, channel);
+					let to = Pixel::from_buffer(br, channel);
 					tmp.lerp(&from, &to, hw)?;
 				}
 
 				{
-					let mut tmp = PixelMut::from_buffer_mut(&mut r_buf, self.channel);
-					let from = Pixel::from_buffer(&w_buf, self.channel);
-					let to = Pixel::from_buffer(&v_buf, self.channel);
+					let mut tmp = PixelMut::from_buffer_mut(&mut r_buf, channel);
+					let from = Pixel::from_buffer(&w_buf, channel);
+					let to = Pixel::from_buffer(&v_buf, channel);
 					tmp.lerp(&from, &to, vw)?;
 				}
 				out.copy_from_slice(&r_buf);

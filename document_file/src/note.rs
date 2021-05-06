@@ -28,7 +28,7 @@ impl NodeWrite for Note {
 	fn write<W: io::Write + io::Seek>(
 		&self,
 		writer: &mut W,
-	) -> io::Result<(usize, Rect<u32, u32>, ChunkDependencies)> {
+	) -> io::Result<(usize, Rect<i32, i32>, ChunkDependencies)> {
 		let size = self.content.write(writer)?;
 		Ok((size, Rect::default(), ChunkDependencies::default()))
 	}

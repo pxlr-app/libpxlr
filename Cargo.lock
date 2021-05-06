@@ -238,7 +238,9 @@ dependencies = [
 name = "document_file"
 version = "0.2.0"
 dependencies = [
+ "bitvec",
  "bytes",
+ "canvas",
  "cargo-husky",
  "color",
  "document_command",

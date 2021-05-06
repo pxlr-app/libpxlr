@@ -24,6 +24,32 @@ impl Stencil {
 		self.channel
 	}
 
+	/// Retrieve mask
+	pub fn mask(&self) -> &BitVec<Lsb0, u8> {
+		&self.mask
+	}
+
+	/// Retrieve data
+	pub fn data(&self) -> &Vec<u8> {
+		&self.data
+	}
+
+	/// Create a stencil from raw part
+	pub unsafe fn from_raw_parts(
+		bounds: Rect<i32, i32>,
+		mask: BitVec<Lsb0, u8>,
+		channel: Channel,
+		data: Vec<u8>,
+	) -> Self {
+		Stencil {
+			bounds,
+			mask,
+			channel,
+			empty_pixel: channel.default_pixel(),
+			data,
+		}
+	}
+
 	/// Create a new empty stencil
 	pub fn new(rect: Rect<i32, i32>, channel: Channel) -> Self {
 		let len = (rect.w * rect.h) as usize;
@@ -41,13 +67,7 @@ impl Stencil {
 		assert_eq!(len * channel.pixel_stride(), buffer.len());
 		let mut mask = bitvec![Lsb0, u8; 1; len];
 		mask.set_uninitialized(false);
-		Self {
-			bounds: rect,
-			mask,
-			channel,
-			empty_pixel: channel.default_pixel(),
-			data: buffer,
-		}
+		unsafe { Self::from_raw_parts(rect, mask, channel, buffer) }
 	}
 
 	/// Create a stencil from pixel data and masking invisible one based on alpha

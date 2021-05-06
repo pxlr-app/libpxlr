@@ -19,7 +19,7 @@ pub trait NodeWrite {
 	fn write<W: io::Write + io::Seek>(
 		&self,
 		writer: &mut W,
-	) -> io::Result<(usize, Rect<u32, u32>, ChunkDependencies)>;
+	) -> io::Result<(usize, Rect<i32, i32>, ChunkDependencies)>;
 }
 
 pub(crate) trait NodeTypeNodeId {
@@ -55,7 +55,7 @@ impl NodeWrite for NodeType {
 	fn write<W: io::Write + io::Seek>(
 		&self,
 		writer: &mut W,
-	) -> io::Result<(usize, Rect<u32, u32>, ChunkDependencies)> {
+	) -> io::Result<(usize, Rect<i32, i32>, ChunkDependencies)> {
 		let (size, rect, deps) = match self {
 			NodeType::Group(node) => {
 				writer.write_all(&0u16.to_le_bytes())?;

@@ -6,7 +6,7 @@ use vek::geom::repr_c::Rect;
 
 #[derive(Debug, Clone)]
 pub struct Canvas {
-	pub channel: Channel,
+	channel: Channel,
 	empty_pixel: Vec<u8>,
 	rtree: Arc<RTree<StencilObject>>,
 	stencils: Vec<Arc<Stencil>>,
@@ -80,14 +80,31 @@ impl From<ChannelError> for CanvasError {
 }
 
 impl Canvas {
-	/// Create an empty canvas of specific size
-	pub fn new(channel: Channel) -> Self {
-		Canvas {
+	/// Retrieve channel
+	pub fn channel(&self) -> Channel {
+		self.channel
+	}
+
+	/// Retrieve stencils
+	pub fn stencils(&self) -> &Vec<Arc<Stencil>> {
+		&self.stencils
+	}
+
+	/// Create a canvas from raw part
+	pub unsafe fn from_raw_parts(channel: Channel, stencils: Vec<Arc<Stencil>>) -> Self {
+		let mut canvas = Canvas {
 			channel,
 			empty_pixel: channel.default_pixel(),
 			rtree: Arc::new(RTree::new()),
-			stencils: Vec::new(),
-		}
+			stencils,
+		};
+		canvas.rebuild_rtree_from_stencils();
+		canvas
+	}
+
+	/// Create an empty canvas of specific size
+	pub fn new(channel: Channel) -> Self {
+		unsafe { Canvas::from_raw_parts(channel, vec![]) }
 	}
 
 	/// Create a canvas from a stencil
