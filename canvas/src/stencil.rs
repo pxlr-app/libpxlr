@@ -153,14 +153,21 @@ impl Stencil {
 					data.extend_from_slice(bck_buf);
 				}
 				(Some(frt_buf), Some(bck_buf)) => {
-					mask.set(i, true);
 					let frt_px = Pixel::from_buffer(frt_buf, frt.channel);
 					let bck_px = Pixel::from_buffer(bck_buf, frt.channel);
 					let mut pixel = PixelMut::from_buffer_mut(&mut tmp, channel);
 					pixel
 						.blend(blend_mode, compose_op, &frt_px, &bck_px)
 						.unwrap();
-					data.extend_from_slice(&tmp);
+					let alpha = match channel {
+						Channel::Lumaa | Channel::LumaaNormal => pixel.lumaa().unwrap().alpha,
+						Channel::Rgba | Channel::RgbaNormal => pixel.rgba().unwrap().alpha,
+						_ => 0,
+					};
+					if alpha > 0 {
+						mask.set(i, true);
+						data.extend_from_slice(&tmp);
+					}
 				}
 			}
 		}
@@ -382,7 +389,7 @@ mod tests {
 		assert_eq!(format!("{:?}", b), "Stencil ( ⠊ )");
 		let c = Stencil::merge(&a, &b, Blending::Normal, Compositing::Lighter);
 		assert_eq!(format!("{:?}", c), "Stencil ( ⠛ )");
-		assert_eq!(c.data, vec![1, 255, 2, 255, 3, 255, 4, 255]);
+		assert_eq!(c.data, vec![1, 255, 22, 255, 3, 255, 4, 255]);
 
 		let a = Stencil::from_buffer_mask_alpha(
 			Rect::new(0, 0, 1, 2),
@@ -399,6 +406,18 @@ mod tests {
 		let c = Stencil::merge(&a, &b, Blending::Normal, Compositing::Lighter);
 		assert_eq!(format!("{:?}", c), "Stencil ( ⠃⠃ )");
 		assert_eq!(c.data, vec![1, 255, 3, 255, 2, 255, 4, 255]);
+
+		let a = Stencil::from_buffer(
+			Rect::new(0, 0, 4, 4),
+			Channel::Luma,
+			vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+		);
+		assert_eq!(format!("{:?}", a), "Stencil ( ⣿⣿ )");
+		let b = Stencil::from_buffer(Rect::new(1, 1, 2, 2), Channel::Luma, vec![1, 1, 1, 1]);
+		assert_eq!(format!("{:?}", b), "Stencil ( ⠛ )");
+		let c = Stencil::merge(&a, &b, Blending::Normal, Compositing::DestinationOut);
+		assert_eq!(format!("{:?}", c), "Stencil ( ⣏⣹ )");
+		assert_eq!(c.data, vec![1, 2, 3, 4, 5, 8, 9, 12, 13, 14, 15, 16]);
 	}
 
 	#[test]
