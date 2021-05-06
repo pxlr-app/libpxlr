@@ -4,6 +4,7 @@ version = "0.2.0"
 edition = "2018"
 
 [dependencies]
+color = { path = "../color" }
 document_core = { path = "../document_core" }
 serde = { version = "1.0", features = ["rc"] }
 uuid = { version = "0.8", features = ["serde", "stdweb", "v4"] }

@@ -4,6 +4,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 mod group;
 mod note;
+mod palette;
 mod rename;
 mod translate;
 
@@ -59,6 +60,7 @@ pub trait Command {
 
 pub use group::*;
 pub use note::*;
+pub use palette::*;
 pub use rename::*;
 pub use translate::*;
 
@@ -70,6 +72,9 @@ pub enum CommandType {
 	Rename(rename::RenameCommand),
 	SetNoteContent(note::SetNoteContentCommand),
 	Translate(translate::TranslateCommand),
+	AddPaletteColor(palette::AddPaletteColorCommand),
+	MovePaletteColor(palette::MovePaletteColorCommand),
+	RemovePaletteColor(palette::RemovePaletteColorCommand),
 }
 
 impl Command for CommandType {
@@ -81,6 +86,9 @@ impl Command for CommandType {
 			CommandType::Rename(cmd) => cmd.target(),
 			CommandType::SetNoteContent(cmd) => cmd.target(),
 			CommandType::Translate(cmd) => cmd.target(),
+			CommandType::AddPaletteColor(cmd) => cmd.target(),
+			CommandType::MovePaletteColor(cmd) => cmd.target(),
+			CommandType::RemovePaletteColor(cmd) => cmd.target(),
 		}
 	}
 	fn execute_impl(&self, node: &NodeType) -> Option<NodeType> {
@@ -91,6 +99,9 @@ impl Command for CommandType {
 			CommandType::Rename(cmd) => cmd.execute(node),
 			CommandType::SetNoteContent(cmd) => cmd.execute(node),
 			CommandType::Translate(cmd) => cmd.execute(node),
+			CommandType::AddPaletteColor(cmd) => cmd.execute(node),
+			CommandType::MovePaletteColor(cmd) => cmd.execute(node),
+			CommandType::RemovePaletteColor(cmd) => cmd.execute(node),
 		}
 	}
 }

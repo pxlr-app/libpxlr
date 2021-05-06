@@ -216,6 +216,7 @@ name = "document_command"
 version = "0.2.0"
 dependencies = [
  "cargo-husky",
+ "color",
  "document_core",
  "rustc_version",
  "serde",
