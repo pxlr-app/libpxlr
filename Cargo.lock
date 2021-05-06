@@ -240,6 +240,7 @@ version = "0.2.0"
 dependencies = [
  "bytes",
  "cargo-husky",
+ "color",
  "document_command",
  "document_core",
  "nom",

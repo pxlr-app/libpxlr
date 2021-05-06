@@ -5,6 +5,7 @@ edition = "2018"
 
 [dependencies]
 bytes = "1.0"
+color = { path = "../color" }
 document_core = { path = "../document_core" }
 document_command = { path = "../document_command" }
 nom = "6"
