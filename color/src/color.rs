@@ -22,6 +22,12 @@ impl<C: Color> Alpha<C> {
 	}
 }
 
+impl<C: Color + std::fmt::Display> std::fmt::Display for Alpha<C> {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "Alpha ({}, {})", self.color, self.alpha)
+	}
+}
+
 impl<C: Color> Color for Alpha<C> {
 	const SIZE: usize = 1 + std::mem::size_of::<C>();
 
@@ -88,6 +94,12 @@ macro_rules! define_color {
 		impl $name {
 			pub fn new($($comp: $type),+) -> Self {
 				Self { $($comp: $comp,)+ }
+			}
+		}
+
+		impl std::fmt::Display for $name {
+			fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+				write!(f, "{}", stringify!($name))
 			}
 		}
 
