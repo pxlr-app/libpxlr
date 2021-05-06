@@ -225,56 +225,158 @@ impl<'data> PixelMut<'data> {
 			return Err(ChannelError::Mismatch(frt.channel, bck.channel));
 		}
 
+		fn blend_normal<'frt, 'bck>(
+			compose_op: Compositing,
+			frt: &'frt Pixel,
+			bck: &'bck Pixel,
+			out: &mut PixelMut,
+		) {
+			let f = frt.normal().unwrap();
+			let b = bck.normal().unwrap();
+
+			#[allow(non_snake_case)]
+			let (Fa, Fb) = compose_op.compose(1., 1.);
+
+			// Compose
+			let rx = f.x * Fa + b.x * Fb;
+			let ry = f.y * Fa + b.y * Fb;
+			let rz = f.z * Fa + b.z * Fb;
+
+			*out.normal().unwrap() = Normal::new(rx, ry, rz);
+		}
+
 		match self.channel {
-			Channel::Lumaa | Channel::LumaaNormal | Channel::Rgba | Channel::RgbaNormal => {
-				if let Channel::LumaaNormal | Channel::RgbaNormal = self.channel {
-					*self.normal().unwrap() = *frt.normal().unwrap();
+			Channel::Luma | Channel::LumaNormal => {
+				let f = frt.luma().unwrap();
+				let b = bck.luma().unwrap();
+
+				let fl = f.luma as f32 / 255.;
+				let bl = b.luma as f32 / 255.;
+
+				#[allow(non_snake_case)]
+				let (Fa, Fb) = compose_op.compose(1., 1.);
+
+				// Compose
+				let rl = fl * Fa + bl * Fb;
+
+				*self.luma().unwrap() = Luma::new((rl * 255.).round() as u8);
+
+				if let Channel::LumaNormal = self.channel {
+					blend_normal(compose_op, frt, bck, self);
 				}
-				match self.channel {
-					Channel::Lumaa | Channel::LumaaNormal => {
-						*self.lumaa().unwrap() = *frt.lumaa().unwrap();
-					}
-					Channel::Rgba | Channel::RgbaNormal => {
-						let f = frt.rgba().unwrap();
-						let b = bck.rgba().unwrap();
-
-						let fr = f.color.red as f32 / 255f32;
-						let fg = f.color.green as f32 / 255f32;
-						let fb = f.color.blue as f32 / 255f32;
-						let fa = f.alpha as f32 / 255f32;
-						let ba = b.alpha as f32 / 255f32;
-						let br = b.color.red as f32 / 255f32;
-						let bg = b.color.green as f32 / 255f32;
-						let bb = b.color.blue as f32 / 255f32;
-
-						#[allow(non_snake_case)]
-						let (Fa, Fb) = compose_op.compose(fa, ba);
-
-						// Apply blend
-						let or = (1. - ba) * fr + ba * blend_mode.blend(br, fr);
-						let og = (1. - ba) * fg + ba * blend_mode.blend(bg, fg);
-						let ob = (1. - ba) * fb + ba * blend_mode.blend(bb, fb);
-						// Compose
-						let rr = fa * Fa * or + ba * Fb * br;
-						let rg = fa * Fa * og + ba * Fb * bg;
-						let rb = fa * Fa * ob + ba * Fb * bb;
-						let ra = fa + ba * (1. - fa);
-
-						*self.rgba().unwrap() = Rgba::new(
-							Rgb::new(
-								(rr * 255_f32).round() as u8,
-								(rg * 255_f32).round() as u8,
-								(rb * 255_f32).round() as u8,
-							),
-							(ra * 255_f32).round() as u8,
-						)
-					}
-					_ => unreachable!(),
-				};
 			}
-			// Without alpha, no blending
-			_ => {
-				self.data.copy_from_slice(frt.data);
+			Channel::Lumaa | Channel::LumaaNormal => {
+				let f = frt.lumaa().unwrap();
+				let b = bck.lumaa().unwrap();
+
+				let fl = f.color.luma as f32 / 255.;
+				let fa = f.alpha as f32 / 255.;
+				let bl = b.color.luma as f32 / 255.;
+				let ba = b.alpha as f32 / 255.;
+
+				#[allow(non_snake_case)]
+				let (Fa, Fb) = compose_op.compose(fa, ba);
+
+				// Compose
+				let rl = fl * Fa + bl * Fb;
+				let ra = fa + ba * (1. - fa);
+
+				*self.lumaa().unwrap() = Lumaa::new(
+					Luma::new((rl * 255.).round() as u8),
+					(ra * 255.).round() as u8,
+				);
+
+				if let Channel::LumaaNormal = self.channel {
+					blend_normal(compose_op, frt, bck, self);
+				}
+			}
+			Channel::Rgb | Channel::RgbNormal => {
+				let f = frt.rgb().unwrap();
+				let b = bck.rgb().unwrap();
+
+				let fr = f.red as f32 / 255.;
+				let fg = f.green as f32 / 255.;
+				let fb = f.blue as f32 / 255.;
+				let br = b.red as f32 / 255.;
+				let bg = b.green as f32 / 255.;
+				let bb = b.blue as f32 / 255.;
+
+				#[allow(non_snake_case)]
+				let (Fa, Fb) = compose_op.compose(1., 1.);
+
+				// Compose
+				let rr = fr * Fa + br * Fb;
+				let rg = fg * Fa + bg * Fb;
+				let rb = fb * Fa + bb * Fb;
+
+				*self.rgb().unwrap() = Rgb::new(
+					(rr * 255.).round() as u8,
+					(rg * 255.).round() as u8,
+					(rb * 255.).round() as u8,
+				);
+
+				if let Channel::RgbNormal = self.channel {
+					blend_normal(compose_op, frt, bck, self);
+				}
+			}
+			Channel::Rgba | Channel::RgbaNormal => {
+				let f = frt.rgba().unwrap();
+				let b = bck.rgba().unwrap();
+
+				let fr = f.color.red as f32 / 255.;
+				let fg = f.color.green as f32 / 255.;
+				let fb = f.color.blue as f32 / 255.;
+				let fa = f.alpha as f32 / 255.;
+				let br = b.color.red as f32 / 255.;
+				let bg = b.color.green as f32 / 255.;
+				let bb = b.color.blue as f32 / 255.;
+				let ba = b.alpha as f32 / 255.;
+
+				#[allow(non_snake_case)]
+				let (Fa, Fb) = compose_op.compose(fa, ba);
+
+				// Apply blend
+				let or = (1. - ba) * fr + ba * blend_mode.blend(br, fr);
+				let og = (1. - ba) * fg + ba * blend_mode.blend(bg, fg);
+				let ob = (1. - ba) * fb + ba * blend_mode.blend(bb, fb);
+				// Compose
+				let rr = fa * Fa * or + ba * Fb * br;
+				let rg = fa * Fa * og + ba * Fb * bg;
+				let rb = fa * Fa * ob + ba * Fb * bb;
+				let ra = fa + ba * (1. - fa);
+
+				*self.rgba().unwrap() = Rgba::new(
+					Rgb::new(
+						(rr * 255.).round() as u8,
+						(rg * 255.).round() as u8,
+						(rb * 255.).round() as u8,
+					),
+					(ra * 255.).round() as u8,
+				);
+
+				if let Channel::RgbaNormal = self.channel {
+					blend_normal(compose_op, frt, bck, self);
+				}
+			}
+			Channel::Uv | Channel::UvNormal => {
+				let f = frt.uv().unwrap();
+				let b = bck.uv().unwrap();
+
+				#[allow(non_snake_case)]
+				let (Fa, Fb) = compose_op.compose(1., 1.);
+
+				// Compose
+				let ru = f.u * Fa + b.u * Fb;
+				let rv = f.v * Fa + b.v * Fb;
+
+				*self.uv().unwrap() = Uv::new(ru, rv);
+
+				if let Channel::Uv = self.channel {
+					blend_normal(compose_op, frt, bck, self);
+				}
+			}
+			Channel::Normal => {
+				blend_normal(compose_op, frt, bck, self);
 			}
 		};
 
