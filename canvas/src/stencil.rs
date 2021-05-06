@@ -162,7 +162,7 @@ impl Stencil {
 					let alpha = match channel {
 						Channel::Lumaa | Channel::LumaaNormal => pixel.lumaa().unwrap().alpha,
 						Channel::Rgba | Channel::RgbaNormal => pixel.rgba().unwrap().alpha,
-						_ => 0,
+						_ => 1,
 					};
 					if alpha > 0 {
 						mask.set(i, true);
@@ -409,15 +409,28 @@ mod tests {
 
 		let a = Stencil::from_buffer(
 			Rect::new(0, 0, 4, 4),
-			Channel::Luma,
-			vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+			Channel::Lumaa,
+			vec![
+				1, 255, 2, 255, 3, 255, 4, 255, 5, 255, 6, 255, 7, 255, 8, 255, 9, 255, 10, 255,
+				11, 255, 12, 255, 13, 255, 14, 255, 15, 255, 16, 255,
+			],
 		);
 		assert_eq!(format!("{:?}", a), "Stencil ( ⣿⣿ )");
-		let b = Stencil::from_buffer(Rect::new(1, 1, 2, 2), Channel::Luma, vec![1, 1, 1, 1]);
+		let b = Stencil::from_buffer(
+			Rect::new(1, 1, 2, 2),
+			Channel::Lumaa,
+			vec![1, 255, 1, 255, 1, 255, 1, 255],
+		);
 		assert_eq!(format!("{:?}", b), "Stencil ( ⠛ )");
-		let c = Stencil::merge(&a, &b, Blending::Normal, Compositing::DestinationOut);
+		let c = Stencil::merge(&a, &b, Blending::Normal, Compositing::SourceOut);
 		assert_eq!(format!("{:?}", c), "Stencil ( ⣏⣹ )");
-		assert_eq!(c.data, vec![1, 2, 3, 4, 5, 8, 9, 12, 13, 14, 15, 16]);
+		assert_eq!(
+			c.data,
+			vec![
+				1, 255, 2, 255, 3, 255, 4, 255, 5, 255, 8, 255, 9, 255, 12, 255, 13, 255, 14, 255,
+				15, 255, 16, 255
+			]
+		);
 	}
 
 	#[test]
