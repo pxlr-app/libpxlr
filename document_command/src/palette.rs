@@ -22,7 +22,7 @@ impl std::fmt::Display for PaletteError {
 
 impl std::error::Error for PaletteError {}
 
-pub trait HashColors {
+pub trait HasColors {
 	fn add_color(&self, color: Rgba) -> Result<(CommandType, CommandType), PaletteError>;
 	fn remove_color(&self, color: Rgba) -> Result<(CommandType, CommandType), PaletteError>;
 	fn move_color(
@@ -32,7 +32,7 @@ pub trait HashColors {
 	) -> Result<(CommandType, CommandType), PaletteError>;
 }
 
-impl HashColors for Palette {
+impl HasColors for Palette {
 	fn add_color(&self, color: Rgba) -> Result<(CommandType, CommandType), PaletteError> {
 		let color_found = self.colors.iter().find(|c| **c == color).is_some();
 		if color_found {
