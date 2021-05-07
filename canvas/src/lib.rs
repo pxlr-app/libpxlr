@@ -4,7 +4,7 @@ mod sampling;
 mod stencil;
 mod transform;
 
-pub use crate::canvas::*;
-pub use sampling::*;
-pub use stencil::*;
-pub use transform::*;
+pub use self::canvas::*;
+pub use self::sampling::*;
+pub use self::stencil::*;
+pub use self::transform::*;

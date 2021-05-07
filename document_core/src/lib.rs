@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
+mod canvas;
 mod group;
 mod note;
 mod palette;
@@ -19,16 +20,18 @@ pub trait NonLeafNode: Node {
 	fn children(&self) -> &Arc<Vec<Arc<NodeType>>>;
 }
 
-pub use group::*;
-pub use note::*;
-pub use palette::*;
-pub use walk::*;
+pub use self::canvas::*;
+pub use self::group::*;
+pub use self::note::*;
+pub use self::palette::*;
+pub use self::walk::*;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum NodeType {
 	Note(note::Note),
 	Group(group::Group),
 	Palette(palette::Palette),
+	CanvasGroup(canvas::CanvasGroup),
 }
 
 impl Node for NodeType {
@@ -37,6 +40,7 @@ impl Node for NodeType {
 			NodeType::Note(node) => node.id(),
 			NodeType::Group(node) => node.id(),
 			NodeType::Palette(node) => node.id(),
+			NodeType::CanvasGroup(node) => node.id(),
 		}
 	}
 	fn name(&self) -> &str {
@@ -44,6 +48,7 @@ impl Node for NodeType {
 			NodeType::Note(node) => node.name(),
 			NodeType::Group(node) => node.name(),
 			NodeType::Palette(node) => node.name(),
+			NodeType::CanvasGroup(node) => node.name(),
 		}
 	}
 }
@@ -54,6 +59,7 @@ impl<'a> std::convert::TryFrom<&'a NodeType> for &'a dyn NonLeafNode {
 	fn try_from(value: &'a NodeType) -> Result<&'a dyn NonLeafNode, Self::Error> {
 		match value {
 			NodeType::Group(ref node) => Ok(node),
+			NodeType::CanvasGroup(ref node) => Ok(node),
 			_ => Err(()),
 		}
 	}

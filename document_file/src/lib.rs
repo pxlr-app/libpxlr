@@ -1,24 +1,16 @@
 use document_core::{Node, NodeType};
 use std::{collections::HashMap, sync::Arc};
 use uuid::Uuid;
-mod canvas;
-mod color;
-mod group;
 pub mod io;
 mod meta;
-mod node;
-mod note;
-mod palette;
+mod nodes;
 mod parser;
+mod primitives;
 
-pub use crate::canvas::*;
-pub use crate::color::*;
-pub use group::*;
-pub use meta::*;
-pub use node::*;
-pub use note::*;
-pub use palette::*;
-pub use parser::*;
+pub use self::meta::*;
+pub use self::nodes::*;
+pub use self::parser::*;
+pub use self::primitives::*;
 
 #[derive(Debug)]
 struct DocumentNode {

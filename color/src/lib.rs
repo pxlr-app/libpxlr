@@ -3,7 +3,7 @@ mod channel;
 mod color;
 mod pixel;
 
-pub use crate::color::*;
-pub use blending::*;
-pub use channel::*;
-pub use pixel::*;
+pub use self::blending::*;
+pub use self::channel::*;
+pub use self::color::*;
+pub use self::pixel::*;

@@ -8,6 +8,12 @@ mod palette;
 mod rename;
 mod translate;
 
+pub use self::group::*;
+pub use self::note::*;
+pub use self::palette::*;
+pub use self::rename::*;
+pub use self::translate::*;
+
 pub static DOCUMENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 
@@ -57,12 +63,6 @@ pub trait Command {
 		}
 	}
 }
-
-pub use group::*;
-pub use note::*;
-pub use palette::*;
-pub use rename::*;
-pub use translate::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CommandType {

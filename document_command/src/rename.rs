@@ -43,6 +43,9 @@ impl Command for RenameCommand {
 			NodeType::Palette(ref mut cloned) => {
 				cloned.name = Arc::new(self.name.clone());
 			}
+			NodeType::CanvasGroup(ref mut cloned) => {
+				cloned.name = Arc::new(self.name.clone());
+			}
 		}
 
 		Some(cloned)
