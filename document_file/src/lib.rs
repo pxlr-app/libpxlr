@@ -1,5 +1,5 @@
-use document_core::{Node, NodeType};
-use std::{collections::HashMap, sync::Arc};
+use document_core::{HasBounds, Node, NodeType};
+use std::{collections::HashMap, convert::TryInto, sync::Arc};
 use uuid::Uuid;
 pub mod io;
 mod meta;
@@ -250,6 +250,10 @@ impl Document {
 		chunk.node_type = node.node_id();
 		chunk.offset = writer.seek(std::io::SeekFrom::Current(0))?;
 		chunk.name = node.name().to_string();
+
+		if let Ok(node_bounds) = TryInto::<&dyn HasBounds>::try_into(&*node) {
+			chunk.rect = node_bounds.bounds();
+		}
 
 		let (node_size, node_rect, node_deps) = if content {
 			node.write(writer)
