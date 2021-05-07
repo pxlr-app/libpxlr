@@ -2,7 +2,7 @@ use crate::{Chunk, ChunkDependencies, NodeParse, NodeWrite};
 use document_core::{Group, HasChildren, NodeType};
 use nom::IResult;
 use std::{io, sync::Arc};
-use vek::{geom::repr_c::Rect, vec::repr_c::vec2::Vec2};
+use vek::vec::repr_c::vec2::Vec2;
 
 impl NodeParse for Group {
 	fn parse<'bytes>(
@@ -30,10 +30,9 @@ impl NodeWrite for Group {
 	fn write<W: io::Write + io::Seek>(
 		&self,
 		_writer: &mut W,
-	) -> io::Result<(usize, Rect<i32, i32>, ChunkDependencies)> {
+	) -> io::Result<(usize, ChunkDependencies)> {
 		Ok((
 			0,
-			Rect::default(),
 			ChunkDependencies {
 				children: self.children().clone(),
 				..Default::default()

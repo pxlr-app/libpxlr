@@ -2,7 +2,6 @@ use crate::{Chunk, ChunkDependencies};
 use document_core::NodeType;
 use nom::IResult;
 use std::{io, sync::Arc};
-use vek::geom::repr_c::Rect;
 mod canvas;
 mod core;
 mod group;
@@ -30,5 +29,5 @@ pub trait NodeWrite {
 	fn write<W: io::Write + io::Seek>(
 		&self,
 		writer: &mut W,
-	) -> io::Result<(usize, Rect<i32, i32>, ChunkDependencies)>;
+	) -> io::Result<(usize, ChunkDependencies)>;
 }

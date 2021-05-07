@@ -2,7 +2,6 @@ use crate::{Chunk, ChunkDependencies, NodeParse, NodeWrite};
 use document_core::NodeType;
 use nom::{number::complete::le_u16, IResult};
 use std::{io, sync::Arc};
-use vek::geom::repr_c::Rect;
 
 pub trait NodeTypeNodeId {
 	fn node_id(&self) -> u16;
@@ -41,8 +40,8 @@ impl NodeWrite for NodeType {
 	fn write<W: io::Write + io::Seek>(
 		&self,
 		writer: &mut W,
-	) -> io::Result<(usize, Rect<i32, i32>, ChunkDependencies)> {
-		let (size, rect, deps) = match self {
+	) -> io::Result<(usize, ChunkDependencies)> {
+		let (size, deps) = match self {
 			NodeType::Group(node) => {
 				writer.write_all(&0u16.to_le_bytes())?;
 				node.write(writer)
@@ -60,6 +59,6 @@ impl NodeWrite for NodeType {
 				node.write(writer)
 			}
 		}?;
-		Ok((size + 2, rect, deps))
+		Ok((size + 2, deps))
 	}
 }

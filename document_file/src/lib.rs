@@ -255,14 +255,13 @@ impl Document {
 			chunk.rect = node_bounds.bounds();
 		}
 
-		let (node_size, node_rect, node_deps) = if content {
+		let (node_size, node_deps) = if content {
 			node.write(writer)
 		} else {
 			node.write(&mut crate::io::Void)
 		}?;
 
 		chunk.size = node_size as u32;
-		chunk.rect = node_rect;
 
 		if content {
 			size += node_size;

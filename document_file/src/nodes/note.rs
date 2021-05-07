@@ -2,7 +2,7 @@ use crate::{Chunk, ChunkDependencies, NodeParse, NodeWrite, Parse, Write};
 use document_core::{HasContent, NodeType, Note};
 use nom::IResult;
 use std::{io, sync::Arc};
-use vek::{geom::repr_c::Rect, vec::repr_c::vec2::Vec2};
+use vek::vec::repr_c::vec2::Vec2;
 
 impl NodeParse for Note {
 	fn parse<'bytes>(
@@ -30,8 +30,8 @@ impl NodeWrite for Note {
 	fn write<W: io::Write + io::Seek>(
 		&self,
 		writer: &mut W,
-	) -> io::Result<(usize, Rect<i32, i32>, ChunkDependencies)> {
+	) -> io::Result<(usize, ChunkDependencies)> {
 		let size = self.content().write(writer)?;
-		Ok((size, Rect::default(), ChunkDependencies::default()))
+		Ok((size, ChunkDependencies::default()))
 	}
 }
