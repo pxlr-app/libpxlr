@@ -72,6 +72,19 @@ impl<'a> std::convert::TryFrom<&'a NodeType> for &'a dyn HasChildren {
 	}
 }
 
+impl<'a> std::convert::TryFrom<&'a NodeType> for &'a dyn HasBounds {
+	type Error = ();
+
+	fn try_from(value: &'a NodeType) -> Result<&'a dyn HasBounds, Self::Error> {
+		match value {
+			NodeType::Note(ref node) => Ok(node),
+			NodeType::Group(ref node) => Ok(node),
+			NodeType::CanvasGroup(ref node) => Ok(node),
+			_ => Err(()),
+		}
+	}
+}
+
 mod lib {
 	#[cfg(test)]
 	mod tests {
