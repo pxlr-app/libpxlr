@@ -22,7 +22,7 @@ impl RTreeObject for StencilObject {
 
 	fn envelope(&self) -> Self::Envelope {
 		let Rect { x, y, w, h } = self.stencil.bounds();
-		AABB::from_corners([x, y], [w, h])
+		AABB::from_corners([x, y], [x + w, y + h])
 	}
 }
 
@@ -188,7 +188,7 @@ impl Canvas {
 			let aabb = self.rtree.root().envelope();
 			let lower = aabb.lower();
 			let upper = aabb.upper();
-			Rect::new(lower[0], lower[1], upper[0], upper[1])
+			Rect::new(lower[0], lower[1], upper[0] - lower[0], upper[1] - lower[1])
 		}
 	}
 
