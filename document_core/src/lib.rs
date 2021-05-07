@@ -1,30 +1,21 @@
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use uuid::Uuid;
 mod canvas;
 mod group;
 mod note;
 mod palette;
+mod traits;
 mod walk;
-
-pub static DOCUMENT_VERSION: &str = env!("CARGO_PKG_VERSION");
-pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
-
-pub trait Node {
-	fn id(&self) -> &Uuid;
-	fn name(&self) -> &str;
-}
-
-pub trait NonLeafNode: Node {
-	fn is_child_valid(&self, _node: &NodeType) -> bool;
-	fn children(&self) -> &Arc<Vec<Arc<NodeType>>>;
-}
 
 pub use self::canvas::*;
 pub use self::group::*;
 pub use self::note::*;
 pub use self::palette::*;
+pub use self::traits::*;
 pub use self::walk::*;
+
+pub static DOCUMENT_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum NodeType {
@@ -43,6 +34,14 @@ impl Node for NodeType {
 			NodeType::CanvasGroup(node) => node.id(),
 		}
 	}
+	fn set_id(&mut self, id: Uuid) {
+		match self {
+			NodeType::Note(node) => node.set_id(id),
+			NodeType::Group(node) => node.set_id(id),
+			NodeType::Palette(node) => node.set_id(id),
+			NodeType::CanvasGroup(node) => node.set_id(id),
+		}
+	}
 	fn name(&self) -> &str {
 		match self {
 			NodeType::Note(node) => node.name(),
@@ -51,12 +50,20 @@ impl Node for NodeType {
 			NodeType::CanvasGroup(node) => node.name(),
 		}
 	}
+	fn set_name(&mut self, name: String) {
+		match self {
+			NodeType::Note(node) => node.set_name(name),
+			NodeType::Group(node) => node.set_name(name),
+			NodeType::Palette(node) => node.set_name(name),
+			NodeType::CanvasGroup(node) => node.set_name(name),
+		}
+	}
 }
 
-impl<'a> std::convert::TryFrom<&'a NodeType> for &'a dyn NonLeafNode {
+impl<'a> std::convert::TryFrom<&'a NodeType> for &'a dyn HasChildren {
 	type Error = ();
 
-	fn try_from(value: &'a NodeType) -> Result<&'a dyn NonLeafNode, Self::Error> {
+	fn try_from(value: &'a NodeType) -> Result<&'a dyn HasChildren, Self::Error> {
 		match value {
 			NodeType::Group(ref node) => Ok(node),
 			NodeType::CanvasGroup(ref node) => Ok(node),
@@ -68,13 +75,13 @@ impl<'a> std::convert::TryFrom<&'a NodeType> for &'a dyn NonLeafNode {
 mod lib {
 	#[cfg(test)]
 	mod tests {
-		use crate::{Group, NodeType, NonLeafNode};
+		use crate::{Group, HasChildren, NodeType};
 		use std::convert::TryInto;
 
 		#[test]
 		fn try_into_nonleafnode() {
 			let node = NodeType::Group(Group::default());
-			let result: Result<&dyn NonLeafNode, ()> = (&node).try_into();
+			let result: Result<&dyn HasChildren, ()> = (&node).try_into();
 			assert!(result.is_ok());
 		}
 	}

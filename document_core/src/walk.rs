@@ -1,4 +1,4 @@
-use crate::{NodeType, NonLeafNode};
+use crate::{HasChildren, NodeType};
 use std::{convert::TryInto, sync::Arc};
 
 #[derive(Debug, Clone)]
@@ -20,7 +20,7 @@ pub fn walk<
 	let ops = enter(node);
 	// Continue deep down
 	if let VisitorOps::CONTINUE = ops {
-		let group: Result<&dyn NonLeafNode, ()> = (&**node).try_into();
+		let group: Result<&dyn HasChildren, ()> = (&**node).try_into();
 		match group {
 			Ok(group) => {
 				for child in group.children().iter() {
@@ -44,14 +44,9 @@ mod tests {
 
 	#[test]
 	fn walk_tree() {
-		let mut note = Note::default();
-		note.name = Arc::new("NoteA".into());
-		let mut group2 = Group::default();
-		group2.name = Arc::new("GroupB".into());
-		group2.children = Arc::new(vec![Arc::new(NodeType::Note(note))]);
-		let mut group1 = Group::default();
-		group1.name = Arc::new("GroupA".into());
-		group1.children = Arc::new(vec![Arc::new(NodeType::Group(group2))]);
+		let note = Note::new("NoteA", (0, 0), "");
+		let group2 = Group::new("GroupB", (0, 0), vec![Arc::new(NodeType::Note(note))]);
+		let group1 = Group::new("GroupA", (0, 0), vec![Arc::new(NodeType::Group(group2))]);
 		let root = Arc::new(NodeType::Group(group1));
 
 		let mut names_enter: Vec<&str> = vec![];

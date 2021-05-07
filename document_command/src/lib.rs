@@ -1,4 +1,4 @@
-use document_core::{Node, NodeType, NonLeafNode};
+use document_core::{HasChildren, Node, NodeType};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -24,24 +24,23 @@ pub trait Command {
 		if node.id() == self.target() {
 			self.execute_impl(node)
 		} else {
-			fn execute_children<'a, T: NonLeafNode>(
+			fn execute_children<'a, T: HasChildren>(
 				node: &'a T,
 				execute: impl Fn(&'a NodeType) -> Option<NodeType>,
-				fork: impl Fn(Arc<Vec<Arc<NodeType>>>) -> NodeType,
+				fork: impl Fn(Vec<Arc<NodeType>>) -> NodeType,
 			) -> Option<NodeType> {
 				let mut mutated = false;
-				let children: Arc<Vec<Arc<NodeType>>> = Arc::new(
-					node.children()
-						.iter()
-						.map(|child| match execute(child) {
-							Some(child) => {
-								mutated = true;
-								Arc::new(child)
-							}
-							None => child.clone(),
-						})
-						.collect(),
-				);
+				let children: Vec<_> = node
+					.children()
+					.iter()
+					.map(|child| match execute(child) {
+						Some(child) => {
+							mutated = true;
+							Arc::new(child)
+						}
+						None => child.clone(),
+					})
+					.collect();
 				if mutated {
 					Some(fork(children))
 				} else {
@@ -54,7 +53,7 @@ pub trait Command {
 					|child| self.execute(child),
 					|children| {
 						let mut cloned = node.clone();
-						cloned.children = children;
+						cloned.set_children(children);
 						NodeType::Group(cloned)
 					},
 				),

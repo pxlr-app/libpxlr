@@ -168,20 +168,16 @@ impl Document {
 					reader.seek(std::io::SeekFrom::Start(chunk.offset))?;
 					reader.read_exact(&mut buffer)?;
 
-					let children: Arc<Vec<Arc<NodeType>>> = Arc::new(
-						chunk
-							.children
-							.iter()
-							.map(|id| nodes.get(&id).unwrap().clone())
-							.collect(),
-					);
-					let dependencies: Arc<Vec<Arc<NodeType>>> = Arc::new(
-						chunk
-							.dependencies
-							.iter()
-							.map(|id| nodes.get(&id).unwrap().clone())
-							.collect(),
-					);
+					let children: Vec<_> = chunk
+						.children
+						.iter()
+						.map(|id| nodes.get(&id).unwrap().clone())
+						.collect();
+					let dependencies: Vec<_> = chunk
+						.dependencies
+						.iter()
+						.map(|id| nodes.get(&id).unwrap().clone())
+						.collect();
 
 					let (_, node) = NodeType::parse(
 						self.footer.version,
@@ -375,8 +371,7 @@ mod tests {
 	#[test]
 	fn write_and_read_simple_doc() {
 		let mut doc = Document::default();
-		let mut note = Note::default();
-		note.name = Arc::new("My note".into());
+		let note = Note::new("My note", (0, 0), "");
 		let root = Arc::new(NodeType::Note(note));
 		doc.set_root_node(root.clone());
 
@@ -395,8 +390,7 @@ mod tests {
 	#[test]
 	fn rename_read_previous_doc() {
 		let mut doc = Document::default();
-		let mut note = Note::default();
-		note.name = Arc::new("My note".into());
+		let note = Note::new("My note", (0, 0), "");
 		let root = Arc::new(NodeType::Note(note));
 		doc.set_root_node(root.clone());
 

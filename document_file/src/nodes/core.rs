@@ -31,7 +31,7 @@ impl NodeParse for NodeType {
 			0u16 => document_core::Group::parse(version, chunk, dependencies, bytes),
 			1u16 => document_core::Note::parse(version, chunk, dependencies, bytes),
 			2u16 => document_core::Palette::parse(version, chunk, dependencies, bytes),
-			2u16 => document_core::CanvasGroup::parse(version, chunk, dependencies, bytes),
+			3u16 => document_core::CanvasGroup::parse(version, chunk, dependencies, bytes),
 			_ => unreachable!(),
 		}
 	}

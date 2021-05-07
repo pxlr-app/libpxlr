@@ -42,8 +42,8 @@ pub struct Chunk {
 
 #[derive(Debug, Clone, Default)]
 pub struct ChunkDependencies {
-	pub children: Arc<Vec<Arc<NodeType>>>,
-	pub dependencies: Arc<Vec<Arc<NodeType>>>,
+	pub children: Vec<Arc<NodeType>>,
+	pub dependencies: Vec<Arc<NodeType>>,
 }
 
 impl Default for Index {

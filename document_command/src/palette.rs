@@ -1,8 +1,7 @@
 use crate::{Command, CommandType};
 use color::Rgba;
-use document_core::{Node, NodeType, Palette};
+use document_core::{HasColors, Node, NodeType};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -22,19 +21,9 @@ impl std::fmt::Display for PaletteError {
 
 impl std::error::Error for PaletteError {}
 
-pub trait HasColors {
-	fn add_color(&self, color: Rgba) -> Result<(CommandType, CommandType), PaletteError>;
-	fn remove_color(&self, color: Rgba) -> Result<(CommandType, CommandType), PaletteError>;
-	fn move_color(
-		&self,
-		color: Rgba,
-		position: usize,
-	) -> Result<(CommandType, CommandType), PaletteError>;
-}
-
-impl HasColors for Palette {
+pub trait ColorManager: HasColors + Node {
 	fn add_color(&self, color: Rgba) -> Result<(CommandType, CommandType), PaletteError> {
-		let color_found = self.colors.iter().find(|c| **c == color).is_some();
+		let color_found = self.colors().iter().find(|c| **c == color).is_some();
 		if color_found {
 			Err(PaletteError::ExistingColor(color))
 		} else {
@@ -51,7 +40,7 @@ impl HasColors for Palette {
 		}
 	}
 	fn remove_color(&self, color: Rgba) -> Result<(CommandType, CommandType), PaletteError> {
-		let old_position = self.colors.iter().position(|c| *c == color);
+		let old_position = self.colors().iter().position(|c| *c == color);
 		match old_position {
 			Some(_) => Ok((
 				CommandType::RemovePaletteColor(RemovePaletteColorCommand {
@@ -71,7 +60,7 @@ impl HasColors for Palette {
 		color: Rgba,
 		position: usize,
 	) -> Result<(CommandType, CommandType), PaletteError> {
-		let old_position = self.colors.iter().position(|c| *c == color);
+		let old_position = self.colors().iter().position(|c| *c == color);
 		match old_position {
 			Some(old_position) => Ok((
 				CommandType::MovePaletteColor(MovePaletteColorCommand {
@@ -89,6 +78,8 @@ impl HasColors for Palette {
 		}
 	}
 }
+
+impl<N: HasColors + Node> ColorManager for N {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AddPaletteColorCommand {
@@ -117,9 +108,9 @@ impl Command for AddPaletteColorCommand {
 		match node {
 			NodeType::Palette(node) => {
 				let mut cloned = node.clone();
-				let mut colors: Vec<Rgba> = cloned.colors.iter().map(|c| c.clone()).collect();
+				let mut colors: Vec<Rgba> = cloned.colors().iter().map(|c| c.clone()).collect();
 				colors.push(self.color.clone());
-				cloned.colors = Arc::new(colors);
+				cloned.set_colors(colors);
 				Some(NodeType::Palette(cloned))
 			}
 			_ => None,
@@ -136,7 +127,7 @@ impl Command for RemovePaletteColorCommand {
 			NodeType::Palette(node) => {
 				let mut cloned = node.clone();
 				let colors: Vec<Rgba> = cloned
-					.colors
+					.colors()
 					.iter()
 					.filter_map(|color| {
 						if *color == self.color {
@@ -146,7 +137,7 @@ impl Command for RemovePaletteColorCommand {
 						}
 					})
 					.collect();
-				cloned.colors = Arc::new(colors);
+				cloned.set_colors(colors);
 				Some(NodeType::Palette(cloned))
 			}
 			_ => None,
@@ -162,14 +153,14 @@ impl Command for MovePaletteColorCommand {
 		match node {
 			NodeType::Palette(node) => {
 				let mut cloned = node.clone();
-				let mut colors: Vec<Rgba> = cloned.colors.iter().map(|c| c.clone()).collect();
+				let mut colors: Vec<Rgba> = cloned.colors().iter().map(|c| c.clone()).collect();
 				let child = colors.remove(self.position);
 				if self.position > colors.len() {
 					colors.push(child);
 				} else {
 					colors.insert(self.position, child);
 				}
-				cloned.colors = Arc::new(colors);
+				cloned.set_colors(colors);
 				Some(NodeType::Palette(cloned))
 			}
 			_ => None,

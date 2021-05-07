@@ -36,6 +36,15 @@ impl Write for String {
 	}
 }
 
+impl Write for &str {
+	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
+		writer.write_all(&(self.len() as u32).to_le_bytes())?;
+		let buf = self.as_bytes();
+		writer.write_all(buf)?;
+		Ok(4usize + buf.len())
+	}
+}
+
 impl Parse for Uuid {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], Uuid> {
 		let (bytes, buffer) = take(16usize)(bytes)?;

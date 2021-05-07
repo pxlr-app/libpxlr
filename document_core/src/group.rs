@@ -1,25 +1,50 @@
-use crate::{Node, NodeType, NonLeafNode};
+use crate::{HasBounds, HasChildren, Node, NodeType};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
-use vek::vec::repr_c::vec2::Vec2;
+use vek::{geom::repr_c::Rect, vec::repr_c::vec2::Vec2};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Group {
-	pub id: Uuid,
-	pub name: Arc<String>,
-	pub position: Arc<Vec2<i32>>,
-	pub children: Arc<Vec<Arc<NodeType>>>,
+	id: Uuid,
+	name: String,
+	position: Arc<Vec2<i32>>,
+	children: Vec<Arc<NodeType>>,
+}
+
+impl Group {
+	pub unsafe fn construct(
+		id: Uuid,
+		name: String,
+		position: Vec2<i32>,
+		children: Vec<Arc<NodeType>>,
+	) -> Self {
+		Group {
+			id: id,
+			name: name,
+			position: Arc::new(position),
+			children: children,
+		}
+	}
+	pub fn new<S: Into<String>, V: Into<Vec2<i32>>, C: Into<Vec<Arc<NodeType>>>>(
+		name: S,
+		position: V,
+		children: C,
+	) -> Self {
+		unsafe {
+			Group::construct(
+				Uuid::new_v4(),
+				name.into(),
+				position.into(),
+				children.into(),
+			)
+		}
+	}
 }
 
 impl Default for Group {
 	fn default() -> Self {
-		Group {
-			id: Uuid::new_v4(),
-			name: Arc::new("Group".into()),
-			position: Arc::new(Vec2::new(0, 0)),
-			children: Arc::new(vec![]),
-		}
+		Group::new("Group", Vec2::new(0, 0), vec![])
 	}
 }
 
@@ -27,34 +52,51 @@ impl Node for Group {
 	fn id(&self) -> &Uuid {
 		&self.id
 	}
+	fn set_id(&mut self, id: Uuid) {
+		self.id = id;
+	}
 	fn name(&self) -> &str {
 		&self.name
 	}
+	fn set_name(&mut self, name: String) {
+		self.name = name;
+	}
 }
 
-#[allow(unreachable_patterns)]
-impl NonLeafNode for Group {
+impl HasBounds for Group {
+	fn bounds(&self) -> Rect<i32, i32> {
+		// TODO extend children bounds
+		Rect::new(self.position.x, self.position.y, 0, 0)
+	}
+	fn set_position(&mut self, position: Vec2<i32>) {
+		self.position = Arc::new(position);
+	}
+}
+
+impl HasChildren for Group {
 	fn is_child_valid(&self, node: &NodeType) -> bool {
 		match node {
 			NodeType::Group(_) | NodeType::Note(_) => true,
 			_ => false,
 		}
 	}
-	fn children(&self) -> &Arc<Vec<Arc<NodeType>>> {
+	fn children(&self) -> &Vec<Arc<NodeType>> {
 		&self.children
+	}
+	fn set_children(&mut self, children: Vec<Arc<NodeType>>) {
+		self.children = children;
 	}
 }
 
 #[cfg(test)]
 mod tests {
-	use super::Group;
-	use vek::vec::repr_c::vec2::Vec2;
+	use super::*;
 
 	#[test]
 	fn impl_default() {
 		let group = Group::default();
-		assert_eq!(*group.name, "Group");
-		assert_eq!(*group.position, Vec2::new(0, 0));
-		assert_eq!(group.children.len(), 0);
+		assert_eq!(group.name(), "Group");
+		assert_eq!(group.bounds().into_aabr().min, Vec2::new(0, 0));
+		assert_eq!(group.children().len(), 0);
 	}
 }

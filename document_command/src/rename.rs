@@ -1,7 +1,6 @@
 use crate::{Command, CommandType};
 use document_core::{Node, NodeType};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use uuid::Uuid;
 
 pub trait Renamable: Node {
@@ -35,16 +34,16 @@ impl Command for RenameCommand {
 		let mut cloned = node.clone();
 		match cloned {
 			NodeType::Note(ref mut cloned) => {
-				cloned.name = Arc::new(self.name.clone());
+				cloned.set_name(self.name.clone());
 			}
 			NodeType::Group(ref mut cloned) => {
-				cloned.name = Arc::new(self.name.clone());
+				cloned.set_name(self.name.clone());
 			}
 			NodeType::Palette(ref mut cloned) => {
-				cloned.name = Arc::new(self.name.clone());
+				cloned.set_name(self.name.clone());
 			}
 			NodeType::CanvasGroup(ref mut cloned) => {
-				cloned.name = Arc::new(self.name.clone());
+				cloned.set_name(self.name.clone());
 			}
 		}
 
@@ -54,15 +53,13 @@ impl Command for RenameCommand {
 
 #[cfg(test)]
 mod tests {
-	use super::Renamable;
-	use crate::Command;
-	use document_core::NodeType;
+	use super::*;
 
 	#[test]
 	fn rename_note() {
 		use document_core::Note;
 		let note = Note::default();
-		assert_eq!(*note.name, "Note");
+		assert_eq!(note.name(), "Note");
 
 		let (rename, _) = note.rename("Foo");
 
@@ -70,14 +67,14 @@ mod tests {
 			Some(NodeType::Note(node)) => node,
 			_ => panic!("Renamed did not result in a Note."),
 		};
-		assert_eq!(*note2.name, "Foo");
+		assert_eq!(note2.name(), "Foo");
 	}
 
 	#[test]
 	fn rename_group() {
 		use document_core::Group;
 		let group = Group::default();
-		assert_eq!(*group.name, "Group");
+		assert_eq!(group.name(), "Group");
 
 		let (rename, _) = group.rename("Foo");
 
@@ -85,6 +82,6 @@ mod tests {
 			Some(NodeType::Group(node)) => node,
 			_ => panic!("Renamed did not result in a Group."),
 		};
-		assert_eq!(*group2.name, "Foo");
+		assert_eq!(group2.name(), "Foo");
 	}
 }

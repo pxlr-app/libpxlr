@@ -1,5 +1,5 @@
 use crate::{Chunk, ChunkDependencies, NodeParse, NodeWrite};
-use document_core::{Group, NodeType};
+use document_core::{Group, HasChildren, NodeType};
 use nom::IResult;
 use std::{io, sync::Arc};
 use vek::{geom::repr_c::Rect, vec::repr_c::vec2::Vec2};
@@ -14,11 +14,13 @@ impl NodeParse for Group {
 		// TODO dependencies.children filter is_child_valid
 		Ok((
 			bytes,
-			Arc::new(NodeType::Group(Group {
-				id: chunk.id,
-				position: Arc::new(Vec2::new(chunk.rect.x, chunk.rect.y)),
-				name: Arc::new(chunk.name.clone()),
-				children: dependencies.children.clone(),
+			Arc::new(NodeType::Group(unsafe {
+				Group::construct(
+					chunk.id,
+					chunk.name.clone(),
+					Vec2::new(chunk.rect.x, chunk.rect.y),
+					dependencies.children.clone(),
+				)
 			})),
 		))
 	}
@@ -33,7 +35,7 @@ impl NodeWrite for Group {
 			0,
 			Rect::default(),
 			ChunkDependencies {
-				children: self.children.clone(),
+				children: self.children().clone(),
 				..Default::default()
 			},
 		))

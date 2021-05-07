@@ -1,5 +1,5 @@
 use crate::{Command, CommandType};
-use document_core::{Node, NodeType, NonLeafNode};
+use document_core::{HasChildren, Node, NodeType};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -21,7 +21,7 @@ impl std::fmt::Display for ParentingError {
 
 impl std::error::Error for ParentingError {}
 
-pub trait Parenting: NonLeafNode {
+pub trait Parenting: HasChildren + Node {
 	fn add_child(
 		&self,
 		child: Arc<NodeType>,
@@ -94,7 +94,7 @@ pub trait Parenting: NonLeafNode {
 	}
 }
 
-impl<N: NonLeafNode> Parenting for N {}
+impl<N: HasChildren + Node> Parenting for N {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AddChildCommand {
@@ -123,10 +123,13 @@ impl Command for AddChildCommand {
 		match node {
 			NodeType::Group(node) => {
 				let mut cloned = node.clone();
-				let mut children: Vec<Arc<NodeType>> =
-					cloned.children.iter().map(|child| child.clone()).collect();
+				let mut children: Vec<_> = cloned
+					.children()
+					.iter()
+					.map(|child| child.clone())
+					.collect();
 				children.push(self.child.clone());
-				cloned.children = Arc::new(children);
+				cloned.set_children(children);
 				Some(NodeType::Group(cloned))
 			}
 			_ => None,
@@ -142,8 +145,8 @@ impl Command for RemoveChildCommand {
 		match node {
 			NodeType::Group(node) => {
 				let mut cloned = node.clone();
-				let children: Vec<Arc<NodeType>> = cloned
-					.children
+				let children: Vec<_> = cloned
+					.children()
 					.iter()
 					.filter_map(|child| {
 						if child.id() == &self.child_id {
@@ -153,7 +156,7 @@ impl Command for RemoveChildCommand {
 						}
 					})
 					.collect();
-				cloned.children = Arc::new(children);
+				cloned.set_children(children);
 				Some(NodeType::Group(cloned))
 			}
 			_ => None,
@@ -169,15 +172,18 @@ impl Command for MoveChildCommand {
 		match node {
 			NodeType::Group(node) => {
 				let mut cloned = node.clone();
-				let mut children: Vec<Arc<NodeType>> =
-					cloned.children.iter().map(|child| child.clone()).collect();
+				let mut children: Vec<_> = cloned
+					.children()
+					.iter()
+					.map(|child| child.clone())
+					.collect();
 				let child = children.remove(self.position);
 				if self.position > children.len() {
 					children.push(child);
 				} else {
 					children.insert(self.position, child);
 				}
-				cloned.children = Arc::new(children);
+				cloned.set_children(children);
 				Some(NodeType::Group(cloned))
 			}
 			_ => None,
