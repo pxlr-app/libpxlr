@@ -20,17 +20,13 @@ pub fn walk<
 	let ops = enter(node);
 	// Continue deep down
 	if let VisitorOps::CONTINUE = ops {
-		let group: Result<&dyn HasChildren, ()> = (&**node).try_into();
-		match group {
-			Ok(group) => {
-				for child in group.children().iter() {
-					if let VisitorOps::BREAK = walk(child, enter, leave) {
-						// Break
-						break;
-					}
+		if let Ok(group) = TryInto::<&dyn HasChildren>::try_into(&**node) {
+			for child in group.children().iter() {
+				if let VisitorOps::BREAK = walk(child, enter, leave) {
+					// Break
+					break;
 				}
 			}
-			_ => {}
 		}
 		leave(node);
 	}
