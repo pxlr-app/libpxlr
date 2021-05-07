@@ -1,7 +1,7 @@
 use crate::{HasBounds, HasChannel, HasChildren, Node, NodeType};
 use color::Channel;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{convert::TryInto, sync::Arc};
 use uuid::Uuid;
 use vek::{geom::repr_c::Rect, vec::repr_c::vec2::Vec2};
 
@@ -76,8 +76,27 @@ impl Node for CanvasGroup {
 
 impl HasBounds for CanvasGroup {
 	fn bounds(&self) -> Rect<i32, i32> {
-		// TODO extend children bounds
-		Rect::new(self.position.x, self.position.y, 0, 0)
+		let mut bounds: Option<Rect<i32, i32>> = None;
+		for child in self.children.iter() {
+			if let Ok(child_bounds) = TryInto::<&dyn HasBounds>::try_into(&**child) {
+				let new_bounds = bounds.take().map_or_else(
+					|| child_bounds.bounds(),
+					|prev_bounds| prev_bounds.union(child_bounds.bounds()),
+				);
+				bounds.replace(new_bounds);
+			};
+		}
+		bounds.take().map_or_else(
+			|| Rect::new(self.position.x, self.position.y, 0, 0),
+			|bounds| {
+				Rect::new(
+					self.position.x + bounds.x,
+					self.position.y + bounds.y,
+					bounds.w,
+					bounds.h,
+				)
+			},
+		)
 	}
 	fn set_position(&mut self, position: Vec2<i32>) {
 		self.position = Arc::new(position);
