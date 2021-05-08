@@ -5,4 +5,5 @@ members = [
 	"document_command",
 	"document_core",
 	"document_file",
+	"libpxlr",
 ]
