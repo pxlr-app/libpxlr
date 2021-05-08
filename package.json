@@ -1,0 +1,12 @@
+{
+	"name": "pxlr-app",
+	"scripts": {
+		"build": "",
+		"test": "",
+		"start:emulator": "firebase emulators:start --import=.emulators_data --export-on-exit"
+	},
+	"devDependencies": {
+		"firebase-tools": "^9.6.1"
+	},
+	"private": true
+}
