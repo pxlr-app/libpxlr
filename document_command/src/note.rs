@@ -1,6 +1,5 @@
 use crate::{Command, CommandType};
 use document_core::{HasContent, Node, NodeType};
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub trait EditContent: HasContent + Node {
@@ -20,7 +19,7 @@ pub trait EditContent: HasContent + Node {
 
 impl<N: HasContent + Node> EditContent for N {}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct SetNoteContentCommand {
 	pub target: Uuid,
 	pub content: String,

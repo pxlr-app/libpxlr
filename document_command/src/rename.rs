@@ -1,6 +1,5 @@
 use crate::{Command, CommandType};
 use document_core::{Node, NodeType};
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub trait Renamable: Node {
@@ -20,7 +19,7 @@ pub trait Renamable: Node {
 
 impl<N: Node> Renamable for N {}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct RenameCommand {
 	pub target: Uuid,
 	pub name: String,

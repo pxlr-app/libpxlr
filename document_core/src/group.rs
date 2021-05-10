@@ -1,10 +1,9 @@
 use crate::{HasBounds, HasChildren, Node, NodeType};
-use serde::{Deserialize, Serialize};
 use std::{convert::TryInto, sync::Arc};
 use uuid::Uuid;
 use vek::{geom::repr_c::Rect, vec::repr_c::vec2::Vec2};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Group {
 	id: Uuid,
 	name: String,

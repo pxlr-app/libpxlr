@@ -1,7 +1,6 @@
 use crate::*;
-use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Channel {
 	Luma,
 	Lumaa,

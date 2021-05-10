@@ -11,13 +11,8 @@ color = { path = "../color" }
 document_core = { path = "../document_core" }
 document_command = { path = "../document_command" }
 nom = "6"
-serde = { version = "1.0", features = ["rc"] }
-uuid = { version = "0.8", features = ["serde", "stdweb", "v4"] }
-vek = { version = "0.15", features = ["serde"] }
-
-[dev-dependencies]
-ron = "0.6.0"
-serde_json = "1.0"
+uuid = { version = "0.8", features = ["stdweb", "v4"] }
+vek = { version = "0.15" }
 
 [dev-dependencies.cargo-husky]
 version = "1"

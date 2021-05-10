@@ -1,6 +1,5 @@
 use crate::{Command, CommandType};
 use document_core::{HasChildren, Node, NodeType};
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -96,19 +95,19 @@ pub trait Parenting: HasChildren + Node {
 
 impl<N: HasChildren + Node> Parenting for N {}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct AddChildCommand {
 	pub target: Uuid,
 	pub child: Arc<NodeType>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct RemoveChildCommand {
 	pub target: Uuid,
 	pub child_id: Uuid,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct MoveChildCommand {
 	pub target: Uuid,
 	pub child_id: Uuid,

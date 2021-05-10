@@ -1,4 +1,3 @@
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 mod canvas;
 mod group;
@@ -17,7 +16,7 @@ pub use self::walk::*;
 pub static DOCUMENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum NodeType {
 	Note(note::Note),
 	Group(group::Group),

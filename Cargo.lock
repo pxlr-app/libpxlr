@@ -77,12 +77,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 
 [[package]]
-name = "base64"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
-
-[[package]]
 name = "bitflags"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -96,7 +90,6 @@ checksum = "8942c8d352ae1838c9dda0b0ca2ab657696ef2232a20147cf1b30ae1a9cb4321"
 dependencies = [
  "funty",
  "radium",
- "serde",
  "tap",
  "wyz",
 ]
@@ -135,7 +128,6 @@ dependencies = [
  "image",
  "rayon",
  "rstar",
- "serde",
  "vek",
 ]
 
@@ -191,7 +183,6 @@ version = "0.2.0"
 dependencies = [
  "cargo-husky",
  "palette",
- "serde",
  "vek",
 ]
 
@@ -273,7 +264,6 @@ dependencies = [
  "color",
  "document_core",
  "rustc_version",
- "serde",
  "uuid",
  "vek",
 ]
@@ -286,7 +276,6 @@ dependencies = [
  "cargo-husky",
  "color",
  "rustc_version",
- "serde",
  "uuid",
  "vek",
 ]
@@ -303,9 +292,6 @@ dependencies = [
  "document_command",
  "document_core",
  "nom",
- "ron",
- "serde",
- "serde_json",
  "uuid",
  "vek",
 ]
@@ -866,17 +852,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ron"
-version = "0.6.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "064ea8613fb712a19faf920022ec8ddf134984f100090764a4e1d768f3827f1f"
-dependencies = [
- "base64",
- "bitflags",
- "serde",
-]
-
-[[package]]
 name = "rstar"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -885,7 +860,6 @@ dependencies = [
  "heapless",
  "num-traits",
  "pdqselect",
- "serde",
  "smallvec",
 ]
 
@@ -1083,7 +1057,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
 dependencies = [
  "getrandom 0.2.2",
- "serde",
 ]
 
 [[package]]

@@ -1,9 +1,8 @@
 use crate::{Canvas, Stencil};
 use color::{ChannelError, Pixel, PixelMut};
-use serde::{Deserialize, Serialize};
 use vek::vec::repr_c::vec2::Vec2;
 
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Sampling {
 	Nearest,
 	Bilinear,

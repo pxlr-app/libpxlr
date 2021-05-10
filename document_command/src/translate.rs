@@ -1,6 +1,5 @@
 use crate::{Command, CommandType};
 use document_core::{HasBounds, Node, NodeType};
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use vek::vec::repr_c::vec2::Vec2;
 
@@ -21,7 +20,7 @@ pub trait Translatable: HasBounds + Node {
 
 impl<N: HasBounds + Node> Translatable for N {}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct TranslateCommand {
 	pub target: Uuid,
 	pub position: Vec2<i32>,

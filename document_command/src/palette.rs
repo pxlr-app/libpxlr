@@ -1,7 +1,6 @@
 use crate::{Command, CommandType};
 use color::Rgba;
 use document_core::{HasColors, Node, NodeType};
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -81,19 +80,19 @@ pub trait ColorManager: HasColors + Node {
 
 impl<N: HasColors + Node> ColorManager for N {}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct AddPaletteColorCommand {
 	pub target: Uuid,
 	pub color: Rgba,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct RemovePaletteColorCommand {
 	pub target: Uuid,
 	pub color: Rgba,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct MovePaletteColorCommand {
 	pub target: Uuid,
 	pub color: Rgba,

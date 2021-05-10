@@ -4,12 +4,11 @@ version = "0.2.0"
 edition = "2018"
 
 [dependencies]
-bitvec = { version = "0", features = ["serde"] }
+bitvec = { version = "0" }
 color = { path = "../color" }
 rayon = { version = "1", optional = true }
-rstar = { version = "0.8", features = ["serde"] }
-serde = { version = "1.0", features = ["rc"] }
-vek = { version = "0.15", features = ["serde"] }
+rstar = { version = "0.8" }
+vek = { version = "0.15" }
 
 [dev-dependencies]
 image = { version = "0.23" }

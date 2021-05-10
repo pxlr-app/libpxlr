@@ -1,10 +1,9 @@
 use crate::{HasBounds, HasContent, Node};
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 use vek::{geom::repr_c::Rect, vec::repr_c::vec2::Vec2};
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Note {
 	id: Uuid,
 	name: String,

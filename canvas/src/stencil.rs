@@ -1,10 +1,9 @@
 use crate::braille::braille_fmt2;
 use bitvec::{bitvec, order::Lsb0, vec::BitVec};
 use color::*;
-use serde::{Deserialize, Serialize};
 use vek::geom::repr_c::Rect;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct Stencil {
 	bounds: Rect<i32, i32>,
 	mask: BitVec<Lsb0, u8>,

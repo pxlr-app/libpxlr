@@ -1,5 +1,4 @@
 use document_core::{HasChildren, Node, NodeType};
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 mod group;
@@ -63,7 +62,7 @@ pub trait Command {
 	}
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub enum CommandType {
 	AddChild(group::AddChildCommand),
 	MoveChild(group::MoveChildCommand),
