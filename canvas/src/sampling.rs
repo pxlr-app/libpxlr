@@ -137,7 +137,6 @@ impl Samplable for Stencil {
 		assert_eq!(out.len(), channel.pixel_stride());
 		let bounds = self.bounds();
 		if !bounds.contains_point(Vec2::new(position.0 as i32, position.1 as i32)) {
-			out.copy_from_slice(&channel.default_pixel());
 			return Err(SamplingError::OutOfBounds);
 		}
 		match sampling {
