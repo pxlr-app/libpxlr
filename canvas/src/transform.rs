@@ -37,8 +37,8 @@ impl Transformable for Canvas {
 		let new_bounds = Rect::new(
 			old_bounds.x,
 			old_bounds.y,
-			(r - l).ceil() as i32,
-			(b - t).ceil() as i32,
+			(r - l).round() as i32,
+			(b - t).round() as i32,
 		);
 
 		// Center canvas
@@ -98,8 +98,8 @@ impl Transformable for Stencil {
 		let new_bounds = Rect::new(
 			old_bounds.x,
 			old_bounds.y,
-			(r - l).ceil() as i32,
-			(b - t).ceil() as i32,
+			(r - l).round() as i32,
+			(b - t).round() as i32,
 		);
 
 		// Center canvas
@@ -411,5 +411,95 @@ mod tests {
 		let flip_xy = flip_xy.unwrap();
 		assert_eq!(format!("{:?}", flip_xy), "Stencil ( ⠋ )");
 		assert_eq!(flip_xy.data(), &vec![4, 255, 3, 255, 2, 255]);
+	}
+
+	#[test]
+	fn stencil_transform_scale() {
+		let stencil = Stencil::from_buffer_mask_alpha(
+			Rect::new(0, 0, 2, 2),
+			Channel::Lumaa,
+			vec![0, 0, 5, 255, 10, 255, 15, 255],
+		);
+
+		let scaled = stencil.transform(Sampling::Nearest, &Mat3::scaling_3d(Vec3::new(2., 2., 1.)));
+		assert_eq!(scaled.is_ok(), true);
+		let scaled = scaled.unwrap();
+		assert_eq!(format!("{:?}", scaled), "Stencil ( ⣤⣿ )");
+		assert_eq!(scaled.data(), &vec![5, 255, 5, 255, 5, 255, 5, 255, 10, 255, 10, 255, 15, 255, 15, 255, 10, 255, 10, 255, 15, 255, 15, 255]);
+
+		let scaled = stencil.transform(Sampling::Nearest, &Mat3::scaling_3d(Vec3::new(0.5, 0.5, 1.)));
+		assert_eq!(scaled.is_ok(), true);
+		let scaled = scaled.unwrap();
+		assert_eq!(format!("{:?}", scaled), "Stencil ( ⠁ )");
+		assert_eq!(scaled.data(), &vec![15, 255]);
+
+		let scaled = stencil.transform(Sampling::Bilinear, &Mat3::scaling_3d(Vec3::new(2., 2., 1.)));
+		assert_eq!(scaled.is_ok(), true);
+		let scaled = scaled.unwrap();
+		assert_eq!(format!("{:?}", scaled), "Stencil ( ⣿⣿ )");
+		assert_eq!(scaled.data(), &vec![0, 0, 1, 64, 4, 191, 5, 255, 3, 64, 4, 112, 7, 207, 8, 255, 8, 191, 9, 207, 12, 239, 13, 255, 10, 255, 11, 255, 14, 255, 15, 255]);
+
+		let scaled = stencil.transform(Sampling::Bilinear, &Mat3::scaling_3d(Vec3::new(0.5, 0.5, 1.)));
+		assert_eq!(scaled.is_ok(), true);
+		let scaled = scaled.unwrap();
+		assert_eq!(format!("{:?}", scaled), "Stencil ( ⠁ )");
+		assert_eq!(scaled.data(), &vec![8, 192]);
+	}
+
+	#[test]
+	fn stencil_transform_rotate() {
+		let stencil = Stencil::from_buffer_mask_alpha(
+			Rect::new(0, 0, 2, 2),
+			Channel::Lumaa,
+			vec![0, 0, 5, 255, 10, 255, 15, 255],
+		);
+
+		let rotated = stencil.transform(Sampling::Nearest, &Mat3::rotation_z(45. * (std::f32::consts::PI / 180.)));
+		assert_eq!(rotated.is_ok(), true);
+		let rotated = rotated.unwrap();
+		assert_eq!(format!("{:?}", rotated), "Stencil ( ⠷⠇ )");
+		assert_eq!(rotated.data(), &vec![10, 255, 5, 255, 10, 255, 15, 255, 5, 255, 15, 255, 15, 255, 15, 255]);
+
+		let rotated = stencil.transform(Sampling::Nearest, &Mat3::rotation_z(90. * (std::f32::consts::PI / 180.)));
+		assert_eq!(rotated.is_ok(), true);
+		let rotated = rotated.unwrap();
+		assert_eq!(format!("{:?}", rotated), "Stencil ( ⠓ )");
+		assert_eq!(rotated.data(), &vec![10, 255, 15, 255, 5, 255]);
+
+		let rotated = stencil.transform(Sampling::Nearest, &Mat3::rotation_z(180. * (std::f32::consts::PI / 180.)));
+		assert_eq!(rotated.is_ok(), true);
+		let rotated = rotated.unwrap();
+		assert_eq!(format!("{:?}", rotated), "Stencil ( ⠋ )");
+		assert_eq!(rotated.data(), &vec![15, 255, 10, 255, 5, 255]);
+
+		let rotated = stencil.transform(Sampling::Nearest, &Mat3::rotation_z(270. * (std::f32::consts::PI / 180.)));
+		assert_eq!(rotated.is_ok(), true);
+		let rotated = rotated.unwrap();
+		assert_eq!(format!("{:?}", rotated), "Stencil ( ⠙ )");
+		assert_eq!(rotated.data(), &vec![5, 255, 15, 255, 10, 255]);
+
+		let rotated = stencil.transform(Sampling::Bilinear, &Mat3::rotation_z(45. * (std::f32::consts::PI / 180.)));
+		assert_eq!(rotated.is_ok(), true);
+		let rotated = rotated.unwrap();
+		assert_eq!(format!("{:?}", rotated), "Stencil ( ⠿⠇ )");
+		assert_eq!(rotated.data(), &vec![5, 128, 0, 0, 3, 128, 10, 255, 8, 192, 5, 255, 13, 255, 15, 255, 10, 255]);
+
+		let rotated = stencil.transform(Sampling::Bilinear, &Mat3::rotation_z(90. * (std::f32::consts::PI / 180.)));
+		assert_eq!(rotated.is_ok(), true);
+		let rotated = rotated.unwrap();
+		assert_eq!(format!("{:?}", rotated), "Stencil ( ⠛ )");
+		assert_eq!(rotated.data(), &vec![10, 255, 0, 0, 15, 255, 5, 255]);
+
+		let rotated = stencil.transform(Sampling::Bilinear, &Mat3::rotation_z(180. * (std::f32::consts::PI / 180.)));
+		assert_eq!(rotated.is_ok(), true);
+		let rotated = rotated.unwrap();
+		assert_eq!(format!("{:?}", rotated), "Stencil ( ⠛ )");
+		assert_eq!(rotated.data(), &vec![15, 255, 10, 255, 5, 255, 0, 0]);
+
+		let rotated = stencil.transform(Sampling::Bilinear, &Mat3::rotation_z(270. * (std::f32::consts::PI / 180.)));
+		assert_eq!(rotated.is_ok(), true);
+		let rotated = rotated.unwrap();
+		assert_eq!(format!("{:?}", rotated), "Stencil ( ⠛ )");
+		assert_eq!(rotated.data(), &vec![5, 255, 15, 255, 0, 0, 10, 255]);
 	}
 }
