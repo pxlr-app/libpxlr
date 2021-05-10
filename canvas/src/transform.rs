@@ -1,4 +1,5 @@
 use crate::{Canvas, Samplable, Sampling, Stencil};
+use bitvec::{bitvec, order::Lsb0};
 use color::ChannelError;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
@@ -72,6 +73,69 @@ impl Transformable for Canvas {
 		Ok(Canvas::from_stencil(Stencil::from_buffer_mask_alpha(
 			new_bounds, channel, data,
 		)))
+	}
+}
+
+impl Transformable for Stencil {
+	type Output = Result<Stencil, ChannelError>;
+
+	fn transform(&self, sampling: Sampling, matrix: &Mat3<f32>) -> Result<Stencil, ChannelError> {
+		let channel = self.channel();
+		let stride = channel.pixel_stride();
+		let old_bounds = self.bounds();
+
+		// Calculate new bounds
+		let half_size: Aabr<f32> = old_bounds.into_aabr().as_();
+		let half_size = half_size.half_size();
+		let tl = matrix.mul_point_2d(Vec2::new(-half_size.w, -half_size.h));
+		let tr = matrix.mul_point_2d(Vec2::new(half_size.w, -half_size.h));
+		let bl = matrix.mul_point_2d(Vec2::new(-half_size.w, half_size.h));
+		let br = matrix.mul_point_2d(Vec2::new(half_size.w, half_size.h));
+		let l = tl.x.min(tr.x).min(bl.x).min(br.x);
+		let t = tl.y.min(tr.y).min(bl.y).min(br.y);
+		let r = tl.x.max(tr.x).max(bl.x).max(br.x);
+		let b = tl.y.max(tr.y).max(bl.y).max(br.y);
+		let new_bounds = Rect::new(
+			old_bounds.x,
+			old_bounds.y,
+			(r - l).ceil() as i32,
+			(b - t).ceil() as i32,
+		);
+
+		// Center canvas
+		let projection = Mat3::<f32>::translation_2d(Vec2::new(
+			old_bounds.w as f32 / -2f32 + 0.5,
+			old_bounds.h as f32 / -2f32 + 0.5,
+		));
+		// Apply transformation
+		let projection = (*matrix) * projection;
+		// Decenter canvas
+		let projection = Mat3::<f32>::translation_2d(-Vec2::new(
+			new_bounds.w as f32 / -2f32 + 0.5,
+			new_bounds.h as f32 / -2f32 + 0.5,
+		)) * projection;
+		// Invert matrix
+		let projection = Into::<Mat3<f32>>::into(Into::<Mat4<f32>>::into(projection).inverted());
+
+		let len = new_bounds.w as usize * new_bounds.h as usize;
+		let mut data: Vec<u8> = Vec::with_capacity(len * stride);
+		let mut mask = bitvec![Lsb0, u8; 0; len];
+		let mut tmp = channel.default_pixel();
+
+		for y in 0..(new_bounds.h as usize) {
+			for x in 0..(new_bounds.w as usize) {
+				let pos = projection.mul_point_2d(Vec2::new(x as f32, y as f32));
+				if let Ok(()) = self.sample2d((pos.x, pos.y), sampling, &mut tmp) {
+					let index = ((y as i64).wrapping_sub(new_bounds.y as i64) * new_bounds.w as i64 + (x as i64).wrapping_sub(new_bounds.x as i64)) as usize;
+					mask.set(index, true);
+					data.extend_from_slice(&tmp);
+				}
+			}
+		}
+		
+		unsafe {
+			Ok(Stencil::from_raw_parts(new_bounds, mask, channel, data))
+		}
 	}
 }
 
