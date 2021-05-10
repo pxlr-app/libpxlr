@@ -1,16 +1,17 @@
+import { faExclamationCircle } from "@fortawesome/pro-duotone-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import React, {
 	ClassAttributes,
 	InputHTMLAttributes,
 	forwardRef,
 	ForwardedRef,
-} from 'react';
-import { FieldValues, FieldError } from 'react-hook-form';
-import errorIcon from '../assets/icons/exclamation-circle-regular.svg?raw';
+} from "react";
+import { FieldValues, FieldError } from "react-hook-form";
 
 export type InputProps<TFieldValues extends FieldValues = FieldValues> = {
 	label: string;
 	error?: FieldError;
-} & Omit<InputHTMLAttributes<HTMLInputElement>, 'id'> &
+} & Omit<InputHTMLAttributes<HTMLInputElement>, "id"> &
 	ClassAttributes<HTMLInputElement>;
 
 export default forwardRef(function Input<
@@ -39,11 +40,9 @@ export default forwardRef(function Input<
 				/>
 				{error && (
 					<div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-						<div
+						<FontAwesomeIcon
+							icon={faExclamationCircle}
 							className="h-5 w-5 text-red-500"
-							dangerouslySetInnerHTML={{
-								__html: errorIcon,
-							}}
 						/>
 					</div>
 				)}

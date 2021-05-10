@@ -9,10 +9,13 @@ import {
 import Input from "../../components/Input";
 import { useAuth } from "../../hooks/auth";
 import { useToasts } from "../../hooks/toast";
-import successIcon from "../../assets/icons/check-circle-regular.svg?raw";
-import errorIcon from "../../assets/icons/exclamation-circle-regular.svg?raw";
 import Error404 from "../404";
 import suspend from "../../utils/suspend";
+import {
+	faCheckCircle,
+	faExclamation,
+	faExclamationCircle,
+} from "@fortawesome/pro-duotone-svg-icons";
 
 export default function Action() {
 	const location = useLocation();
@@ -47,7 +50,7 @@ function ResetForm({ oobCode }: { oobCode: string }) {
 				showToast({
 					type: "DISMISSABLE",
 					ttl: 4000,
-					icon: errorIcon,
+					icon: faExclamation,
 					title: "Password reset error",
 					body: `Could not verify password reset code`,
 				});
@@ -61,7 +64,7 @@ function ResetForm({ oobCode }: { oobCode: string }) {
 			showToast({
 				type: "DISMISSABLE",
 				ttl: 4000,
-				icon: successIcon,
+				icon: faCheckCircle,
 				title: "Password reset successful",
 				body: `You can now sign in with new password`,
 			});
@@ -70,7 +73,7 @@ function ResetForm({ oobCode }: { oobCode: string }) {
 			showToast({
 				type: "DISMISSABLE",
 				ttl: 4000,
-				icon: errorIcon,
+				icon: faExclamationCircle,
 				title: "Password reset error",
 				body: `Could not verify password reset code`,
 			});
@@ -132,7 +135,7 @@ function VerifyEmailForm({ oobCode }: { oobCode: string }) {
 				showToast({
 					type: "DISMISSABLE",
 					ttl: 4000,
-					icon: successIcon,
+					icon: faCheckCircle,
 					title: "Verification success",
 					body: `Successfully verificated email`,
 				});
@@ -142,7 +145,7 @@ function VerifyEmailForm({ oobCode }: { oobCode: string }) {
 				showToast({
 					type: "DISMISSABLE",
 					ttl: 4000,
-					icon: errorIcon,
+					icon: faExclamationCircle,
 					title: "Verification error",
 					body: `Could not verify email`,
 				});

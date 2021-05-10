@@ -5,8 +5,10 @@ import { sendPasswordResetEmail } from "firebase/auth";
 import Input from "../../components/Input";
 import { useAuth } from "../../hooks/auth";
 import { useToasts } from "../../hooks/toast";
-import successIcon from "../../assets/icons/check-circle-regular.svg?raw";
-import errorIcon from "../../assets/icons/exclamation-circle-regular.svg?raw";
+import {
+	faCheckCircle,
+	faExclamationCircle,
+} from "@fortawesome/pro-duotone-svg-icons";
 
 type ForgotForm = {
 	email: string;
@@ -29,7 +31,7 @@ export default function ForgotPassword() {
 			showToast({
 				type: "DISMISSABLE",
 				ttl: 4000,
-				icon: successIcon,
+				icon: faCheckCircle,
 				title: `Reset password sent`,
 				body: `Check your email for instructions`,
 			});
@@ -38,7 +40,7 @@ export default function ForgotPassword() {
 			showToast({
 				type: "DISMISSABLE",
 				ttl: 4000,
-				icon: errorIcon,
+				icon: faExclamationCircle,
 				title: "Could not send reset password",
 				body: e.code,
 			});

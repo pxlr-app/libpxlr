@@ -1,24 +1,25 @@
+import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import React, {
 	createContext,
 	useContext,
 	PropsWithChildren,
 	useState,
-} from 'react';
+} from "react";
 
 const ToastContext = createContext<
 	| {
 			toasts: IdentifiableToast[];
-			showToast: (toast: Omit<Toast, 'time'>) => string;
+			showToast: (toast: Omit<Toast, "time">) => string;
 			removeToast: (id: string) => void;
 	  }
 	| undefined
 >(undefined);
 
 export type DismissableToast = {
-	type: 'DISMISSABLE';
+	type: "DISMISSABLE";
 	time: Date;
 	ttl?: number;
-	icon?: string;
+	icon?: IconDefinition;
 	title: string;
 	body?: string;
 };
@@ -34,7 +35,7 @@ let nextToastId = 0;
 export function useToasts() {
 	const ctx = useContext(ToastContext);
 	if (ctx === undefined) {
-		throw new Error('useToasts must be used within a ToastProvider.');
+		throw new Error("useToasts must be used within a ToastProvider.");
 	}
 	return ctx;
 }
@@ -49,7 +50,7 @@ export function ToastProvider({
 	const [toasts, setToasts] = useState<IdentifiableToast[]>([]);
 	const value = {
 		toasts,
-		showToast: (toast: Omit<Toast, 'time'>) => {
+		showToast: (toast: Omit<Toast, "time">) => {
 			const id = `toast-${++nextToastId}`;
 			setToasts([
 				...toasts,
@@ -62,7 +63,7 @@ export function ToastProvider({
 			return id;
 		},
 		removeToast: (id: string) => {
-			setToasts([...toasts].filter(t => t.id !== id));
+			setToasts([...toasts].filter((t) => t.id !== id));
 		},
 	};
 	return (

@@ -9,11 +9,14 @@ import {
 } from "firebase/auth";
 import { useAuth } from "../../hooks/auth";
 import { useToasts } from "../../hooks/toast";
-import successIcon from "../../assets/icons/check-circle-regular.svg?raw";
-import errorIcon from "../../assets/icons/exclamation-circle-regular.svg?raw";
 import Input from "../../components/Input";
 import Checkbox from "../../components/Checkbox";
 import suspend from "../../utils/suspend";
+import {
+	faCheckCircle,
+	faExclamationCircle,
+} from "@fortawesome/pro-duotone-svg-icons";
+import logo from "../../assets/logo.svg";
 
 type LoginForm = {
 	email: string;
@@ -43,7 +46,7 @@ export default function Login(props: React.PropsWithChildren<{}>) {
 			showToast({
 				type: "DISMISSABLE",
 				ttl: 4000,
-				icon: successIcon,
+				icon: faCheckCircle,
 				title: `Authentification successful`,
 				body: `Welcome ${
 					userCred.user.displayName ?? userCred.user.email
@@ -54,7 +57,7 @@ export default function Login(props: React.PropsWithChildren<{}>) {
 			showToast({
 				type: "DISMISSABLE",
 				ttl: 4000,
-				icon: errorIcon,
+				icon: faExclamationCircle,
 				title: "Authentification error",
 				body: e.code,
 			});
@@ -64,11 +67,7 @@ export default function Login(props: React.PropsWithChildren<{}>) {
 	return (
 		<div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
 			<div className="sm:mx-auto sm:w-full sm:max-w-md">
-				<img
-					className="mx-auto h-12 w-auto"
-					src="https://tailwindui.com/img/logos/workflow-mark-indigo-600.svg"
-					alt="Workflow"
-				/>
+				<img className="mx-auto h-20 w-auto" src={logo} alt="lipsum" />
 				<h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
 					Sign in to your account
 				</h2>

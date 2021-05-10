@@ -1,12 +1,14 @@
-import React, { FormEvent, useCallback, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { Redirect, useHistory } from 'react-router-dom';
-import { sendEmailVerification } from 'firebase/auth';
-import Input from '../../components/Input';
-import { useAuth, useCurrentUser } from '../../hooks/auth';
-import { useToasts } from '../../hooks/toast';
-import successIcon from '../../assets/icons/check-circle-regular.svg?raw';
-import errorIcon from '../../assets/icons/exclamation-circle-regular.svg?raw';
+import React, { FormEvent, useCallback, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { Redirect, useHistory } from "react-router-dom";
+import { sendEmailVerification } from "firebase/auth";
+import Input from "../../components/Input";
+import { useAuth, useCurrentUser } from "../../hooks/auth";
+import { useToasts } from "../../hooks/toast";
+import {
+	faCheckCircle,
+	faExclamationCircle,
+} from "@fortawesome/pro-duotone-svg-icons";
 
 export default function Verification() {
 	const currentUser = useCurrentUser();
@@ -15,7 +17,7 @@ export default function Verification() {
 
 	useEffect(() => {
 		if (!currentUser) {
-			history.push('/auth/login', true);
+			history.push("/auth/login", true);
 		}
 	}, [currentUser]);
 
@@ -24,22 +26,22 @@ export default function Verification() {
 			e.preventDefault();
 			try {
 				await sendEmailVerification(currentUser!, {
-					url: 'http://localhost:3000/',
+					url: "http://localhost:3000/",
 				});
 				showToast({
-					type: 'DISMISSABLE',
+					type: "DISMISSABLE",
 					ttl: 4000,
-					icon: successIcon,
+					icon: faCheckCircle,
 					title: `Verification sent`,
 					body: `Check your email for instructions`,
 				});
 			} catch (e) {
 				debugger;
 				showToast({
-					type: 'DISMISSABLE',
+					type: "DISMISSABLE",
 					ttl: 4000,
-					icon: errorIcon,
-					title: 'Could not send verification email',
+					icon: faExclamationCircle,
+					title: "Could not send verification email",
 					body: e.code,
 				});
 			}
