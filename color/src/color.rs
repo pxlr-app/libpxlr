@@ -1,6 +1,6 @@
 use vek::ops::Lerp;
 
-pub trait Color: Default {
+pub trait Color {
 	const SIZE: usize;
 
 	fn to_slice(&self) -> &[u8];
@@ -59,7 +59,7 @@ impl<C: Color> Color for Alpha<C> {
 	}
 }
 
-impl<C: Color> Default for Alpha<C> {
+impl<C: Color + Default> Default for Alpha<C> {
 	fn default() -> Self {
 		Self {
 			color: Default::default(),
