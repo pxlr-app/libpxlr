@@ -1,5 +1,5 @@
 use crate::{Canvas, Stencil};
-use color::{Channel, ChannelError, Pixel, PixelMut};
+use color::{ChannelError, Pixel, PixelMut};
 use serde::{Deserialize, Serialize};
 use vek::vec::repr_c::vec2::Vec2;
 
@@ -220,6 +220,7 @@ impl Samplable for Stencil {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use color::Channel;
 	use crate::*;
 	use vek::geom::repr_c::Rect;
 
@@ -376,12 +377,12 @@ mod tests {
 		stencil
 			.sample2d((0., 0.5), Sampling::Bilinear, &mut buffer)
 			.unwrap();
-		assert_eq!(buffer, vec![10, 255]);
+		assert_eq!(buffer, vec![3, 128]);
 		let mut buffer = Channel::Lumaa.default_pixel();
 		stencil
 			.sample2d((0.5, 0.5), Sampling::Bilinear, &mut buffer)
 			.unwrap();
-		assert_eq!(buffer, vec![13, 255]);
+		assert_eq!(buffer, vec![9, 192]);
 		let mut buffer = Channel::Lumaa.default_pixel();
 		stencil
 			.sample2d((1., 1.), Sampling::Bilinear, &mut buffer)
