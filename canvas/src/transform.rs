@@ -148,7 +148,7 @@ mod tests {
 	use std::path::Path;
 	use vek::{geom::repr_c::Rect, vec::repr_c::vec3::Vec3};
 
-	fn load_image(path: &Path) -> Result<(Channel, u32, u32, Vec<u8>), ()> {
+	fn load_canvas(path: &Path) -> Result<(Channel, u32, u32, Vec<u8>), ()> {
 		match image::open(path).map_err(|_| ())? {
 			DynamicImage::ImageRgb8(img) => {
 				let (w, h) = img.dimensions();
@@ -185,7 +185,7 @@ mod tests {
 		}
 	}
 
-	fn save_pixels<D: std::ops::Index<(i32, i32), Output = [u8]>>(
+	fn save_canvas<D: std::ops::Index<(i32, i32), Output = [u8]>>(
 		path: &Path,
 		channel: Channel,
 		rect: Rect<i32, i32>,
@@ -219,13 +219,13 @@ mod tests {
 		}
 	}
 
-	fn assert_transform_image(
+	fn assert_transform_canvas(
 		in_image: &Path,
 		sampling: Sampling,
 		transform: Mat3<f32>,
 		out_image: &Path,
 	) {
-		let (channel, width, height, pixels) = load_image(in_image).unwrap();
+		let (channel, width, height, pixels) = load_canvas(in_image).unwrap();
 
 		let canvas = Canvas::from_stencil(Stencil::from_buffer(
 			Rect::new(0, 0, width as i32, height as i32),
@@ -237,10 +237,10 @@ mod tests {
 		let transformed_pixels: Vec<_> = canvas.iter().flatten().map(|b| *b).collect();
 
 		if let Some(_) = std::option_env!("PXLR_TEST_SAVE_IMAGE") {
-			save_pixels(out_image, channel, bounds, canvas).unwrap();
+			save_canvas(out_image, channel, bounds, canvas).unwrap();
 		}
 
-		let (out_channel, out_width, out_height, out_pixels) = load_image(out_image).unwrap();
+		let (out_channel, out_width, out_height, out_pixels) = load_canvas(out_image).unwrap();
 		assert_eq!(channel, out_channel);
 		assert_eq!(out_width, bounds.w as u32);
 		assert_eq!(out_height, bounds.h as u32);
@@ -248,14 +248,14 @@ mod tests {
 	}
 
 	#[test]
-	fn transform_identity() {
-		assert_transform_image(
+	fn canvas_transform_identity() {
+		assert_transform_canvas(
 			&Path::new("tests/character.png"),
 			Sampling::Nearest,
 			Mat3::identity(),
 			&Path::new("tests/character-nearest-identity.png"),
 		);
-		assert_transform_image(
+		assert_transform_canvas(
 			&Path::new("tests/character.png"),
 			Sampling::Bilinear,
 			Mat3::identity(),
@@ -264,38 +264,38 @@ mod tests {
 	}
 
 	#[test]
-	fn transform_flip() {
-		assert_transform_image(
+	fn canvas_transform_flip() {
+		assert_transform_canvas(
 			&Path::new("tests/character.png"),
 			Sampling::Nearest,
 			Mat3::scaling_3d(Vec3::new(-1., 1., 1.)),
 			&Path::new("tests/character-nearest-flip-x.png"),
 		);
-		assert_transform_image(
+		assert_transform_canvas(
 			&Path::new("tests/character.png"),
 			Sampling::Nearest,
 			Mat3::scaling_3d(Vec3::new(1., -1., 1.)),
 			&Path::new("tests/character-nearest-flip-y.png"),
 		);
-		assert_transform_image(
+		assert_transform_canvas(
 			&Path::new("tests/character.png"),
 			Sampling::Nearest,
 			Mat3::scaling_3d(Vec3::new(-1., -1., 1.)),
 			&Path::new("tests/character-nearest-flip-xy.png"),
 		);
-		assert_transform_image(
+		assert_transform_canvas(
 			&Path::new("tests/character.png"),
 			Sampling::Bilinear,
 			Mat3::scaling_3d(Vec3::new(-1., 1., 1.)),
 			&Path::new("tests/character-bilinear-flip-x.png"),
 		);
-		assert_transform_image(
+		assert_transform_canvas(
 			&Path::new("tests/character.png"),
 			Sampling::Bilinear,
 			Mat3::scaling_3d(Vec3::new(1., -1., 1.)),
 			&Path::new("tests/character-bilinear-flip-y.png"),
 		);
-		assert_transform_image(
+		assert_transform_canvas(
 			&Path::new("tests/character.png"),
 			Sampling::Bilinear,
 			Mat3::scaling_3d(Vec3::new(-1., -1., 1.)),
@@ -304,26 +304,26 @@ mod tests {
 	}
 
 	#[test]
-	fn transform_scale() {
-		assert_transform_image(
+	fn canvas_transform_scale() {
+		assert_transform_canvas(
 			&Path::new("tests/character.png"),
 			Sampling::Nearest,
 			Mat3::scaling_3d(Vec3::new(2., 2., 1.)),
 			&Path::new("tests/character-nearest-scale-2x.png"),
 		);
-		assert_transform_image(
+		assert_transform_canvas(
 			&Path::new("tests/character.png"),
 			Sampling::Nearest,
 			Mat3::scaling_3d(Vec3::new(0.5, 0.5, 1.)),
 			&Path::new("tests/character-nearest-scale-half.png"),
 		);
-		assert_transform_image(
+		assert_transform_canvas(
 			&Path::new("tests/character.png"),
 			Sampling::Bilinear,
 			Mat3::scaling_3d(Vec3::new(2., 2., 1.)),
 			&Path::new("tests/character-bilinear-scale-2x.png"),
 		);
-		assert_transform_image(
+		assert_transform_canvas(
 			&Path::new("tests/character.png"),
 			Sampling::Bilinear,
 			Mat3::scaling_3d(Vec3::new(0.5, 0.5, 1.)),
@@ -332,42 +332,84 @@ mod tests {
 	}
 
 	#[test]
-	fn transform_rotate() {
-		assert_transform_image(
+	fn canvas_transform_rotate() {
+		assert_transform_canvas(
 			&Path::new("tests/character.png"),
 			Sampling::Nearest,
 			Mat3::rotation_z(45. * (std::f32::consts::PI / 180.)),
 			&Path::new("tests/character-nearest-rotate-45deg.png"),
 		);
-		assert_transform_image(
+		assert_transform_canvas(
 			&Path::new("tests/character.png"),
 			Sampling::Nearest,
 			Mat3::rotation_z(90. * (std::f32::consts::PI / 180.)),
 			&Path::new("tests/character-nearest-rotate-90deg.png"),
 		);
-		assert_transform_image(
+		assert_transform_canvas(
 			&Path::new("tests/character.png"),
 			Sampling::Nearest,
 			Mat3::rotation_z(180. * (std::f32::consts::PI / 180.)),
 			&Path::new("tests/character-nearest-rotate-180deg.png"),
 		);
-		assert_transform_image(
+		assert_transform_canvas(
 			&Path::new("tests/character.png"),
 			Sampling::Bilinear,
 			Mat3::rotation_z(45. * (std::f32::consts::PI / 180.)),
 			&Path::new("tests/character-bilinear-rotate-45deg.png"),
 		);
-		assert_transform_image(
+		assert_transform_canvas(
 			&Path::new("tests/character.png"),
 			Sampling::Bilinear,
 			Mat3::rotation_z(90. * (std::f32::consts::PI / 180.)),
 			&Path::new("tests/character-bilinear-rotate-90deg.png"),
 		);
-		assert_transform_image(
+		assert_transform_canvas(
 			&Path::new("tests/character.png"),
 			Sampling::Bilinear,
 			Mat3::rotation_z(180. * (std::f32::consts::PI / 180.)),
 			&Path::new("tests/character-bilinear-rotate-180deg.png"),
 		);
+	}
+
+	#[test]
+	fn stencil_transform_identity() {
+		let stencil = Stencil::from_buffer_mask_alpha(
+			Rect::new(0, 0, 2, 2),
+			Channel::Lumaa,
+			vec![0, 0, 2, 255, 3, 255, 4, 255],
+		);
+
+		let stencil = stencil.transform(Sampling::Nearest, &Mat3::identity());
+		assert_eq!(stencil.is_ok(), true);
+		let stencil = stencil.unwrap();
+		assert_eq!(format!("{:?}", stencil), "Stencil ( ⠚ )");
+		assert_eq!(stencil.data(), &vec![2, 255, 3, 255, 4, 255]);
+	}
+
+	#[test]
+	fn stencil_transform_flip() {
+		let stencil = Stencil::from_buffer_mask_alpha(
+			Rect::new(0, 0, 2, 2),
+			Channel::Lumaa,
+			vec![0, 0, 2, 255, 3, 255, 4, 255],
+		);
+
+		let flip_x = stencil.transform(Sampling::Nearest, &Mat3::scaling_3d(Vec3::new(-1., 1., 1.)));
+		assert_eq!(flip_x.is_ok(), true);
+		let flip_x = flip_x.unwrap();
+		assert_eq!(format!("{:?}", flip_x), "Stencil ( ⠓ )");
+		assert_eq!(flip_x.data(), &vec![2, 255, 4, 255, 3, 255]);
+
+		let flip_y = stencil.transform(Sampling::Nearest, &Mat3::scaling_3d(Vec3::new(1., -1., 1.)));
+		assert_eq!(flip_y.is_ok(), true);
+		let flip_y = flip_y.unwrap();
+		assert_eq!(format!("{:?}", flip_y), "Stencil ( ⠙ )");
+		assert_eq!(flip_y.data(), &vec![3, 255, 4, 255, 2, 255]);
+
+		let flip_xy = stencil.transform(Sampling::Nearest, &Mat3::scaling_3d(Vec3::new(-1., -1., 1.)));
+		assert_eq!(flip_xy.is_ok(), true);
+		let flip_xy = flip_xy.unwrap();
+		assert_eq!(format!("{:?}", flip_xy), "Stencil ( ⠋ )");
+		assert_eq!(flip_xy.data(), &vec![4, 255, 3, 255, 2, 255]);
 	}
 }
