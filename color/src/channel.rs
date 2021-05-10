@@ -13,7 +13,6 @@ pub enum Channel {
 	LumaaNormal,
 	RgbNormal,
 	RgbaNormal,
-	UvNormal,
 }
 
 impl std::fmt::Display for Channel {
@@ -29,7 +28,6 @@ impl std::fmt::Display for Channel {
 			Channel::LumaaNormal => write!(f, "Channel::LumaaNormal"),
 			Channel::RgbNormal => write!(f, "Channel::RgbNormal"),
 			Channel::RgbaNormal => write!(f, "Channel::RgbaNormal"),
-			Channel::UvNormal => write!(f, "Channel::UvNormal"),
 		}
 	}
 }
@@ -65,7 +63,6 @@ impl Channel {
 			Channel::LumaaNormal => 14,
 			Channel::RgbNormal => 15,
 			Channel::RgbaNormal => 16,
-			Channel::UvNormal => 20,
 		}
 	}
 
@@ -83,7 +80,9 @@ impl Channel {
 			Channel::Rgba | Channel::RgbaNormal => {
 				data.extend_from_slice(Rgba::default().to_slice())
 			}
-			Channel::Uv | Channel::UvNormal => data.extend_from_slice(Uv::default().to_slice()),
+			Channel::Uv => {
+				data.extend_from_slice(Uv::default().to_slice())
+			}
 			_ => {}
 		}
 		match self {
@@ -91,7 +90,6 @@ impl Channel {
 			| Channel::LumaaNormal
 			| Channel::RgbNormal
 			| Channel::RgbaNormal
-			| Channel::UvNormal
 			| Channel::Normal => data.extend_from_slice(Normal::default().to_slice()),
 			_ => {}
 		}
@@ -120,13 +118,11 @@ impl Channel {
 			| (Channel::LumaNormal, Channel::Luma)
 			| (Channel::LumaaNormal, Channel::Lumaa)
 			| (Channel::RgbNormal, Channel::Rgb)
-			| (Channel::RgbaNormal, Channel::Rgba)
-			| (Channel::UvNormal, Channel::Uv) => Ok(0),
+			| (Channel::RgbaNormal, Channel::Rgba) => Ok(0),
 			(Channel::LumaNormal, Channel::Normal) => Ok(std::mem::size_of::<Luma>()),
 			(Channel::LumaaNormal, Channel::Normal) => Ok(std::mem::size_of::<Lumaa>()),
 			(Channel::RgbNormal, Channel::Normal) => Ok(std::mem::size_of::<Rgb>()),
 			(Channel::RgbaNormal, Channel::Normal) => Ok(std::mem::size_of::<Rgba>()),
-			(Channel::UvNormal, Channel::Normal) => Ok(std::mem::size_of::<Uv>()),
 			_ => Err(ChannelError::NotFound(channel)),
 		}
 	}
@@ -154,7 +150,6 @@ mod tests {
 		assert_eq!(Channel::LumaaNormal.pixel_stride(), 14);
 		assert_eq!(Channel::RgbNormal.pixel_stride(), 15);
 		assert_eq!(Channel::RgbaNormal.pixel_stride(), 16);
-		assert_eq!(Channel::UvNormal.pixel_stride(), 20);
 	}
 
 	#[test]
@@ -183,10 +178,6 @@ mod tests {
 		assert_eq!(
 			Channel::RgbaNormal.default_pixel(),
 			vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-		);
-		assert_eq!(
-			Channel::UvNormal.default_pixel(),
-			vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 		);
 	}
 }

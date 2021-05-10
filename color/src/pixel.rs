@@ -358,7 +358,7 @@ impl<'data> PixelMut<'data> {
 					blend_normal(compose_op, frt, bck, self);
 				}
 			}
-			Channel::Uv | Channel::UvNormal => {
+			Channel::Uv => {
 				let f = frt.uv().unwrap();
 				let b = bck.uv().unwrap();
 
@@ -370,10 +370,6 @@ impl<'data> PixelMut<'data> {
 				let rv = f.v * Fa + b.v * Fb;
 
 				*self.uv().unwrap() = Uv::new(ru, rv);
-
-				if let Channel::Uv = self.channel {
-					blend_normal(compose_op, frt, bck, self);
-				}
 			}
 			Channel::Normal => {
 				blend_normal(compose_op, frt, bck, self);
@@ -457,13 +453,6 @@ mod tests {
 		assert!(pixel.normal().is_ok());
 		assert_eq!(pixel.rgba().unwrap(), &Rgba::default());
 		assert_eq!(pixel.normal().unwrap(), &Normal::default());
-
-		let buffer = Channel::UvNormal.default_pixel();
-		let pixel = Pixel::from_buffer(&buffer, Channel::UvNormal);
-		assert!(pixel.uv().is_ok());
-		assert!(pixel.normal().is_ok());
-		assert_eq!(pixel.uv().unwrap(), &Uv::default());
-		assert_eq!(pixel.normal().unwrap(), &Normal::default());
 	}
 
 	#[test]
@@ -518,21 +507,6 @@ mod tests {
 		assert_eq!(
 			buffer,
 			vec![32, 64, 96, 128, 205, 204, 76, 62, 0, 0, 0, 63, 205, 204, 76, 63]
-		);
-
-		let mut buffer = Channel::UvNormal.default_pixel();
-		let mut pixel = PixelMut::from_buffer_mut(&mut buffer, Channel::UvNormal);
-		assert!(pixel.uv().is_ok());
-		assert!(pixel.normal().is_ok());
-		*pixel.uv().unwrap() = Uv::new(0.2, 0.8);
-		*pixel.normal().unwrap() = Normal::new(0.2, 0.5, 0.8);
-		assert_eq!(pixel.uv().unwrap(), &Uv::new(0.2, 0.8));
-		assert_eq!(pixel.normal().unwrap(), &Normal::new(0.2, 0.5, 0.8));
-		assert_eq!(
-			buffer,
-			vec![
-				205, 204, 76, 62, 205, 204, 76, 63, 205, 204, 76, 62, 0, 0, 0, 63, 205, 204, 76, 63
-			]
 		);
 	}
 

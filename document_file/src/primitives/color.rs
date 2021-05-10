@@ -118,7 +118,6 @@ impl Parse for Channel {
 			7 => Channel::LumaaNormal,
 			8 => Channel::RgbNormal,
 			9 => Channel::RgbaNormal,
-			10 => Channel::UvNormal,
 			_ => {
 				return Err(nom::Err::Error(nom::error_position!(
 					bytes,
@@ -143,7 +142,6 @@ impl Write for Channel {
 			Channel::LumaaNormal => 7,
 			Channel::RgbNormal => 8,
 			Channel::RgbaNormal => 9,
-			Channel::UvNormal => 10,
 		};
 		writer.write_all(&id.to_le_bytes())?;
 		Ok(1)
@@ -258,6 +256,5 @@ mod tests {
 		assert_channel(Channel::LumaaNormal, 7);
 		assert_channel(Channel::RgbNormal, 8);
 		assert_channel(Channel::RgbaNormal, 9);
-		assert_channel(Channel::UvNormal, 10);
 	}
 }
