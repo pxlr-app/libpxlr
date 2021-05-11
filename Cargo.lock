@@ -297,6 +297,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "document_serialize"
+version = "0.2.0"
+dependencies = [
+ "document_command",
+ "document_core",
+ "document_file",
+]
+
+[[package]]
 name = "either"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

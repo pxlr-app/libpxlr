@@ -79,9 +79,7 @@ impl Channel {
 			Channel::Rgba | Channel::RgbaNormal => {
 				data.extend_from_slice(Rgba::default().to_slice())
 			}
-			Channel::Uv => {
-				data.extend_from_slice(Uv::default().to_slice())
-			}
+			Channel::Uv => data.extend_from_slice(Uv::default().to_slice()),
 			_ => {}
 		}
 		match self {

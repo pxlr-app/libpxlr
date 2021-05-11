@@ -218,8 +218,8 @@ impl Samplable for Stencil {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use color::Channel;
 	use crate::*;
+	use color::Channel;
 	use vek::geom::repr_c::Rect;
 
 	#[test]
@@ -326,8 +326,7 @@ mod tests {
 			.unwrap();
 		assert_eq!(buffer, vec![10, 255]);
 		let mut buffer = Channel::Lumaa.default_pixel();
-		let res = stencil
-			.sample2d((0., 0.5), Sampling::Nearest, &mut buffer);
+		let res = stencil.sample2d((0., 0.5), Sampling::Nearest, &mut buffer);
 		assert_eq!(res, Err(SamplingError::Empty));
 		assert_eq!(buffer, vec![0, 0]);
 		let mut buffer = Channel::Lumaa.default_pixel();
@@ -342,8 +341,7 @@ mod tests {
 		assert_eq!(buffer, vec![20, 255]);
 
 		let mut buffer = Channel::Lumaa.default_pixel();
-		let res = stencil
-			.sample2d((-1., 0.), Sampling::Nearest, &mut buffer);
+		let res = stencil.sample2d((-1., 0.), Sampling::Nearest, &mut buffer);
 		assert_eq!(res, Err(SamplingError::OutOfBounds));
 		assert_eq!(buffer, vec![0, 0]);
 	}

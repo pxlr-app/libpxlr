@@ -126,16 +126,15 @@ impl Transformable for Stencil {
 			for x in 0..(new_bounds.w as usize) {
 				let pos = projection.mul_point_2d(Vec2::new(x as f32, y as f32));
 				if let Ok(()) = self.sample2d((pos.x, pos.y), sampling, &mut tmp) {
-					let index = ((y as i64).wrapping_sub(new_bounds.y as i64) * new_bounds.w as i64 + (x as i64).wrapping_sub(new_bounds.x as i64)) as usize;
+					let index = ((y as i64).wrapping_sub(new_bounds.y as i64) * new_bounds.w as i64
+						+ (x as i64).wrapping_sub(new_bounds.x as i64)) as usize;
 					mask.set(index, true);
 					data.extend_from_slice(&tmp);
 				}
 			}
 		}
-		
-		unsafe {
-			Ok(Stencil::from_raw_parts(new_bounds, mask, channel, data))
-		}
+
+		unsafe { Ok(Stencil::from_raw_parts(new_bounds, mask, channel, data)) }
 	}
 }
 
@@ -394,19 +393,24 @@ mod tests {
 			vec![0, 0, 2, 255, 3, 255, 4, 255],
 		);
 
-		let flip_x = stencil.transform(Sampling::Nearest, &Mat3::scaling_3d(Vec3::new(-1., 1., 1.)));
+		let flip_x =
+			stencil.transform(Sampling::Nearest, &Mat3::scaling_3d(Vec3::new(-1., 1., 1.)));
 		assert_eq!(flip_x.is_ok(), true);
 		let flip_x = flip_x.unwrap();
 		assert_eq!(format!("{:?}", flip_x), "Stencil ( ⠓ )");
 		assert_eq!(flip_x.data(), &vec![2, 255, 4, 255, 3, 255]);
 
-		let flip_y = stencil.transform(Sampling::Nearest, &Mat3::scaling_3d(Vec3::new(1., -1., 1.)));
+		let flip_y =
+			stencil.transform(Sampling::Nearest, &Mat3::scaling_3d(Vec3::new(1., -1., 1.)));
 		assert_eq!(flip_y.is_ok(), true);
 		let flip_y = flip_y.unwrap();
 		assert_eq!(format!("{:?}", flip_y), "Stencil ( ⠙ )");
 		assert_eq!(flip_y.data(), &vec![3, 255, 4, 255, 2, 255]);
 
-		let flip_xy = stencil.transform(Sampling::Nearest, &Mat3::scaling_3d(Vec3::new(-1., -1., 1.)));
+		let flip_xy = stencil.transform(
+			Sampling::Nearest,
+			&Mat3::scaling_3d(Vec3::new(-1., -1., 1.)),
+		);
 		assert_eq!(flip_xy.is_ok(), true);
 		let flip_xy = flip_xy.unwrap();
 		assert_eq!(format!("{:?}", flip_xy), "Stencil ( ⠋ )");
@@ -425,21 +429,40 @@ mod tests {
 		assert_eq!(scaled.is_ok(), true);
 		let scaled = scaled.unwrap();
 		assert_eq!(format!("{:?}", scaled), "Stencil ( ⣤⣿ )");
-		assert_eq!(scaled.data(), &vec![5, 255, 5, 255, 5, 255, 5, 255, 10, 255, 10, 255, 15, 255, 15, 255, 10, 255, 10, 255, 15, 255, 15, 255]);
+		assert_eq!(
+			scaled.data(),
+			&vec![
+				5, 255, 5, 255, 5, 255, 5, 255, 10, 255, 10, 255, 15, 255, 15, 255, 10, 255, 10,
+				255, 15, 255, 15, 255
+			]
+		);
 
-		let scaled = stencil.transform(Sampling::Nearest, &Mat3::scaling_3d(Vec3::new(0.5, 0.5, 1.)));
+		let scaled = stencil.transform(
+			Sampling::Nearest,
+			&Mat3::scaling_3d(Vec3::new(0.5, 0.5, 1.)),
+		);
 		assert_eq!(scaled.is_ok(), true);
 		let scaled = scaled.unwrap();
 		assert_eq!(format!("{:?}", scaled), "Stencil ( ⠁ )");
 		assert_eq!(scaled.data(), &vec![15, 255]);
 
-		let scaled = stencil.transform(Sampling::Bilinear, &Mat3::scaling_3d(Vec3::new(2., 2., 1.)));
+		let scaled =
+			stencil.transform(Sampling::Bilinear, &Mat3::scaling_3d(Vec3::new(2., 2., 1.)));
 		assert_eq!(scaled.is_ok(), true);
 		let scaled = scaled.unwrap();
 		assert_eq!(format!("{:?}", scaled), "Stencil ( ⣿⣿ )");
-		assert_eq!(scaled.data(), &vec![0, 0, 1, 64, 4, 191, 5, 255, 3, 64, 4, 112, 7, 207, 8, 255, 8, 191, 9, 207, 12, 239, 13, 255, 10, 255, 11, 255, 14, 255, 15, 255]);
+		assert_eq!(
+			scaled.data(),
+			&vec![
+				0, 0, 1, 64, 4, 191, 5, 255, 3, 64, 4, 112, 7, 207, 8, 255, 8, 191, 9, 207, 12,
+				239, 13, 255, 10, 255, 11, 255, 14, 255, 15, 255
+			]
+		);
 
-		let scaled = stencil.transform(Sampling::Bilinear, &Mat3::scaling_3d(Vec3::new(0.5, 0.5, 1.)));
+		let scaled = stencil.transform(
+			Sampling::Bilinear,
+			&Mat3::scaling_3d(Vec3::new(0.5, 0.5, 1.)),
+		);
 		assert_eq!(scaled.is_ok(), true);
 		let scaled = scaled.unwrap();
 		assert_eq!(format!("{:?}", scaled), "Stencil ( ⠁ )");
@@ -454,49 +477,79 @@ mod tests {
 			vec![0, 0, 5, 255, 10, 255, 15, 255],
 		);
 
-		let rotated = stencil.transform(Sampling::Nearest, &Mat3::rotation_z(45. * (std::f32::consts::PI / 180.)));
+		let rotated = stencil.transform(
+			Sampling::Nearest,
+			&Mat3::rotation_z(45. * (std::f32::consts::PI / 180.)),
+		);
 		assert_eq!(rotated.is_ok(), true);
 		let rotated = rotated.unwrap();
 		assert_eq!(format!("{:?}", rotated), "Stencil ( ⠷⠇ )");
-		assert_eq!(rotated.data(), &vec![10, 255, 5, 255, 10, 255, 15, 255, 5, 255, 15, 255, 15, 255, 15, 255]);
+		assert_eq!(
+			rotated.data(),
+			&vec![10, 255, 5, 255, 10, 255, 15, 255, 5, 255, 15, 255, 15, 255, 15, 255]
+		);
 
-		let rotated = stencil.transform(Sampling::Nearest, &Mat3::rotation_z(90. * (std::f32::consts::PI / 180.)));
+		let rotated = stencil.transform(
+			Sampling::Nearest,
+			&Mat3::rotation_z(90. * (std::f32::consts::PI / 180.)),
+		);
 		assert_eq!(rotated.is_ok(), true);
 		let rotated = rotated.unwrap();
 		assert_eq!(format!("{:?}", rotated), "Stencil ( ⠓ )");
 		assert_eq!(rotated.data(), &vec![10, 255, 15, 255, 5, 255]);
 
-		let rotated = stencil.transform(Sampling::Nearest, &Mat3::rotation_z(180. * (std::f32::consts::PI / 180.)));
+		let rotated = stencil.transform(
+			Sampling::Nearest,
+			&Mat3::rotation_z(180. * (std::f32::consts::PI / 180.)),
+		);
 		assert_eq!(rotated.is_ok(), true);
 		let rotated = rotated.unwrap();
 		assert_eq!(format!("{:?}", rotated), "Stencil ( ⠋ )");
 		assert_eq!(rotated.data(), &vec![15, 255, 10, 255, 5, 255]);
 
-		let rotated = stencil.transform(Sampling::Nearest, &Mat3::rotation_z(270. * (std::f32::consts::PI / 180.)));
+		let rotated = stencil.transform(
+			Sampling::Nearest,
+			&Mat3::rotation_z(270. * (std::f32::consts::PI / 180.)),
+		);
 		assert_eq!(rotated.is_ok(), true);
 		let rotated = rotated.unwrap();
 		assert_eq!(format!("{:?}", rotated), "Stencil ( ⠙ )");
 		assert_eq!(rotated.data(), &vec![5, 255, 15, 255, 10, 255]);
 
-		let rotated = stencil.transform(Sampling::Bilinear, &Mat3::rotation_z(45. * (std::f32::consts::PI / 180.)));
+		let rotated = stencil.transform(
+			Sampling::Bilinear,
+			&Mat3::rotation_z(45. * (std::f32::consts::PI / 180.)),
+		);
 		assert_eq!(rotated.is_ok(), true);
 		let rotated = rotated.unwrap();
 		assert_eq!(format!("{:?}", rotated), "Stencil ( ⠿⠇ )");
-		assert_eq!(rotated.data(), &vec![5, 128, 0, 0, 3, 128, 10, 255, 8, 192, 5, 255, 13, 255, 15, 255, 10, 255]);
+		assert_eq!(
+			rotated.data(),
+			&vec![5, 128, 0, 0, 3, 128, 10, 255, 8, 192, 5, 255, 13, 255, 15, 255, 10, 255]
+		);
 
-		let rotated = stencil.transform(Sampling::Bilinear, &Mat3::rotation_z(90. * (std::f32::consts::PI / 180.)));
+		let rotated = stencil.transform(
+			Sampling::Bilinear,
+			&Mat3::rotation_z(90. * (std::f32::consts::PI / 180.)),
+		);
 		assert_eq!(rotated.is_ok(), true);
 		let rotated = rotated.unwrap();
 		assert_eq!(format!("{:?}", rotated), "Stencil ( ⠛ )");
 		assert_eq!(rotated.data(), &vec![10, 255, 0, 0, 15, 255, 5, 255]);
 
-		let rotated = stencil.transform(Sampling::Bilinear, &Mat3::rotation_z(180. * (std::f32::consts::PI / 180.)));
+		let rotated = stencil.transform(
+			Sampling::Bilinear,
+			&Mat3::rotation_z(180. * (std::f32::consts::PI / 180.)),
+		);
 		assert_eq!(rotated.is_ok(), true);
 		let rotated = rotated.unwrap();
 		assert_eq!(format!("{:?}", rotated), "Stencil ( ⠛ )");
 		assert_eq!(rotated.data(), &vec![15, 255, 10, 255, 5, 255, 0, 0]);
 
-		let rotated = stencil.transform(Sampling::Bilinear, &Mat3::rotation_z(270. * (std::f32::consts::PI / 180.)));
+		let rotated = stencil.transform(
+			Sampling::Bilinear,
+			&Mat3::rotation_z(270. * (std::f32::consts::PI / 180.)),
+		);
 		assert_eq!(rotated.is_ok(), true);
 		let rotated = rotated.unwrap();
 		assert_eq!(format!("{:?}", rotated), "Stencil ( ⠛ )");
