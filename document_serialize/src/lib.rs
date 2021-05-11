@@ -2,21 +2,41 @@ use document_core::NodeType;
 use document_file::{File, FileError};
 use std::sync::Arc;
 
-/// Serialize NodeType
-pub fn serialize(node: Arc<NodeType>) -> Result<Vec<u8>, FileError> {
-	let mut file = File::default();
-	let mut buffer = std::io::Cursor::new(Vec::new());
-	file.set_root_node(node);
-	file.append(&mut buffer)?;
-	Ok(buffer.into_inner())
+pub trait Serialize {
+	type Error;
+
+	fn serialize(&self) -> Result<Vec<u8>, Self::Error>;
 }
 
-/// Deserialize NodeType
-pub fn deserialize(data: &[u8]) -> Result<Arc<NodeType>, FileError> {
-	let mut buffer = std::io::Cursor::new(data);
-	let file = File::read(&mut buffer)?;
-	let root = file.get_root_node(&mut buffer)?;
-	Ok(root)
+pub trait Deserialize {
+	type Output;
+	type Error;
+
+	fn deserialize(data: &[u8]) -> Result<Self::Output, Self::Error>;
+}
+
+impl Serialize for Arc<NodeType> {
+	type Error = FileError;
+
+	fn serialize(&self) -> Result<Vec<u8>, FileError> {
+		let mut file = File::default();
+		let mut buffer = std::io::Cursor::new(Vec::new());
+		file.set_root_node(self.clone());
+		file.append(&mut buffer)?;
+		Ok(buffer.into_inner())
+	}
+}
+
+impl Deserialize for Arc<NodeType> {
+	type Output = Arc<NodeType>;
+	type Error = FileError;
+
+	fn deserialize(data: &[u8]) -> Result<Arc<NodeType>, FileError> {
+		let mut buffer = std::io::Cursor::new(data);
+		let file = File::read(&mut buffer)?;
+		let root = file.get_root_node(&mut buffer)?;
+		Ok(root)
+	}
 }
 
 #[cfg(test)]
@@ -27,9 +47,9 @@ mod tests {
 	#[test]
 	fn serialize_note() {
 		let note = Arc::new(NodeType::Note(Note::default()));
-		let data = serialize(note.clone()).unwrap();
-		
-		let note2 = deserialize(&data).unwrap();
+		let data = note.clone().serialize().unwrap();
+
+		let note2 = Arc::<NodeType>::deserialize(&data).unwrap();
 		assert_eq!(*note2, *note);
 	}
 }
