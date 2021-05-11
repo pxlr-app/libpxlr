@@ -1,10 +1,10 @@
 mod canvas;
 mod colors;
 mod document;
+pub mod io;
 mod parser;
 mod traits;
 mod vendors;
-pub mod io;
 pub use self::canvas::*;
 pub use self::colors::*;
 pub use self::document::*;
@@ -217,6 +217,8 @@ impl File {
 				shallow,
 			},
 		};
+		doc_node.content |= content;
+		doc_node.shallow |= shallow;
 		doc_node.node = node.clone();
 		self.dirty_nodes.insert(id, doc_node);
 	}
@@ -289,8 +291,7 @@ impl File {
 	) -> std::io::Result<usize> {
 		let mut size = 0;
 		let prev_offset = writer.seek(std::io::SeekFrom::End(0))?;
-		let dirty_nodes: Vec<DirtyNode> =
-			self.dirty_nodes.drain().map(|(_, node)| node).collect();
+		let dirty_nodes: Vec<DirtyNode> = self.dirty_nodes.drain().map(|(_, node)| node).collect();
 		for doc_node in dirty_nodes.iter() {
 			size += self.write_node(
 				writer,
