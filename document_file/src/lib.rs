@@ -1,34 +1,37 @@
+mod canvas;
+mod colors;
+mod document;
+mod parser;
+mod traits;
+mod vendors;
+pub mod io;
+pub use self::canvas::*;
+pub use self::colors::*;
+pub use self::document::*;
+pub use self::parser::*;
+pub use self::traits::*;
+pub use self::vendors::*;
 use document_core::{HasBounds, Node, NodeType};
 use std::{collections::HashMap, convert::TryInto, sync::Arc};
 use uuid::Uuid;
-pub mod io;
-mod meta;
-mod nodes;
-mod parser;
-mod primitives;
-
-pub use self::meta::*;
-pub use self::nodes::*;
-pub use self::parser::*;
-pub use self::primitives::*;
 
 #[derive(Debug)]
-struct DocumentNode {
+struct DirtyNode {
 	content: bool,
 	shallow: bool,
 	node: Arc<NodeType>,
 }
 
-pub struct Document {
+pub struct File {
 	pub footer: Footer,
 	pub index: Index,
 	pub chunks: HashMap<Uuid, Chunk>,
-	pub(crate) dirty_nodes: HashMap<Uuid, DocumentNode>,
+	pub(crate) dirty_nodes: HashMap<Uuid, DirtyNode>,
 }
 
-impl Default for Document {
+impl Default for File {
 	fn default() -> Self {
-		Document {
+		File {
 			footer: Footer::default(),
 			index: Index::default(),
 			chunks: HashMap::default(),
@@ -38,7 +41,7 @@ impl Default for Document {
 }
 
 #[derive(Debug)]
-pub enum DocumentError {
+pub enum FileError {
 	IO(std::io::Error),
 	Parse(nom::Err<()>),
 	UnsupportedVersion(u8),
@@ -46,48 +49,48 @@ pub enum DocumentError {
 	NoPreviousVersion,
 }
 
-impl std::error::Error for DocumentError {}
+impl std::error::Error for FileError {}
 
-impl std::fmt::Display for DocumentError {
+impl std::fmt::Display for FileError {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match self {
-			DocumentError::Parse(err) => write!(f, "Parse error: {}", err),
-			DocumentError::IO(err) => write!(f, "File IO error: {}", err),
-			DocumentError::UnsupportedVersion(ver) => write!(f, "Unsupported version: {}", ver),
-			DocumentError::NodeNotFound(id) => write!(f, "Node {} not found", id),
-			DocumentError::NoPreviousVersion => write!(f, "No previous version"),
+			FileError::Parse(err) => write!(f, "Parse error: {}", err),
+			FileError::IO(err) => write!(f, "File IO error: {}", err),
+			FileError::UnsupportedVersion(ver) => write!(f, "Unsupported version: {}", ver),
+			FileError::NodeNotFound(id) => write!(f, "Node {} not found", id),
+			FileError::NoPreviousVersion => write!(f, "No previous version"),
 		}
 	}
 }
 
-impl From<std::io::Error> for DocumentError {
+impl From<std::io::Error> for FileError {
 	fn from(error: std::io::Error) -> Self {
-		DocumentError::IO(error)
+		FileError::IO(error)
 	}
 }
 
-impl From<nom::Err<nom::error::Error<&[u8]>>> for DocumentError {
+impl From<nom::Err<nom::error::Error<&[u8]>>> for FileError {
 	fn from(error: nom::Err<nom::error::Error<&[u8]>>) -> Self {
 		match error {
-			nom::Err::Incomplete(needed) => DocumentError::Parse(nom::Err::Incomplete(needed)),
-			nom::Err::Failure(_) => DocumentError::Parse(nom::Err::Failure(())),
-			nom::Err::Error(_) => DocumentError::Parse(nom::Err::Error(())),
+			nom::Err::Incomplete(needed) => FileError::Parse(nom::Err::Incomplete(needed)),
+			nom::Err::Failure(_) => FileError::Parse(nom::Err::Failure(())),
+			nom::Err::Error(_) => FileError::Parse(nom::Err::Error(())),
 		}
 	}
 }
 
-impl Document {
+impl File {
 	/// Read from file
-	pub fn read<R: std::io::Read + std::io::Seek>(reader: &mut R) -> Result<Self, DocumentError> {
+	pub fn read<R: std::io::Read + std::io::Seek>(reader: &mut R) -> Result<Self, FileError> {
 		let end = reader.seek(std::io::SeekFrom::End(0))?;
-		Document::read_at(reader, end)
+		File::read_at(reader, end)
 	}
 
 	/// Read from file at specific offset
 	fn read_at<R: std::io::Read + std::io::Seek>(
 		reader: &mut R,
 		offset: u64,
-	) -> Result<Self, DocumentError> {
+	) -> Result<Self, FileError> {
 		let mut buffer = [0u8; 5];
 		reader.seek(std::io::SeekFrom::Start(offset - 5))?;
 		reader.read_exact(&mut buffer)?;
@@ -115,14 +118,14 @@ impl Document {
 
 				// TODO assert chunks tree is sound (all children/deps ID exists)
 
-				Ok(Document {
+				Ok(File {
 					footer,
 					index,
 					chunks: chunk_map,
 					dirty_nodes: HashMap::default(),
 				})
 			}
-			_ => Err(DocumentError::UnsupportedVersion(footer.version as u8)),
+			_ => Err(FileError::UnsupportedVersion(footer.version as u8)),
 		}
 	}
 
@@ -130,7 +133,7 @@ impl Document {
 	pub fn get_root_node<R: std::io::Read + std::io::Seek>(
 		&self,
 		reader: &mut R,
-	) -> Result<Arc<NodeType>, DocumentError> {
+	) -> Result<Arc<NodeType>, FileError> {
 		self.get_node_by_id(reader, self.index.root)
 	}
 
@@ -154,9 +157,9 @@ impl Document {
 		&self,
 		reader: &mut R,
 		id: Uuid,
-	) -> Result<Arc<NodeType>, DocumentError> {
+	) -> Result<Arc<NodeType>, FileError> {
 		if !self.chunks.contains_key(&id) {
-			Err(DocumentError::NodeNotFound(id))
+			Err(FileError::NodeNotFound(id))
 		} else {
 			let mut nodes: HashMap<Uuid, Arc<NodeType>> = HashMap::default();
 			let mut deps = self.get_chunk_dependencies(id);
@@ -208,7 +211,7 @@ impl Document {
 		let id = *node.id();
 		let mut doc_node = match self.dirty_nodes.remove(&id) {
 			Some(node) => node,
-			None => DocumentNode {
+			None => DirtyNode {
 				node: node.clone(),
 				content,
 				shallow,
@@ -286,7 +289,7 @@ impl Document {
 	) -> std::io::Result<usize> {
 		let mut size = 0;
 		let prev_offset = writer.seek(std::io::SeekFrom::End(0))?;
-		let dirty_nodes: Vec<DocumentNode> =
+		let dirty_nodes: Vec<DirtyNode> =
 			self.dirty_nodes.drain().map(|(_, node)| node).collect();
 		for doc_node in dirty_nodes.iter() {
 			size += self.write_node(
@@ -318,7 +321,7 @@ impl Document {
 		&self,
 		source: &mut R,
 		destination: &mut W,
-	) -> Result<usize, DocumentError> {
+	) -> Result<usize, FileError> {
 		destination.seek(std::io::SeekFrom::Start(0))?;
 		let mut size = 0;
 
@@ -356,9 +359,9 @@ impl Document {
 	pub fn read_previous<R: std::io::Read + std::io::Seek>(
 		&self,
 		reader: &mut R,
-	) -> Result<Self, DocumentError> {
+	) -> Result<Self, FileError> {
 		if self.index.prev_offset == 0 {
-			Err(DocumentError::NoPreviousVersion)
+			Err(FileError::NoPreviousVersion)
 		} else {
 			Self::read_at(reader, self.index.prev_offset)
 		}
@@ -373,7 +376,7 @@ mod tests {
 
 	#[test]
 	fn write_and_read_simple_doc() {
-		let mut doc = Document::default();
+		let mut doc = File::default();
 		let note = Note::new("My note", (0, 0), "");
 		let root = Arc::new(NodeType::Note(note));
 		doc.set_root_node(root.clone());
@@ -382,7 +385,7 @@ mod tests {
 		let written = doc.append(&mut buffer).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), written);
 
-		let doc2 = Document::read(&mut buffer).expect("Could not read");
+		let doc2 = File::read(&mut buffer).expect("Could not read");
 		assert_eq!(doc.index, doc2.index);
 		assert_eq!(doc.chunks, doc2.chunks);
 
@@ -392,7 +395,7 @@ mod tests {
 
 	#[test]
 	fn rename_read_previous_doc() {
-		let mut doc = Document::default();
+		let mut doc = File::default();
 		let note = Note::new("My note", (0, 0), "");
 		let root = Arc::new(NodeType::Note(note));
 		doc.set_root_node(root.clone());
@@ -414,7 +417,7 @@ mod tests {
 		let written2 = doc.append(&mut buffer).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), written + written2);
 
-		let doc2 = Document::read(&mut buffer).expect("Could not read");
+		let doc2 = File::read(&mut buffer).expect("Could not read");
 		assert_eq!(doc.index, doc2.index);
 		assert_eq!(doc.chunks, doc2.chunks);
 
@@ -443,7 +446,7 @@ mod tests {
 			187, 66, 11, 187, 108, 2, 255, 22, 121, 210, 221, 31, 232, 217, 133, 171, 17, 79, 69,
 			131, 66, 82, 225, 238, 60, 215, 141, 0, 80, 88, 76, 82,
 		]);
-		let doc = Document::read(&mut buffer).expect("Could not read document");
+		let doc = File::read(&mut buffer).expect("Could not read document");
 		assert_eq!(doc.index.prev_offset, 120);
 
 		let mut buffer2: std::io::Cursor<Vec<u8>> = std::io::Cursor::new(vec![]);

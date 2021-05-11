@@ -8,12 +8,6 @@ use std::io;
 use uuid::Uuid;
 use vek::{geom::repr_c::Rect, vec::repr_c::vec2::Vec2};
 
-mod canvas;
-mod color;
-
-pub use self::canvas::*;
-pub use self::color::*;
-
 impl Parse for String {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], String> {
 		let (bytes, len) = le_u32(bytes)?;
