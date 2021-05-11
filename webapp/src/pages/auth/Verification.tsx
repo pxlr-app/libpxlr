@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { Redirect, useHistory } from "react-router-dom";
 import { sendEmailVerification } from "firebase/auth";
 import Input from "../../components/Input";
-import { useAuth, useCurrentUser } from "../../hooks/auth";
+import { useAuth } from "../../hooks/auth";
 import { useToasts } from "../../hooks/toast";
 import {
 	faCheckCircle,
@@ -11,7 +11,7 @@ import {
 } from "@fortawesome/pro-duotone-svg-icons";
 
 export default function Verification() {
-	const currentUser = useCurrentUser();
+	const currentUser = useAuth()?.currentUser;
 	const history = useHistory();
 	const { showToast } = useToasts();
 

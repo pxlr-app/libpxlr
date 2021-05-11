@@ -3,9 +3,10 @@ import type { FirebaseApp } from 'firebase/app';
 import { getAuth, useAuthEmulator, onAuthStateChanged } from 'firebase/auth';
 import type { User, Auth } from 'firebase/auth';
 import FirebaseAppContext from '../contexts/firebase';
+import suspend from '../utils/suspend';
 
 // Cache auth for each firebase app
-const cacheFirebaseAppAuth = new WeakMap<FirebaseApp, Auth>();
+const cacheFirebaseAppAuth = new WeakMap<FirebaseApp, () => Auth>();
 
 /**
  * Returns Firebase's auth from context
@@ -22,27 +23,20 @@ export function useAuth() {
 			) {
 				useAuthEmulator(auth, 'http://localhost:9099');
 			}
-			cacheFirebaseAppAuth.set(app, auth);
+			// Create suspender
+			cacheFirebaseAppAuth.set(app, suspend(new Promise((resolve, reject) => {
+				try {
+					const unsubscribe = onAuthStateChanged(auth, user => {
+						unsubscribe();
+						resolve(auth);
+					});
+				} catch (err) {
+					reject(err);
+				}
+			})));
 		}
-		return cacheFirebaseAppAuth.get(app);
+		let suspender = cacheFirebaseAppAuth.get(app)!;
+		// Suspend till first onAuthStateChanged
+		return suspender();
 	}
-}
-
-/**
- * Retrive current user
- */
-export function useCurrentUser() {
-	const auth = useAuth();
-	const [user, setUser] = useState<User | undefined>(
-		auth?.currentUser ?? undefined,
-	);
-	useEffect(() => {
-		if (auth) {
-			const dispose = onAuthStateChanged(auth, u =>
-				setUser(u ?? undefined),
-			);
-			return () => dispose();
-		}
-	}, [auth]);
-	return user;
 }

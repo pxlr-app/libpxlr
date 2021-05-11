@@ -1,15 +1,15 @@
-import React, { Suspense, lazy } from 'react';
-import { Switch, BrowserRouter as Router, Route } from 'react-router-dom';
-import { getApps, initializeApp } from 'firebase/app';
-import FirebaseAppContext from './contexts/firebase';
-import './App.css';
-import ProtectedRoute from './components/ProtectedRoute';
-import Error404 from './pages/404';
-import Toasts from './components/Toasts';
-import { ToastProvider } from './hooks/toast';
+import React, { Suspense, lazy } from "react";
+import { Switch, BrowserRouter as Router, Route } from "react-router-dom";
+import { getApps, initializeApp } from "firebase/app";
+import FirebaseAppContext from "./contexts/firebase";
+import "./App.css";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Error404 from "./pages/404";
+import Toasts from "./components/Toasts";
+import { ToastProvider } from "./hooks/toast";
 
 const firebaseApp =
-	getApps().find(app => app.name === 'ticketless') ??
+	getApps().find((app) => app.name === "pxlrapp") ??
 	initializeApp(
 		{
 			apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string,
@@ -22,14 +22,14 @@ const firebaseApp =
 				.VITE_FIREBASE_MESSAGING_SENDER_ID as string,
 			appId: import.meta.env.VITE_FIREBASE_APP_ID as string,
 		},
-		'ticketless',
+		"pxlrapp",
 	);
 
-const LoginPage = lazy(() => import('./pages/auth/Login'));
-const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPassword'));
-const ActionPage = lazy(() => import('./pages/auth/Action'));
-const VerificationPage = lazy(() => import('./pages/auth/Verification'));
-const DemoPage = lazy(() => import('./pages/Demo'));
+const LoginPage = lazy(() => import("./pages/auth/Login"));
+const ForgotPasswordPage = lazy(() => import("./pages/auth/ForgotPassword"));
+const ActionPage = lazy(() => import("./pages/auth/Action"));
+const VerificationPage = lazy(() => import("./pages/auth/Verification"));
+const DemoPage = lazy(() => import("./pages/Demo"));
 
 export default function App() {
 	const Loading = () => <div>Loading...</div>;

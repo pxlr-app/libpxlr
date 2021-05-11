@@ -12,6 +12,7 @@ import {
 } from "@fortawesome/pro-duotone-svg-icons";
 import { faTimes } from "@fortawesome/pro-regular-svg-icons";
 import logotype from "../assets/logotype.svg";
+import { useAuth } from "../hooks/auth";
 
 const navigation = [
 	{
@@ -36,11 +37,6 @@ const navigation = [
 		icon: faUserFriends,
 	},
 ];
-const userNavigation = [
-	{ name: "Your Profile", href: "#" },
-	{ name: "Settings", href: "#" },
-	{ name: "Sign out", href: "#" },
-];
 
 function classNames(...classes: string[]) {
 	return classes.filter(Boolean).join(" ");
@@ -48,6 +44,7 @@ function classNames(...classes: string[]) {
 
 export default function Example() {
 	const [sidebarOpen, setSidebarOpen] = useState(false);
+	const auth = useAuth();
 
 	return (
 		<div className="h-screen flex overflow-hidden bg-gray-100">
@@ -277,23 +274,38 @@ export default function Example() {
 												static
 												className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none"
 											>
-												{userNavigation.map((item) => (
-													<Menu.Item key={item.name}>
-														{({ active }) => (
-															<a
-																href={item.href}
-																className={classNames(
-																	active
-																		? "bg-gray-100"
-																		: "",
-																	"block px-4 py-2 text-sm text-gray-700",
-																)}
-															>
-																{item.name}
-															</a>
-														)}
-													</Menu.Item>
-												))}
+												<Menu.Item key={"profile"}>
+													{({ active }) => (
+														<a
+															href={"#"}
+															className={classNames(
+																active
+																	? "bg-gray-100"
+																	: "",
+																"block px-4 py-2 text-sm text-gray-700",
+															)}
+														>
+															Your profile
+														</a>
+													)}
+												</Menu.Item>
+												<Menu.Item key={"signout"}>
+													{({ active }) => (
+														<a
+															onClick={(e) =>
+																auth?.signOut()
+															}
+															className={classNames(
+																active
+																	? "bg-gray-100"
+																	: "",
+																"block px-4 py-2 text-sm text-gray-700",
+															)}
+														>
+															Sign out
+														</a>
+													)}
+												</Menu.Item>
 											</Menu.Items>
 										</Transition>
 									</>
