@@ -7,7 +7,7 @@
 			"ESNext",
 			"ES2017.SharedMemory",
 			"WebWorker",
-			"WebWorker.ImportScripts"
+			"WebWorker.ImportScripts",
 		],
 		"types": [
 			"vite/client"

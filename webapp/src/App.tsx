@@ -30,6 +30,7 @@ const ForgotPasswordPage = lazy(() => import("./pages/auth/ForgotPassword"));
 const ActionPage = lazy(() => import("./pages/auth/Action"));
 const VerificationPage = lazy(() => import("./pages/auth/Verification"));
 const DemoPage = lazy(() => import("./pages/Demo"));
+const FileApiPage = lazy(() => import("./pages/FileApi"));
 
 export default function App() {
 	const Loading = () => <div>Loading...</div>;
@@ -54,6 +55,9 @@ export default function App() {
 							</Route>
 							<ProtectedRoute exact path="/">
 								<DemoPage />
+							</ProtectedRoute>
+							<ProtectedRoute path="/fileapi">
+								<FileApiPage />
 							</ProtectedRoute>
 							<Route path="*">
 								<Error404 />
