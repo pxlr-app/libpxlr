@@ -1,5 +1,5 @@
 {
-	"name": "backend",
+	"name": "webbackend",
 	"scripts": {
 		"lint": "eslint --ext .js,.ts .",
 		"build": "tsc",
