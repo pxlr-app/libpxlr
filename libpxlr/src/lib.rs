@@ -1,5 +1,9 @@
-use wasm_bindgen::prelude::*;
-use web_sys::console;
+// mod downcast;
+
+use wasm_bindgen::{prelude::*};
+use wasm_bindgen_futures::JsFuture;
+use web_sys::{console, FileSystemFileHandle, FileSystemPermissionMode, FileSystemHandlePermissionDescriptor, File, TextDecoder};
+// use downcast::downcast_jsvalue;
 
 // When the `wee_alloc` feature is enabled, this uses `wee_alloc` as the global
 // allocator.
@@ -44,6 +48,16 @@ pub fn pxlr_hello_world(mut word: String) -> String {
 
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
-pub fn pxlr_print_file() {
-	unimplemented!()
+pub async fn pxlr_print_file(handle: FileSystemFileHandle) -> Result<(), JsValue> {
+	let state = JsFuture::from(handle.request_permission_with_descriptor(FileSystemHandlePermissionDescriptor::new().mode(FileSystemPermissionMode::Read))).await?;
+	unsafe { console::log_2(&JsValue::from_str("Permission:"), &state); }
+	if state == JsValue::from_str("granted") {
+		let file: File = JsFuture::from(handle.get_file()).await?.into();
+		let decoder = TextDecoder::new().unwrap();
+		let buffer = JsFuture::from(file.array_buffer()).await?;
+		if let Ok(content) = decoder.decode_with_buffer_source(&buffer.into()) {
+			unsafe { console::log_2(&JsValue::from_str("Content:"), &JsValue::from_str(&content)); }
+		}
+	}
+	Ok(())
 }

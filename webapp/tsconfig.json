@@ -6,14 +6,16 @@
 			"DOM.Iterable",
 			"ESNext",
 			"ES2017.SharedMemory",
-			"WebWorker",
-			"WebWorker.ImportScripts",
+		],
+		"typeRoots": [
+			"./node_modules/@types",
+			"./types"
 		],
 		"types": [
 			"vite/client"
 		],
 		"allowJs": false,
-		"skipLibCheck": false,
+		"skipLibCheck": true,
 		"esModuleInterop": false,
 		"allowSyntheticDefaultImports": true,
 		"strict": true,
@@ -23,7 +25,12 @@
 		"resolveJsonModule": true,
 		"isolatedModules": true,
 		"noEmit": true,
-		"jsx": "react"
+		"jsx": "react",
+		"paths": {
+			"libpxlr": [
+				"../libpxlr/pkg"
+			]
+		}
 	},
 	"include": [
 		"./src"

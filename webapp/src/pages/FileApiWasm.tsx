@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useDatabase } from "../hooks/indexedDb";
+import init, { pxlr_hello_world, pxlr_print_file } from "libpxlr";
 
 export default function FileAPI() {
 	const db = useDatabase("test", {
@@ -53,6 +54,11 @@ export default function FileAPI() {
 			document.removeEventListener("drop", onDrop);
 		};
 	});
+	useEffect(() => {
+		init().then(() => {
+			console.log(pxlr_hello_world("Blep"));
+		});
+	});
 	return (
 		<ul>
 			{items.map((item) => {
@@ -61,29 +67,8 @@ export default function FileAPI() {
 						<a
 							onClick={async (e) => {
 								e.preventDefault();
-								const perm = await item.handle.requestPermission(
-									{
-										mode: "read",
-									},
-								);
-								console.log("Permission:", perm);
-								const file: File = await item.handle.getFile();
-								// const blob = file.slice(0, 10);
-								// const buffer = await new Promise<ArrayBuffer>(
-								// 	(resolve, reject) => {
-								// 		const reader = new FileReader();
-								// 		reader.onload = (e) =>
-								// 			resolve(
-								// 				e.target!.result as ArrayBuffer,
-								// 			);
-								// 		reader.onerror = (e) => reject();
-								// 		reader.readAsArrayBuffer(blob);
-								// 	},
-								// );
-								const buffer = await file.arrayBuffer();
-								const decoder = new TextDecoder();
-								const text = decoder.decode(buffer);
-								console.log("Content:", text);
+								console.log("Printing content");
+								await pxlr_print_file(item.handle);
 								console.log("Done");
 							}}
 						>
