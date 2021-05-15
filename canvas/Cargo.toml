@@ -4,7 +4,7 @@ version = "0.2.0"
 edition = "2018"
 
 [dependencies]
-bitvec = { version = "0" }
+bitvec = { version = "0.19.5" }
 color = { path = "../color" }
 rayon = { version = "1", optional = true }
 rstar = { version = "0.8" }

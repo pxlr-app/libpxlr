@@ -4,7 +4,7 @@ version = "0.2.0"
 edition = "2018"
 
 [dependencies]
-bitvec = { version = "0" }
+bitvec = { version = "0.19.5" }
 bytes = "1.0"
 canvas = { path = "../canvas" }
 color = { path = "../color" }

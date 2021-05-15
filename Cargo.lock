@@ -89,19 +89,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8942c8d352ae1838c9dda0b0ca2ab657696ef2232a20147cf1b30ae1a9cb4321"
 dependencies = [
  "funty",
- "radium 0.5.3",
- "tap",
- "wyz",
-]
-
-[[package]]
-name = "bitvec"
-version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35a2e31dce162f8f238c3c35a6600f1df4cb30f8929a6c464b0a8118d17c2502"
-dependencies = [
- "funty",
- "radium 0.6.2",
+ "radium",
  "tap",
  "wyz",
 ]
@@ -134,7 +122,7 @@ checksum = "b700ce4376041dcd0a327fd0097c41095743c4c8af8887265942faf1100bd040"
 name = "canvas"
 version = "0.2.0"
 dependencies = [
- "bitvec 0.21.0",
+ "bitvec",
  "cargo-husky",
  "color",
  "image",
@@ -312,7 +300,7 @@ dependencies = [
 name = "document_file"
 version = "0.2.0"
 dependencies = [
- "bitvec 0.21.0",
+ "bitvec",
  "bytes",
  "canvas",
  "cargo-husky",
@@ -685,7 +673,7 @@ version = "6.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e7413f999671bd4745a7b624bd370a569fb6bc574b23c83a3c5ed2e453f3d5e2"
 dependencies = [
- "bitvec 0.19.5",
+ "bitvec",
  "funty",
  "lexical-core",
  "memchr",
@@ -876,12 +864,6 @@ name = "radium"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "941ba9d78d8e2f7ce474c015eea4d9c6d25b6a3327f9832ee29a4de27f91bbb8"
-
-[[package]]
-name = "radium"
-version = "0.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "643f8f41a8ebc4c5dc4515c82bb8abd397b527fc20fd681b7c011c2aee5d44fb"
 
 [[package]]
 name = "rand"
