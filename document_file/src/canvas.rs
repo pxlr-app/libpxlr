@@ -1,4 +1,6 @@
 use crate::{Parse, Write};
+use async_std::io;
+use async_trait::async_trait;
 use bitvec::{order::Lsb0, vec::BitVec};
 use canvas::{Canvas, Stencil};
 use color::Channel;
@@ -7,7 +9,7 @@ use nom::{
 	number::complete::{le_u32, le_u8},
 	IResult,
 };
-use std::{io, sync::Arc};
+use std::sync::Arc;
 use vek::geom::repr_c::Rect;
 
 impl Parse for Stencil {
@@ -29,20 +31,22 @@ impl Parse for Stencil {
 	}
 }
 
+#[async_trait(?Send)]
 impl Write for Stencil {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
+	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
+		use async_std::io::prelude::WriteExt;
 		let mut size = 17;
 		// Write bounds
-		self.bounds().write(writer)?;
+		self.bounds().write(writer).await?;
 		// Write mask
 		let buffer = self.mask().as_slice();
-		writer.write_all(&buffer)?;
+		writer.write(&buffer).await?;
 		size += buffer.len();
 		// Write channel
-		self.channel().write(writer)?;
+		self.channel().write(writer).await?;
 		// Write data
 		let buffer = self.data().as_slice();
-		writer.write(&buffer)?;
+		writer.write(&buffer).await?;
 		size += buffer.len();
 		Ok(size)
 	}
@@ -60,16 +64,18 @@ impl Parse for Canvas {
 	}
 }
 
+#[async_trait(?Send)]
 impl Write for Canvas {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
+	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
+		use async_std::io::prelude::WriteExt;
 		let mut size = 5;
 		// Write channel
-		self.channel().write(writer)?;
+		self.channel().write(writer).await?;
 		// Write stencils
 		let stencils = self.stencils();
-		writer.write_all(&(stencils.len() as u32).to_le_bytes())?;
+		writer.write(&(stencils.len() as u32).to_le_bytes()).await?;
 		for stencil in stencils {
-			size += stencil.write(writer)?;
+			size += stencil.write(writer).await?;
 		}
 		Ok(size)
 	}
@@ -78,6 +84,7 @@ impl Write for Canvas {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use async_std::task;
 
 	#[test]
 	fn stencil_parse() {
@@ -91,7 +98,7 @@ mod tests {
 		);
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
-		let size = stencil.write(&mut buffer).expect("Could not write");
+		let size = task::block_on(stencil.write(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
 		assert_eq!(
 			buffer.get_ref(),
@@ -119,7 +126,7 @@ mod tests {
 		));
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
-		let size = canvas.write(&mut buffer).expect("Could not write");
+		let size = task::block_on(canvas.write(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
 		assert_eq!(
 			buffer.get_ref(),

@@ -1,5 +1,6 @@
+use async_std::io;
+use async_trait::async_trait;
 use nom::IResult;
-use std::io;
 
 pub trait Parse {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], Self>
@@ -7,6 +8,7 @@ pub trait Parse {
 		Self: Sized;
 }
 
+#[async_trait(?Send)]
 pub trait Write {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize>;
+	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize>;
 }

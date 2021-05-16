@@ -4,6 +4,7 @@ version = "0.2.0"
 edition = "2018"
 
 [dependencies]
+async-std = "1.9.0"
 document_core = { path = "../document_core" }
 document_command = { path = "../document_command" }
 document_file = { path = "../document_file" }

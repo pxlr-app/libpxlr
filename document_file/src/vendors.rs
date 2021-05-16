@@ -1,10 +1,11 @@
 use crate::{Parse, Write};
+use async_std::io;
+use async_trait::async_trait;
 use nom::{
 	bytes::complete::take,
 	number::complete::{le_i32, le_u32},
 	IResult,
 };
-use std::io;
 use uuid::Uuid;
 use vek::{geom::repr_c::Rect, vec::repr_c::vec2::Vec2};
 
@@ -21,20 +22,24 @@ impl Parse for String {
 	}
 }
 
+#[async_trait(?Send)]
 impl Write for String {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		writer.write_all(&(self.len() as u32).to_le_bytes())?;
+	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
+		use async_std::io::prelude::WriteExt;
+		writer.write(&(self.len() as u32).to_le_bytes()).await?;
 		let buf = self.as_bytes();
-		writer.write_all(buf)?;
+		writer.write(buf).await?;
 		Ok(4usize + buf.len())
 	}
 }
 
+#[async_trait(?Send)]
 impl Write for &str {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		writer.write_all(&(self.len() as u32).to_le_bytes())?;
+	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
+		use async_std::io::prelude::WriteExt;
+		writer.write(&(self.len() as u32).to_le_bytes()).await?;
 		let buf = self.as_bytes();
-		writer.write_all(buf)?;
+		writer.write(buf).await?;
 		Ok(4usize + buf.len())
 	}
 }
@@ -46,9 +51,11 @@ impl Parse for Uuid {
 	}
 }
 
+#[async_trait(?Send)]
 impl Write for Uuid {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		writer.write_all(self.as_bytes())?;
+	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
+		use async_std::io::prelude::WriteExt;
+		writer.write(self.as_bytes()).await?;
 		Ok(16)
 	}
 }
@@ -63,12 +70,14 @@ impl Parse for Rect<i32, i32> {
 	}
 }
 
+#[async_trait(?Send)]
 impl Write for Rect<i32, i32> {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		writer.write_all(&self.x.to_le_bytes())?;
-		writer.write_all(&self.y.to_le_bytes())?;
-		writer.write_all(&self.w.to_le_bytes())?;
-		writer.write_all(&self.h.to_le_bytes())?;
+	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
+		use async_std::io::prelude::WriteExt;
+		writer.write(&self.x.to_le_bytes()).await?;
+		writer.write(&self.y.to_le_bytes()).await?;
+		writer.write(&self.w.to_le_bytes()).await?;
+		writer.write(&self.h.to_le_bytes()).await?;
 		Ok(16)
 	}
 }
@@ -81,10 +90,12 @@ impl Parse for Vec2<u32> {
 	}
 }
 
+#[async_trait(?Send)]
 impl Write for Vec2<u32> {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		writer.write_all(&self.x.to_le_bytes())?;
-		writer.write_all(&self.y.to_le_bytes())?;
+	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
+		use async_std::io::prelude::WriteExt;
+		writer.write(&self.x.to_le_bytes()).await?;
+		writer.write(&self.y.to_le_bytes()).await?;
 		Ok(8)
 	}
 }
@@ -92,13 +103,14 @@ impl Write for Vec2<u32> {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use async_std::task;
 
 	#[test]
 	fn string_parse() {
 		let string: String = "Foobar".into();
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
-		let size = string.write(&mut buffer).expect("Could not write");
+		let size = task::block_on(string.write(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
 		assert_eq!(
 			buffer.get_ref(),
@@ -114,7 +126,7 @@ mod tests {
 		let id = Uuid::parse_str("99d59b4f-1ab8-4103-ba3c-61f4d68a9c48").unwrap();
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
-		let size = id.write(&mut buffer).expect("Could not write");
+		let size = task::block_on(id.write(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
 		assert_eq!(
 			buffer.get_ref(),
@@ -130,7 +142,7 @@ mod tests {
 		let rect: Rect<i32, i32> = Rect::new(1, 2, 3, 4);
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
-		let size = rect.write(&mut buffer).expect("Could not write");
+		let size = task::block_on(rect.write(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
 		assert_eq!(
 			buffer.get_ref(),
@@ -146,7 +158,7 @@ mod tests {
 		let vec: Vec2<u32> = Vec2::new(1, 2);
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
-		let size = vec.write(&mut buffer).expect("Could not write");
+		let size = task::block_on(vec.write(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
 		assert_eq!(buffer.get_ref(), &vec![1u8, 0, 0, 0, 2, 0, 0, 0]);
 

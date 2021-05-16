@@ -1,7 +1,9 @@
 use crate::{Chunk, ChunkDependencies, NodeParse, NodeWrite};
+use async_std::io;
+use async_trait::async_trait;
 use document_core::NodeType;
 use nom::{number::complete::le_u16, IResult};
-use std::{io, sync::Arc};
+use std::sync::Arc;
 
 pub trait NodeTypeNodeId {
 	fn node_id(&self) -> u16;
@@ -36,27 +38,29 @@ impl NodeParse for NodeType {
 	}
 }
 
+#[async_trait(?Send)]
 impl NodeWrite for NodeType {
-	fn write<W: io::Write + io::Seek>(
+	async fn write<W: io::Write + std::marker::Unpin>(
 		&self,
 		writer: &mut W,
 	) -> io::Result<(usize, ChunkDependencies)> {
+		use async_std::io::prelude::WriteExt;
 		let (size, deps) = match self {
 			NodeType::Group(node) => {
-				writer.write_all(&0u16.to_le_bytes())?;
-				node.write(writer)
+				writer.write(&0u16.to_le_bytes()).await?;
+				node.write(writer).await
 			}
 			NodeType::Note(node) => {
-				writer.write_all(&1u16.to_le_bytes())?;
-				node.write(writer)
+				writer.write(&1u16.to_le_bytes()).await?;
+				node.write(writer).await
 			}
 			NodeType::Palette(node) => {
-				writer.write_all(&2u16.to_le_bytes())?;
-				node.write(writer)
+				writer.write(&2u16.to_le_bytes()).await?;
+				node.write(writer).await
 			}
 			NodeType::CanvasGroup(node) => {
-				writer.write_all(&3u16.to_le_bytes())?;
-				node.write(writer)
+				writer.write(&3u16.to_le_bytes()).await?;
+				node.write(writer).await
 			}
 		}?;
 		Ok((size + 2, deps))

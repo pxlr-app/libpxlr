@@ -1,4 +1,6 @@
 use crate::{Parse, Write};
+use async_std::io;
+use async_trait::async_trait;
 use document_core::NodeType;
 use nom::{
 	bytes::complete::tag,
@@ -6,7 +8,7 @@ use nom::{
 	number::complete::{le_u16, le_u32, le_u64},
 	IResult,
 };
-use std::{io, sync::Arc};
+use std::sync::Arc;
 use uuid::Uuid;
 use vek::geom::repr_c::Rect;
 
@@ -21,8 +23,9 @@ pub trait NodeParse {
 		Self: Sized;
 }
 
+#[async_trait(?Send)]
 pub trait NodeWrite {
-	fn write<W: io::Write + io::Seek>(
+	async fn write<W: io::Write + std::marker::Unpin>(
 		&self,
 		writer: &mut W,
 	) -> io::Result<(usize, ChunkDependencies)>;
@@ -98,10 +101,12 @@ impl Parse for Footer {
 	}
 }
 
+#[async_trait(?Send)]
 impl Write for Footer {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		writer.write_all(&self.version.to_le_bytes())?;
-		writer.write_all(MAGIC_NUMBER.as_bytes())?;
+	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
+		use async_std::io::prelude::WriteExt;
+		writer.write(&self.version.to_le_bytes()).await?;
+		writer.write(MAGIC_NUMBER.as_bytes()).await?;
 		Ok(5)
 	}
 }
@@ -124,12 +129,14 @@ impl Parse for Index {
 	}
 }
 
+#[async_trait(?Send)]
 impl Write for Index {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		writer.write_all(&self.prev_offset.to_le_bytes())?;
-		writer.write_all(&self.size.to_le_bytes())?;
-		self.root.write(writer)?;
-		self.hash.write(writer)?;
+	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
+		use async_std::io::prelude::WriteExt;
+		writer.write(&self.prev_offset.to_le_bytes()).await?;
+		writer.write(&self.size.to_le_bytes()).await?;
+		self.root.write(writer).await?;
+		self.hash.write(writer).await?;
 		Ok(44)
 	}
 }
@@ -164,22 +171,28 @@ impl Parse for Chunk {
 	}
 }
 
+#[async_trait(?Send)]
 impl Write for Chunk {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
+	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
+		use async_std::io::prelude::WriteExt;
 		let mut b: usize = 54;
-		self.id.write(writer)?;
-		writer.write_all(&self.node_type.to_le_bytes())?;
-		writer.write_all(&self.offset.to_le_bytes())?;
-		writer.write_all(&self.size.to_le_bytes())?;
-		self.rect.write(writer)?;
-		writer.write_all(&(self.children.len() as u32).to_le_bytes())?;
-		writer.write_all(&(self.dependencies.len() as u32).to_le_bytes())?;
-		b += self.name.write(writer)?;
+		self.id.write(writer).await?;
+		writer.write(&self.node_type.to_le_bytes()).await?;
+		writer.write(&self.offset.to_le_bytes()).await?;
+		writer.write(&self.size.to_le_bytes()).await?;
+		self.rect.write(writer).await?;
+		writer
+			.write(&(self.children.len() as u32).to_le_bytes())
+			.await?;
+		writer
+			.write(&(self.dependencies.len() as u32).to_le_bytes())
+			.await?;
+		b += self.name.write(writer).await?;
 		for item in self.children.iter() {
-			b += item.write(writer)?;
+			b += item.write(writer).await?;
 		}
 		for dep in self.dependencies.iter() {
-			b += dep.write(writer)?;
+			b += dep.write(writer).await?;
 		}
 		Ok(b)
 	}
@@ -188,13 +201,14 @@ impl Write for Chunk {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use async_std::task;
 
 	#[test]
 	fn footer_parse() {
 		let footer = Footer { version: 1 };
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
-		let size = footer.write(&mut buffer).expect("Could not write");
+		let size = task::block_on(footer.write(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
 		assert_eq!(buffer.get_ref(), &vec![1, 80, 88, 76, 82]);
 
@@ -212,7 +226,7 @@ mod tests {
 		};
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
-		let size = index.write(&mut buffer).expect("Could not write");
+		let size = task::block_on(index.write(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
 		assert_eq!(
 			buffer.get_ref(),
@@ -244,7 +258,7 @@ mod tests {
 		};
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
-		let size = chunk.write(&mut buffer).expect("Could not write");
+		let size = task::block_on(chunk.write(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
 		assert_eq!(
 			buffer.get_ref(),

@@ -1,10 +1,11 @@
 use crate::{Parse, Write};
+use async_std::io;
+use async_trait::async_trait;
 use color::*;
 use nom::{
 	number::complete::{le_f32, le_u8},
 	IResult,
 };
-use std::io;
 
 impl Parse for Luma {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], Luma> {
@@ -13,9 +14,11 @@ impl Parse for Luma {
 	}
 }
 
+#[async_trait(?Send)]
 impl Write for Luma {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		writer.write_all(&self.luma.to_le_bytes())?;
+	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
+		use async_std::io::prelude::WriteExt;
+		writer.write(&self.luma.to_le_bytes()).await?;
 		Ok(1)
 	}
 }
@@ -28,10 +31,12 @@ impl Parse for Lumaa {
 	}
 }
 
+#[async_trait(?Send)]
 impl Write for Lumaa {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		let size = self.color.write(writer)?;
-		writer.write_all(&self.alpha.to_le_bytes())?;
+	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
+		use async_std::io::prelude::WriteExt;
+		let size = self.color.write(writer).await?;
+		writer.write_all(&self.alpha.to_le_bytes()).await?;
 		Ok(1 + size)
 	}
 }
@@ -45,11 +50,13 @@ impl Parse for Rgb {
 	}
 }
 
+#[async_trait(?Send)]
 impl Write for Rgb {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		writer.write_all(&self.red.to_le_bytes())?;
-		writer.write_all(&self.green.to_le_bytes())?;
-		writer.write_all(&self.blue.to_le_bytes())?;
+	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
+		use async_std::io::prelude::WriteExt;
+		writer.write(&self.red.to_le_bytes()).await?;
+		writer.write(&self.green.to_le_bytes()).await?;
+		writer.write(&self.blue.to_le_bytes()).await?;
 		Ok(3)
 	}
 }
@@ -62,10 +69,12 @@ impl Parse for Rgba {
 	}
 }
 
+#[async_trait(?Send)]
 impl Write for Rgba {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		let size = self.color.write(writer)?;
-		writer.write_all(&self.alpha.to_le_bytes())?;
+	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
+		use async_std::io::prelude::WriteExt;
+		let size = self.color.write(writer).await?;
+		writer.write(&self.alpha.to_le_bytes()).await?;
 		Ok(1 + size)
 	}
 }
@@ -78,10 +87,12 @@ impl Parse for Uv {
 	}
 }
 
+#[async_trait(?Send)]
 impl Write for Uv {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		writer.write_all(&self.u.to_le_bytes())?;
-		writer.write_all(&self.v.to_le_bytes())?;
+	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
+		use async_std::io::prelude::WriteExt;
+		writer.write(&self.u.to_le_bytes()).await?;
+		writer.write(&self.v.to_le_bytes()).await?;
 		Ok(8)
 	}
 }
@@ -95,11 +106,13 @@ impl Parse for Normal {
 	}
 }
 
+#[async_trait(?Send)]
 impl Write for Normal {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
-		writer.write_all(&self.x.to_le_bytes())?;
-		writer.write_all(&self.y.to_le_bytes())?;
-		writer.write_all(&self.z.to_le_bytes())?;
+	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
+		use async_std::io::prelude::WriteExt;
+		writer.write(&self.x.to_le_bytes()).await?;
+		writer.write(&self.y.to_le_bytes()).await?;
+		writer.write(&self.z.to_le_bytes()).await?;
 		Ok(12)
 	}
 }
@@ -129,8 +142,10 @@ impl Parse for Channel {
 	}
 }
 
+#[async_trait(?Send)]
 impl Write for Channel {
-	fn write(&self, writer: &mut dyn io::Write) -> io::Result<usize> {
+	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
+		use async_std::io::prelude::WriteExt;
 		let id: u8 = match self {
 			Channel::Luma => 0,
 			Channel::Lumaa => 1,
@@ -143,7 +158,7 @@ impl Write for Channel {
 			Channel::RgbNormal => 8,
 			Channel::RgbaNormal => 9,
 		};
-		writer.write_all(&id.to_le_bytes())?;
+		writer.write(&id.to_le_bytes()).await?;
 		Ok(1)
 	}
 }
@@ -151,13 +166,14 @@ impl Write for Channel {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use async_std::task;
 
 	#[test]
 	fn luma_parse() {
 		let color = Luma::new(32);
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
-		let size = color.write(&mut buffer).expect("Could not write");
+		let size = task::block_on(color.write(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
 		assert_eq!(buffer.get_ref(), &vec![32]);
 
@@ -170,7 +186,7 @@ mod tests {
 		let color = Lumaa::new(Luma::new(32), 128);
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
-		let size = color.write(&mut buffer).expect("Could not write");
+		let size = task::block_on(color.write(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
 		assert_eq!(buffer.get_ref(), &vec![32, 128]);
 
@@ -183,7 +199,7 @@ mod tests {
 		let color = Rgb::new(32, 64, 128);
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
-		let size = color.write(&mut buffer).expect("Could not write");
+		let size = task::block_on(color.write(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
 		assert_eq!(buffer.get_ref(), &vec![32, 64, 128]);
 
@@ -196,7 +212,7 @@ mod tests {
 		let color = Rgba::new(Rgb::new(32, 64, 128), 196);
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
-		let size = color.write(&mut buffer).expect("Could not write");
+		let size = task::block_on(color.write(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
 		assert_eq!(buffer.get_ref(), &vec![32, 64, 128, 196]);
 
@@ -209,7 +225,7 @@ mod tests {
 		let color = Uv::new(0.2, 0.8);
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
-		let size = color.write(&mut buffer).expect("Could not write");
+		let size = task::block_on(color.write(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
 		assert_eq!(buffer.get_ref(), &vec![205, 204, 76, 62, 205, 204, 76, 63]);
 
@@ -222,7 +238,7 @@ mod tests {
 		let color = Normal::new(0.2, 0.5, 0.8);
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
-		let size = color.write(&mut buffer).expect("Could not write");
+		let size = task::block_on(color.write(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
 		assert_eq!(
 			buffer.get_ref(),
@@ -237,7 +253,7 @@ mod tests {
 	fn channel_parse() {
 		fn assert_channel(channel: Channel, id: u8) {
 			let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
-			let size = channel.write(&mut buffer).expect("Could not write");
+			let size = task::block_on(channel.write(&mut buffer)).expect("Could not write");
 			assert_eq!(buffer.get_ref().len(), size);
 
 			assert_eq!(buffer.get_ref(), &vec![id]);

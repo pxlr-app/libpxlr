@@ -20,9 +20,9 @@ impl Serialize for Arc<NodeType> {
 
 	fn serialize(&self) -> Result<Vec<u8>, FileError> {
 		let mut file = File::default();
-		let mut buffer = std::io::Cursor::new(Vec::new());
+		let mut buffer = async_std::io::Cursor::new(Vec::new());
 		file.set_root_node(self.clone());
-		file.append(&mut buffer)?;
+		async_std::task::block_on(file.append(&mut buffer))?;
 		Ok(buffer.into_inner())
 	}
 }
@@ -32,9 +32,9 @@ impl Deserialize for Arc<NodeType> {
 	type Error = FileError;
 
 	fn deserialize(data: &[u8]) -> Result<Arc<NodeType>, FileError> {
-		let mut buffer = std::io::Cursor::new(data);
-		let file = File::read(&mut buffer)?;
-		let root = file.get_root_node(&mut buffer)?;
+		let mut buffer = async_std::io::Cursor::new(data);
+		let file = async_std::task::block_on(File::read(&mut buffer))?;
+		let root = async_std::task::block_on(file.get_root_node(&mut buffer))?;
 		Ok(root)
 	}
 }

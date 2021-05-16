@@ -1,7 +1,9 @@
 use crate::{Chunk, ChunkDependencies, NodeParse, NodeWrite};
+use async_std::io;
+use async_trait::async_trait;
 use document_core::{Group, HasChildren, NodeType};
 use nom::IResult;
-use std::{io, sync::Arc};
+use std::sync::Arc;
 use vek::vec::repr_c::vec2::Vec2;
 
 impl NodeParse for Group {
@@ -26,8 +28,9 @@ impl NodeParse for Group {
 	}
 }
 
+#[async_trait(?Send)]
 impl NodeWrite for Group {
-	fn write<W: io::Write + io::Seek>(
+	async fn write<W: io::Write + std::marker::Unpin>(
 		&self,
 		_writer: &mut W,
 	) -> io::Result<(usize, ChunkDependencies)> {

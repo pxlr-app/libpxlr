@@ -1,7 +1,9 @@
 use crate::{Chunk, ChunkDependencies, NodeParse, NodeWrite, Parse, Write};
+use async_std::io;
+use async_trait::async_trait;
 use document_core::{HasContent, NodeType, Note};
 use nom::IResult;
-use std::{io, sync::Arc};
+use std::sync::Arc;
 use vek::vec::repr_c::vec2::Vec2;
 
 impl NodeParse for Note {
@@ -26,12 +28,13 @@ impl NodeParse for Note {
 	}
 }
 
+#[async_trait(?Send)]
 impl NodeWrite for Note {
-	fn write<W: io::Write + io::Seek>(
+	async fn write<W: io::Write + std::marker::Unpin>(
 		&self,
 		writer: &mut W,
 	) -> io::Result<(usize, ChunkDependencies)> {
-		let size = self.content().write(writer)?;
+		let size = self.content().write(writer).await?;
 		Ok((size, ChunkDependencies::default()))
 	}
 }
