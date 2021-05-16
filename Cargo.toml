@@ -1,10 +1,26 @@
 [workspace]
 members = [
-	"app",
-	"cli",
-	"collections",
-	"document",
-	"document_derive",
-	"editor",
-	"math",
+	"canvas",
+	"color",
+	"document_command",
+	"document_core",
+	"document_file",
+	"document_serialize",
+	"libpxlr",
 ]
+
+[profile.release]
+# This makes the compiled code faster and smaller, but it makes compiling slower,
+# so it's only enabled in release mode.
+lto = true
+
+[patch.crates-io]
+# ../wasm-bindgen is https://github.com/pxlr-app/wasm-bindgen/tree/filesystemaccess
+js-sys = { path = "../wasm-bindgen/crates/js-sys" }
+wasm-bindgen = { path = "../wasm-bindgen" }
+wasm-bindgen-backend = { path = "../wasm-bindgen/crates/backend" }
+wasm-bindgen-futures = { path = "../wasm-bindgen/crates/futures" }
+wasm-bindgen-macro = { path = "../wasm-bindgen/crates/macro" }
+wasm-bindgen-macro-support = { path = "../wasm-bindgen/crates/macro-support" }
+wasm-bindgen-shared = { path = "../wasm-bindgen/crates/shared" }
+web-sys = { path = "../wasm-bindgen/crates/web-sys" }

@@ -1,0 +1,13 @@
+[package]
+name = "color"
+version = "0.2.0"
+edition = "2018"
+
+[dependencies]
+palette = { version = "0.5" }
+vek = { version = "0.15" }
+
+[dev-dependencies.cargo-husky]
+version = "1"
+default-features = false
+features = ["user-hooks"]

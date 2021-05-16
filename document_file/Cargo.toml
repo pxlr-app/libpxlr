@@ -1,0 +1,20 @@
+[package]
+name = "document_file"
+version = "0.2.0"
+edition = "2018"
+
+[dependencies]
+bitvec = { version = "0.19.5" }
+bytes = "1.0"
+canvas = { path = "../canvas" }
+color = { path = "../color" }
+document_core = { path = "../document_core" }
+document_command = { path = "../document_command" }
+nom = "6"
+uuid = { version = "0.8", features = ["stdweb", "v4"] }
+vek = { version = "0.15" }
+
+[dev-dependencies.cargo-husky]
+version = "1"
+default-features = false
+features = ["user-hooks"]

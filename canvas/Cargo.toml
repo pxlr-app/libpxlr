@@ -1,0 +1,19 @@
+[package]
+name = "canvas"
+version = "0.2.0"
+edition = "2018"
+
+[dependencies]
+bitvec = { version = "0.19.5" }
+color = { path = "../color" }
+rayon = { version = "1", optional = true }
+rstar = { version = "0.8" }
+vek = { version = "0.15" }
+
+[dev-dependencies]
+image = { version = "0.23" }
+
+[dev-dependencies.cargo-husky]
+version = "1"
+default-features = false
+features = ["user-hooks"]

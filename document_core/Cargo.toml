@@ -1,0 +1,19 @@
+[package]
+name = "document_core"
+version = "0.2.0"
+edition = "2018"
+
+[dependencies]
+canvas = { path = "../canvas" }
+color = { path = "../color" }
+uuid = { version = "0.8", features = ["stdweb", "v4"] }
+vek = { version = "0.15" }
+
+
+[build-dependencies]
+rustc_version = "0.2.3"
+
+[dev-dependencies.cargo-husky]
+version = "1"
+default-features = false
+features = ["user-hooks"]
