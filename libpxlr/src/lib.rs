@@ -1,5 +1,4 @@
-// mod downcast;
-
+use std::pin::Pin;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{
@@ -61,16 +60,84 @@ pub async fn pxlr_print_file(handle: FileSystemFileHandle) -> Result<(), JsValue
 	}
 	if state == JsValue::from_str("granted") {
 		let file: File = JsFuture::from(handle.get_file()).await?.into();
-		// let buffer = file.slice_with_i32_and_i32(0, 10).unwrap();
-		// let text = JsFuture::from(buffer.text()).await?;
-		// unsafe { console::log_2(&JsValue::from_str("Content:"), &text); }
+		use async_std::io::ReadExt;
+		let mut reader = FileReader::new(file);
+		let mut buffer: Vec<u8> = vec![0u8; 10];
+		let _ = reader.read_exact(&mut buffer).await;
 		let decoder = TextDecoder::new().unwrap();
-		let buffer = JsFuture::from(file.array_buffer()).await?;
-		if let Ok(content) = decoder.decode_with_buffer_source(&buffer.into()) {
+		if let Ok(content) = decoder.decode_with_u8_array(&mut buffer[..]) {
 			unsafe {
 				console::log_2(&JsValue::from_str("Content:"), &JsValue::from_str(&content));
 			}
 		}
+		// // Option 2
+		// let buffer = file.slice_with_i32_and_i32(0, 10).unwrap();
+		// let text = JsFuture::from(buffer.text()).await?;
+		// unsafe { console::log_2(&JsValue::from_str("Content:"), &text); }
+		// // Option 1
+		// let decoder = TextDecoder::new().unwrap();
+		// let buffer = JsFuture::from(file.array_buffer()).await?;
+		// if let Ok(content) = decoder.decode_with_buffer_source(&buffer.into()) {
+		// 	unsafe {
+		// 		console::log_2(&JsValue::from_str("Content:"), &JsValue::from_str(&content));
+		// 	}
+		// }
 	}
 	Ok(())
+}
+
+pub struct FileReader {
+	file: File,
+	offset: u64,
+	future: Option<JsFuture>,
+}
+
+impl FileReader {
+	pub fn new(file: File) -> Self {
+		Self {
+			file,
+			offset: 0,
+			future: None,
+		}
+	}
+}
+
+impl async_std::io::Read for FileReader {
+	fn poll_read(
+		self: std::pin::Pin<&mut Self>,
+		cx: &mut async_std::task::Context<'_>,
+		buf: &mut [u8],
+	) -> async_std::task::Poll<async_std::io::Result<usize>> {
+		let len = buf.len();
+		let mut_self = self.get_mut();
+		let future = mut_self.future.take();
+		match future {
+			None => {
+				let blob: web_sys::Blob = mut_self
+					.file
+					.slice_with_i32_and_i32(mut_self.offset as i32, len as i32)
+					.unwrap();
+				let mut buffer = JsFuture::from(blob.array_buffer());
+				let pinned = Pin::new(&mut buffer);
+				// Poll future to initiate waker
+				let _ = std::future::Future::poll(pinned, cx);
+				mut_self.future.replace(buffer);
+				async_std::task::Poll::Pending
+			}
+			Some(mut js_future) => {
+				let pinned = Pin::new(&mut js_future);
+				match std::future::Future::poll(pinned, cx) {
+					async_std::task::Poll::Pending => {
+						mut_self.future.replace(js_future);
+						async_std::task::Poll::Pending
+					}
+					async_std::task::Poll::Ready(res) => {
+						let buffer = js_sys::Uint8Array::new(&res.unwrap());
+						buffer.copy_to(buf);
+						async_std::task::Poll::Ready(Ok(len))
+					}
+				}
+			}
+		}
+	}
 }
