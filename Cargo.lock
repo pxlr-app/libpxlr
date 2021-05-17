@@ -867,6 +867,8 @@ dependencies = [
  "async-std",
  "cbindgen",
  "console_error_panic_hook",
+ "document_core",
+ "document_file",
  "futures",
  "js-sys",
  "wasm-bindgen",

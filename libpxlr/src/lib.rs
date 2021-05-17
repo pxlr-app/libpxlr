@@ -50,7 +50,7 @@ pub fn pxlr_hello_world(mut word: String) -> String {
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
 pub async fn pxlr_print_file(handle: FileSystemFileHandle) -> Result<(), JsValue> {
-	use async_std::io::ReadExt;
+	use document_core::Node;
 	// Request permission to user
 	let state = JsFuture::from(handle.request_permission_with_descriptor(
 		FileSystemHandlePermissionDescriptor::new().mode(FileSystemPermissionMode::Read),
@@ -63,15 +63,22 @@ pub async fn pxlr_print_file(handle: FileSystemFileHandle) -> Result<(), JsValue
 		let file: File = JsFuture::from(handle.get_file()).await?.into();
 		// Create FileReader
 		let mut reader = FileReader::new(file);
-		// Retrieve first 10 bytes
-		let mut buffer: Vec<u8> = vec![0u8; 5];
-		let _ = reader.seek(async_std::io::SeekFrom::End(-5)).await;
-		let _ = reader.read_exact(&mut buffer).await;
-		// Decode bytes to UTF8 string
-		let decoder = TextDecoder::new().unwrap();
-		if let Ok(content) = decoder.decode_with_u8_array(&mut buffer[..]) {
-			console::log_2(&JsValue::from_str("Content:"), &JsValue::from_str(&content));
-		}
+
+		// Read document
+		let document = document_file::File::read(&mut reader)
+			.await
+			.expect("Could not read file");
+		// Retrieve root node
+		let root = document
+			.get_root_node(&mut reader)
+			.await
+			.expect("Could not get root node");
+
+		console::log_3(
+			&JsValue::from_str("Root:"),
+			&JsValue::from_str(&root.id().to_string()),
+			&JsValue::from_str(root.name()),
+		);
 	}
 	Ok(())
 }
