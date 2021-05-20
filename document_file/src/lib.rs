@@ -23,11 +23,12 @@ struct DirtyNode {
 	node: Arc<NodeType>,
 }
 
+#[derive(Debug)]
 pub struct File {
-	pub footer: Footer,
-	pub index: Index,
-	pub chunks: HashMap<Uuid, Chunk>,
-	pub(crate) dirty_nodes: HashMap<Uuid, DirtyNode>,
+	footer: Footer,
+	index: Index,
+	chunks: HashMap<Uuid, Chunk>,
+	dirty_nodes: HashMap<Uuid, DirtyNode>,
 }
 
 impl Default for File {
