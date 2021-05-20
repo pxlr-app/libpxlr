@@ -871,6 +871,7 @@ dependencies = [
  "document_file",
  "futures",
  "js-sys",
+ "vek",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
