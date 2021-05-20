@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useDatabase } from "../hooks/indexedDb";
 import init, {
-	pxlr_hello_world,
-	pxlr_print_file,
-	pxlr_write_file,
+	pxlr_editor_create,
+	pxlr_editor_destroy,
+	pxlr_file_reader_create,
+	pxlr_file_reader_close,
+	pxlr_document_read,
+	pxlr_editor_document_set,
 } from "libpxlr";
 
 export default function FileAPI() {
@@ -60,9 +63,24 @@ export default function FileAPI() {
 	});
 	useEffect(() => {
 		init().then(() => {
-			console.log(pxlr_hello_world("Blep"));
+			console.log("Init");
 		});
-	});
+	}, []);
+	async function test_api(handle: any) {
+		// Create editor
+		const editor = pxlr_editor_create();
+		// Create file reader
+		const reader = await pxlr_file_reader_create(editor, handle);
+		// Parse document
+		const document = await pxlr_document_read(reader);
+		// Assign document to editor
+		pxlr_editor_document_set(editor, document);
+
+		// Close reader
+		pxlr_file_reader_close(reader);
+		// Free editor
+		pxlr_editor_destroy(editor);
+	}
 	return (
 		<div>
 			<ul>
@@ -71,25 +89,12 @@ export default function FileAPI() {
 						<li key={item.name}>
 							{item.name}{" "}
 							<a
-								onClick={async (e) => {
+								onClick={(e) => {
 									e.preventDefault();
-									console.log("Printing content");
-									await pxlr_print_file(item.handle);
-									console.log("Done");
+									test_api(item.handle);
 								}}
 							>
 								Print
-							</a>
-							{" | "}
-							<a
-								onClick={async (e) => {
-									e.preventDefault();
-									console.log("Writing content");
-									await pxlr_write_file(item.handle);
-									console.log("Done");
-								}}
-							>
-								Write
 							</a>
 						</li>
 					);
