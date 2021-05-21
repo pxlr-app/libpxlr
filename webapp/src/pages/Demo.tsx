@@ -10,9 +10,14 @@ import {
 	faSearch,
 	faUserFriends,
 } from "@fortawesome/pro-duotone-svg-icons";
-import { faTimes } from "@fortawesome/pro-regular-svg-icons";
+import {
+	faTimes,
+	faPlus,
+	faFileUpload,
+} from "@fortawesome/pro-regular-svg-icons";
 import logotype from "../assets/logotype.svg";
 import { useAuth } from "../hooks/auth";
+import filePlaceholder from "../assets/file-preview-placeholder.png";
 
 const navigation = [
 	{
@@ -22,7 +27,7 @@ const navigation = [
 		current: true,
 	},
 	{
-		name: "Drafts",
+		name: "Documents",
 		href: "#",
 		icon: faFile,
 	},
@@ -158,6 +163,22 @@ export default function Example() {
 							/>
 						</div>
 						<div className="flex-1 flex flex-col overflow-y-auto">
+							<div className="px-8 py-4 bg-gray-800 space-y-8 sm:space-y-0 sm:flex sm:justify-between sm:items-center xl:block xl:space-y-8">
+								<div className="flex flex-col sm:flex-row xl:flex-col">
+									<button
+										type="button"
+										className="inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 xl:w-full"
+									>
+										New Document
+									</button>
+									<button
+										type="button"
+										className="mt-3 inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 xl:ml-0 xl:mt-3 xl:w-full"
+									>
+										Import Document
+									</button>
+								</div>
+							</div>
 							<nav className="flex-1 px-2 py-4 bg-gray-800 space-y-1">
 								{navigation.map((item) => (
 									<a
@@ -323,11 +344,34 @@ export default function Example() {
 							</h1>
 						</div>
 						<div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-							{/* Replace with your content */}
-							<div className="py-4">
-								<div className="border-4 border-dashed border-gray-200 rounded-lg h-96" />
+							<div className="col-span-3 py-8 grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 sm:gap-y-8 lg:gap-x-8">
+								{[2, 3, 4].map((day) => (
+									<a
+										href="#"
+										className="group relative bg-white rounded-lg shadow-sm overflow-hidden ring-1 ring-black ring-opacity-5"
+									>
+										<figure>
+											<div className="relative bg-gray-100 pt-[50%] overflow-hidden">
+												<div className="absolute inset-0 w-full h-full rounded-t-lg overflow-hidden">
+													<img
+														src={filePlaceholder}
+														alt=""
+														className="absolute inset-0 w-full h-full"
+													/>
+												</div>
+											</div>
+											<figcaption className="py-3 px-4">
+												<p className="text-sm font-medium text-gray-900 mb-1">
+													Untitle document
+												</p>
+												<p className="text-xs font-medium text-gray-300">
+													Edited {day} days ago
+												</p>
+											</figcaption>
+										</figure>
+									</a>
+								))}
 							</div>
-							{/* /End replace */}
 						</div>
 					</div>
 				</main>
