@@ -5,11 +5,8 @@ pub extern "C" fn pxlr_file_reader_create(
 	let cstring = unsafe { std::ffi::CString::from_raw(file_path) };
 	#[cfg(target_os = "windows")]
 	let path = Into::<std::ffi::OsString>::into(cstring.into_string().unwrap());
-	#[cfg(target_os = "windows")]
-	let path: &std::path::Path = path.as_ref();
 	#[cfg(not(target_os = "windows"))]
 	let path = <std::ffi::OsStr as std::os::unix::ffi::OsStrExt>::from_bytes(cstring.as_bytes());
-	#[cfg(target_os = "windows")]
 	let path: &std::path::Path = path.as_ref();
 	match async_std::task::block_on(async_std::fs::OpenOptions::new().read(true).open(path)) {
 		Err(_) => std::ptr::null_mut(),
@@ -33,11 +30,8 @@ pub extern "C" fn pxlr_file_writer_create(
 	let cstring = unsafe { std::ffi::CString::from_raw(file_path) };
 	#[cfg(target_os = "windows")]
 	let path = Into::<std::ffi::OsString>::into(cstring.into_string().unwrap());
-	#[cfg(target_os = "windows")]
-	let path: &std::path::Path = path.as_ref();
 	#[cfg(not(target_os = "windows"))]
 	let path = <std::ffi::OsStr as std::os::unix::ffi::OsStrExt>::from_bytes(cstring.as_bytes());
-	#[cfg(target_os = "windows")]
 	let path: &std::path::Path = path.as_ref();
 	match async_std::task::block_on(async_std::fs::OpenOptions::new().write(true).open(path)) {
 		Err(_) => std::ptr::null_mut(),
