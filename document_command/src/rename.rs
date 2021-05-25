@@ -3,17 +3,11 @@ use document_core::{Node, NodeType};
 use uuid::Uuid;
 
 pub trait Renamable: Node {
-	fn rename<S: Into<String>>(&self, name: S) -> (CommandType, CommandType) {
-		(
-			CommandType::Rename(RenameCommand {
-				target: *self.id(),
-				name: name.into(),
-			}),
-			CommandType::Rename(RenameCommand {
-				target: *self.id(),
-				name: self.name().to_string(),
-			}),
-		)
+	fn rename<S: Into<String>>(&self, name: S) -> CommandType {
+		CommandType::Rename(RenameCommand {
+			target: *self.id(),
+			name: name.into(),
+		})
 	}
 }
 
@@ -63,7 +57,7 @@ mod tests {
 		let note = Note::default();
 		assert_eq!(note.name(), "Note");
 
-		let (rename, _) = note.rename("Foo");
+		let rename = note.rename("Foo");
 
 		let note2 = match rename.execute(&NodeType::Note(note)) {
 			Some(NodeType::Note(node)) => node,
@@ -78,7 +72,7 @@ mod tests {
 		let group = Group::default();
 		assert_eq!(group.name(), "Group");
 
-		let (rename, _) = group.rename("Foo");
+		let rename = group.rename("Foo");
 
 		let group2 = match rename.execute(&NodeType::Group(group)) {
 			Some(NodeType::Group(node)) => node,

@@ -4,17 +4,11 @@ use uuid::Uuid;
 use vek::vec::repr_c::vec2::Vec2;
 
 pub trait Translatable: HasBounds + Node {
-	fn translate<P: Into<Vec2<i32>>>(&self, position: P) -> (CommandType, CommandType) {
-		(
-			CommandType::Translate(TranslateCommand {
-				target: *self.id(),
-				position: position.into(),
-			}),
-			CommandType::Translate(TranslateCommand {
-				target: *self.id(),
-				position: self.bounds().into_aabr().min,
-			}),
-		)
+	fn translate<P: Into<Vec2<i32>>>(&self, position: P) -> CommandType {
+		CommandType::Translate(TranslateCommand {
+			target: *self.id(),
+			position: position.into(),
+		})
 	}
 }
 
@@ -65,7 +59,7 @@ mod tests {
 		let note = Note::default();
 		assert_eq!(note.bounds().into_aabr().min, Vec2::new(0, 0));
 
-		let (translate, _) = note.translate(Vec2::new(10, 20));
+		let translate = note.translate(Vec2::new(10, 20));
 
 		let note2 = match translate.execute(&NodeType::Note(note)) {
 			Some(NodeType::Note(node)) => node,
@@ -80,7 +74,7 @@ mod tests {
 		let group = Group::default();
 		assert_eq!(group.bounds().into_aabr().min, Vec2::new(0, 0));
 
-		let (translate, _) = group.translate(Vec2::new(10, 20));
+		let translate = group.translate(Vec2::new(10, 20));
 
 		let group2 = match translate.execute(&NodeType::Group(group)) {
 			Some(NodeType::Group(node)) => node,

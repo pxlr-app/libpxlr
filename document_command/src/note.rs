@@ -3,17 +3,11 @@ use document_core::{HasContent, Node, NodeType};
 use uuid::Uuid;
 
 pub trait EditContent: HasContent + Node {
-	fn edit_content<S: Into<String>>(&self, content: S) -> (CommandType, CommandType) {
-		(
-			CommandType::SetNoteContent(SetNoteContentCommand {
-				target: *self.id(),
-				content: content.into(),
-			}),
-			CommandType::SetNoteContent(SetNoteContentCommand {
-				target: *self.id(),
-				content: self.content().to_string(),
-			}),
-		)
+	fn edit_content<S: Into<String>>(&self, content: S) -> CommandType {
+		CommandType::SetNoteContent(SetNoteContentCommand {
+			target: *self.id(),
+			content: content.into(),
+		})
 	}
 }
 
@@ -54,7 +48,7 @@ mod tests {
 		assert_eq!(note.name(), "Note");
 		assert_eq!(note.content(), "");
 
-		let (set_content, _) = note.edit_content("Lorem ipsum");
+		let set_content = note.edit_content("Lorem ipsum");
 
 		let note2 = match set_content.execute(&NodeType::Note(note)) {
 			Some(NodeType::Note(node)) => node,

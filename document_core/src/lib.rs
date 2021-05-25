@@ -78,6 +78,18 @@ impl<'a> std::convert::TryFrom<&'a NodeType> for &'a dyn HasChildren {
 	}
 }
 
+impl<'a> std::convert::TryFrom<&'a mut NodeType> for &'a mut dyn HasChildren {
+	type Error = ();
+
+	fn try_from(value: &'a mut NodeType) -> Result<&'a mut dyn HasChildren, Self::Error> {
+		match value {
+			NodeType::Group(ref mut node) => Ok(node),
+			NodeType::CanvasGroup(ref mut node) => Ok(node),
+			_ => Err(()),
+		}
+	}
+}
+
 impl<'a> std::convert::TryFrom<&'a NodeType> for &'a dyn HasBounds {
 	type Error = ();
 
@@ -87,6 +99,20 @@ impl<'a> std::convert::TryFrom<&'a NodeType> for &'a dyn HasBounds {
 			NodeType::Note(ref node) => Ok(node),
 			NodeType::Group(ref node) => Ok(node),
 			NodeType::CanvasGroup(ref node) => Ok(node),
+			_ => Err(()),
+		}
+	}
+}
+
+impl<'a> std::convert::TryFrom<&'a mut NodeType> for &'a mut dyn HasBounds {
+	type Error = ();
+
+	fn try_from(value: &'a mut NodeType) -> Result<&'a mut dyn HasBounds, Self::Error> {
+		match value {
+			NodeType::Unloaded(ref mut node) => Ok(node),
+			NodeType::Note(ref mut node) => Ok(node),
+			NodeType::Group(ref mut node) => Ok(node),
+			NodeType::CanvasGroup(ref mut node) => Ok(node),
 			_ => Err(()),
 		}
 	}

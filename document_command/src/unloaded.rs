@@ -5,34 +5,25 @@ use uuid::Uuid;
 use vek::Rect;
 
 pub trait LoadNode {
-	fn load(&self) -> (CommandType, CommandType);
+	fn load(&self) -> CommandType;
 }
 
 pub trait UnloadNode {
-	fn unload(&self) -> (CommandType, CommandType);
+	fn unload(&self) -> CommandType;
 }
 
 impl LoadNode for Arc<NodeType> {
-	fn load(&self) -> (CommandType, CommandType) {
-		(
-			CommandType::LoadNode(LoadNodeCommand {
-				target: *self.id(),
-				node: self.clone(),
-			}),
-			CommandType::UnloadNode(UnloadNodeCommand { target: *self.id() }),
-		)
+	fn load(&self) -> CommandType {
+		CommandType::LoadNode(LoadNodeCommand {
+			target: *self.id(),
+			node: self.clone(),
+		})
 	}
 }
 
-impl UnloadNode for Arc<NodeType> {
-	fn unload(&self) -> (CommandType, CommandType) {
-		(
-			CommandType::UnloadNode(UnloadNodeCommand { target: *self.id() }),
-			CommandType::LoadNode(LoadNodeCommand {
-				target: *self.id(),
-				node: self.clone(),
-			}),
-		)
+impl<N: Node> UnloadNode for N {
+	fn unload(&self) -> CommandType {
+		CommandType::UnloadNode(UnloadNodeCommand { target: *self.id() })
 	}
 }
 

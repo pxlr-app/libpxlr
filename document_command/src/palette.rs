@@ -21,58 +21,35 @@ impl std::fmt::Display for PaletteError {
 impl std::error::Error for PaletteError {}
 
 pub trait ColorManager: HasColors + Node {
-	fn add_color(&self, color: Rgba) -> Result<(CommandType, CommandType), PaletteError> {
+	fn add_color(&self, color: Rgba) -> Result<CommandType, PaletteError> {
 		let color_found = self.colors().iter().find(|c| **c == color).is_some();
 		if color_found {
 			Err(PaletteError::ExistingColor(color))
 		} else {
-			Ok((
-				CommandType::AddPaletteColor(AddPaletteColorCommand {
-					target: *self.id(),
-					color: color,
-				}),
-				CommandType::RemovePaletteColor(RemovePaletteColorCommand {
-					target: *self.id(),
-					color: color,
-				}),
-			))
+			Ok(CommandType::AddPaletteColor(AddPaletteColorCommand {
+				target: *self.id(),
+				color: color,
+			}))
 		}
 	}
-	fn remove_color(&self, color: Rgba) -> Result<(CommandType, CommandType), PaletteError> {
+	fn remove_color(&self, color: Rgba) -> Result<CommandType, PaletteError> {
 		let old_position = self.colors().iter().position(|c| *c == color);
 		match old_position {
-			Some(_) => Ok((
-				CommandType::RemovePaletteColor(RemovePaletteColorCommand {
-					target: *self.id(),
-					color,
-				}),
-				CommandType::AddPaletteColor(AddPaletteColorCommand {
-					target: *self.id(),
-					color,
-				}),
-			)),
+			Some(_) => Ok(CommandType::RemovePaletteColor(RemovePaletteColorCommand {
+				target: *self.id(),
+				color,
+			})),
 			None => Err(PaletteError::InvalidColor(color)),
 		}
 	}
-	fn move_color(
-		&self,
-		color: Rgba,
-		position: usize,
-	) -> Result<(CommandType, CommandType), PaletteError> {
+	fn move_color(&self, color: Rgba, position: usize) -> Result<CommandType, PaletteError> {
 		let old_position = self.colors().iter().position(|c| *c == color);
 		match old_position {
-			Some(old_position) => Ok((
-				CommandType::MovePaletteColor(MovePaletteColorCommand {
-					target: *self.id(),
-					color,
-					position,
-				}),
-				CommandType::MovePaletteColor(MovePaletteColorCommand {
-					target: *self.id(),
-					color,
-					position: old_position,
-				}),
-			)),
+			Some(_) => Ok(CommandType::MovePaletteColor(MovePaletteColorCommand {
+				target: *self.id(),
+				color,
+				position,
+			})),
 			None => Err(PaletteError::InvalidColor(color)),
 		}
 	}

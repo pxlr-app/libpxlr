@@ -21,10 +21,7 @@ impl std::fmt::Display for ParentingError {
 impl std::error::Error for ParentingError {}
 
 pub trait Parenting: HasChildren + Node {
-	fn add_child(
-		&self,
-		child: Arc<NodeType>,
-	) -> Result<(CommandType, CommandType), ParentingError> {
+	fn add_child(&self, child: Arc<NodeType>) -> Result<CommandType, ParentingError> {
 		if !self.is_child_valid(&child) {
 			return Err(ParentingError::InvalidChild);
 		}
@@ -36,58 +33,35 @@ pub trait Parenting: HasChildren + Node {
 		if child_found {
 			Err(ParentingError::ExistingChild)
 		} else {
-			Ok((
-				CommandType::AddChild(AddChildCommand {
-					target: *self.id(),
-					child: child.clone(),
-				}),
-				CommandType::RemoveChild(RemoveChildCommand {
-					target: *self.id(),
-					child_id: *child.id(),
-				}),
-			))
+			Ok(CommandType::AddChild(AddChildCommand {
+				target: *self.id(),
+				child: child.clone(),
+			}))
 		}
 	}
 
-	fn remove_child(&self, child_id: Uuid) -> Result<(CommandType, CommandType), ParentingError> {
+	fn remove_child(&self, child_id: Uuid) -> Result<CommandType, ParentingError> {
 		let child = self.children().iter().find(|child| child.id() == &child_id);
 		match child {
-			Some(child) => Ok((
-				CommandType::RemoveChild(RemoveChildCommand {
-					target: *self.id(),
-					child_id: child_id,
-				}),
-				CommandType::AddChild(AddChildCommand {
-					target: *self.id(),
-					child: child.clone(),
-				}),
-			)),
+			Some(_) => Ok(CommandType::RemoveChild(RemoveChildCommand {
+				target: *self.id(),
+				child_id: child_id,
+			})),
 			None => Err(ParentingError::InvalidChild),
 		}
 	}
 
-	fn move_child(
-		&self,
-		child_id: Uuid,
-		position: usize,
-	) -> Result<(CommandType, CommandType), ParentingError> {
+	fn move_child(&self, child_id: Uuid, position: usize) -> Result<CommandType, ParentingError> {
 		let old_position = self
 			.children()
 			.iter()
 			.position(|child| child.id() == &child_id);
 		match old_position {
-			Some(old_position) => Ok((
-				CommandType::MoveChild(MoveChildCommand {
-					target: *self.id(),
-					child_id,
-					position,
-				}),
-				CommandType::MoveChild(MoveChildCommand {
-					target: *self.id(),
-					child_id,
-					position: old_position,
-				}),
-			)),
+			Some(_) => Ok(CommandType::MoveChild(MoveChildCommand {
+				target: *self.id(),
+				child_id,
+				position,
+			})),
 			None => Err(ParentingError::InvalidChild),
 		}
 	}
@@ -119,20 +93,14 @@ impl Command for AddChildCommand {
 		&self.target
 	}
 	fn execute_impl(&self, node: &NodeType) -> Option<NodeType> {
-		// TODO try_into &mut dyn HasChildren
-		match node {
-			NodeType::Group(node) => {
-				let mut cloned = node.clone();
-				let mut children: Vec<_> = cloned
-					.children()
-					.iter()
-					.map(|child| child.clone())
-					.collect();
-				children.push(self.child.clone());
-				cloned.set_children(children);
-				Some(NodeType::Group(cloned))
-			}
-			_ => None,
+		let mut cloned = node.clone();
+		if let Ok(group) = std::convert::TryInto::<&mut dyn HasChildren>::try_into(&mut cloned) {
+			let mut children: Vec<_> = group.children().iter().map(|child| child.clone()).collect();
+			children.push(self.child.clone());
+			group.set_children(children);
+			Some(cloned)
+		} else {
+			None
 		}
 	}
 }
@@ -142,25 +110,23 @@ impl Command for RemoveChildCommand {
 		&self.target
 	}
 	fn execute_impl(&self, node: &NodeType) -> Option<NodeType> {
-		// TODO try_into &mut dyn HasChildren
-		match node {
-			NodeType::Group(node) => {
-				let mut cloned = node.clone();
-				let children: Vec<_> = cloned
-					.children()
-					.iter()
-					.filter_map(|child| {
-						if child.id() == &self.child_id {
-							None
-						} else {
-							Some(child.clone())
-						}
-					})
-					.collect();
-				cloned.set_children(children);
-				Some(NodeType::Group(cloned))
-			}
-			_ => None,
+		let mut cloned = node.clone();
+		if let Ok(group) = std::convert::TryInto::<&mut dyn HasChildren>::try_into(&mut cloned) {
+			let children: Vec<_> = group
+				.children()
+				.iter()
+				.filter_map(|child| {
+					if child.id() == &self.child_id {
+						None
+					} else {
+						Some(child.clone())
+					}
+				})
+				.collect();
+			group.set_children(children);
+			Some(cloned)
+		} else {
+			None
 		}
 	}
 }
@@ -170,25 +136,19 @@ impl Command for MoveChildCommand {
 		&self.target
 	}
 	fn execute_impl(&self, node: &NodeType) -> Option<NodeType> {
-		// TODO try_into &mut dyn HasChildren
-		match node {
-			NodeType::Group(node) => {
-				let mut cloned = node.clone();
-				let mut children: Vec<_> = cloned
-					.children()
-					.iter()
-					.map(|child| child.clone())
-					.collect();
-				let child = children.remove(self.position);
-				if self.position > children.len() {
-					children.push(child);
-				} else {
-					children.insert(self.position, child);
-				}
-				cloned.set_children(children);
-				Some(NodeType::Group(cloned))
+		let mut cloned = node.clone();
+		if let Ok(group) = std::convert::TryInto::<&mut dyn HasChildren>::try_into(&mut cloned) {
+			let mut children: Vec<_> = group.children().iter().map(|child| child.clone()).collect();
+			let child = children.remove(self.position);
+			if self.position > children.len() {
+				children.push(child);
+			} else {
+				children.insert(self.position, child);
 			}
-			_ => None,
+			group.set_children(children);
+			Some(cloned)
+		} else {
+			None
 		}
 	}
 }
