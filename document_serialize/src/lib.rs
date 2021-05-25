@@ -34,7 +34,7 @@ impl Deserialize for Arc<NodeType> {
 	fn deserialize(data: &[u8]) -> Result<Arc<NodeType>, FileError> {
 		let mut buffer = async_std::io::Cursor::new(data);
 		let file = async_std::task::block_on(File::read(&mut buffer))?;
-		let root = async_std::task::block_on(file.get_root_node(&mut buffer))?;
+		let root = async_std::task::block_on(file.get_root_node(&mut buffer, false))?;
 		Ok(root)
 	}
 }

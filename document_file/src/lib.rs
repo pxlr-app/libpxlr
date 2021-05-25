@@ -12,7 +12,7 @@ pub use self::parser::*;
 pub use self::traits::*;
 pub use self::vendors::*;
 use async_recursion::async_recursion;
-use document_core::{HasBounds, Node, NodeType};
+use document_core::{HasBounds, Node, NodeType, Unloaded};
 use std::{collections::HashMap, convert::TryInto, sync::Arc};
 use uuid::Uuid;
 
@@ -149,8 +149,9 @@ impl File {
 	>(
 		&self,
 		reader: &mut R,
+		shallow: bool,
 	) -> Result<Arc<NodeType>, FileError> {
-		self.get_node_by_id(reader, self.index.root).await
+		self.get_node_by_id(reader, self.index.root, shallow).await
 	}
 
 	/// Gather chunk by walking dependency tree from node
@@ -175,6 +176,7 @@ impl File {
 		&self,
 		reader: &mut R,
 		id: Uuid,
+		shallow: bool,
 	) -> Result<Arc<NodeType>, FileError> {
 		use async_std::io::prelude::ReadExt;
 		use async_std::io::prelude::SeekExt;
@@ -194,16 +196,57 @@ impl File {
 						.await?;
 					reader.read_exact(&mut buffer).await?;
 
-					let children: Vec<_> = chunk
-						.children
-						.iter()
-						.map(|id| nodes.get(&id).unwrap().clone())
-						.collect();
-					let dependencies: Vec<_> = chunk
-						.dependencies
-						.iter()
-						.map(|id| nodes.get(&id).unwrap().clone())
-						.collect();
+					let (children, dependencies) = if shallow {
+						let children: Vec<_> = chunk
+							.children
+							.iter()
+							.map(|id| {
+								self.chunks
+									.get(&id)
+									.map(|chunk| {
+										Arc::new(NodeType::Unloaded(unsafe {
+											Unloaded::construct(
+												chunk.id,
+												chunk.name.clone(),
+												chunk.rect.clone(),
+											)
+										}))
+									})
+									.unwrap()
+							})
+							.collect();
+						let dependencies: Vec<_> = chunk
+							.dependencies
+							.iter()
+							.map(|id| {
+								self.chunks
+									.get(&id)
+									.map(|chunk| {
+										Arc::new(NodeType::Unloaded(unsafe {
+											Unloaded::construct(
+												chunk.id,
+												chunk.name.clone(),
+												chunk.rect.clone(),
+											)
+										}))
+									})
+									.unwrap()
+							})
+							.collect();
+						(children, dependencies)
+					} else {
+						let children: Vec<_> = chunk
+							.children
+							.iter()
+							.map(|id| nodes.get(&id).unwrap().clone())
+							.collect();
+						let dependencies: Vec<_> = chunk
+							.dependencies
+							.iter()
+							.map(|id| nodes.get(&id).unwrap().clone())
+							.collect();
+						(children, dependencies)
+					};
 
 					let (_, node) = NodeType::parse(
 						self.footer.version,
@@ -267,6 +310,10 @@ impl File {
 	) -> async_std::io::Result<usize> {
 		use async_std::io::prelude::SeekExt;
 
+		if let NodeType::Unloaded(_) = *node {
+			return Ok(0);
+		}
+
 		let mut size = 0;
 		let mut chunk = match self.chunks.remove(node.id()) {
 			Some(chunk) => chunk,
@@ -293,6 +340,8 @@ impl File {
 		}?;
 
 		chunk.size = node_size as u32;
+		chunk.children = node_deps.children.iter().map(|dep| *dep.id()).collect();
+		chunk.dependencies = node_deps.dependencies.iter().map(|dep| *dep.id()).collect();
 
 		if content {
 			size += node_size;
@@ -436,8 +485,30 @@ mod tests {
 		assert_eq!(doc.index, doc2.index);
 		assert_eq!(doc.chunks, doc2.chunks);
 
-		let root2 = task::block_on(doc2.get_root_node(&mut buffer)).expect("Could not get root");
+		let root2 =
+			task::block_on(doc2.get_root_node(&mut buffer, false)).expect("Could not get root");
 		assert_eq!(*root2, *root);
+	}
+
+	#[test]
+	fn write_and_read_shallow_doc() {
+		let mut doc = File::default();
+		let note = Arc::new(NodeType::Note(Note::new("My note", (0, 0), "")));
+		let group = Arc::new(NodeType::Group(Group::new("Notes", (0, 0), vec![note])));
+		let root = Arc::new(NodeType::Group(Group::new("Root", (0, 0), vec![group])));
+		doc.set_root_node(root.clone());
+
+		let mut buffer: async_std::io::Cursor<Vec<u8>> = async_std::io::Cursor::new(Vec::new());
+		let written = task::block_on(doc.append(&mut buffer)).expect("Could not write");
+		assert_eq!(buffer.get_ref().len(), written);
+
+		let doc2 = task::block_on(File::read(&mut buffer)).expect("Could not read");
+		assert_eq!(doc.index, doc2.index);
+		assert_eq!(doc.chunks, doc2.chunks);
+
+		let root2 =
+			task::block_on(doc2.get_root_node(&mut buffer, true)).expect("Could not get root");
+		assert_ne!(*root2, *root);
 	}
 
 	#[test]
@@ -468,12 +539,14 @@ mod tests {
 		assert_eq!(doc.index, doc2.index);
 		assert_eq!(doc.chunks, doc2.chunks);
 
-		let root3 = task::block_on(doc2.get_root_node(&mut buffer)).expect("Could not get root");
+		let root3 =
+			task::block_on(doc2.get_root_node(&mut buffer, false)).expect("Could not get root");
 		assert_eq!(*root3, *root2);
 
 		let doc3 =
 			task::block_on(doc2.read_previous(&mut buffer)).expect("Could not read previous");
-		let root4 = task::block_on(doc3.get_root_node(&mut buffer)).expect("Could not get root");
+		let root4 =
+			task::block_on(doc3.get_root_node(&mut buffer, false)).expect("Could not get root");
 		assert_eq!(*root4, *root);
 	}
 

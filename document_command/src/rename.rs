@@ -44,6 +44,9 @@ impl Command for RenameCommand {
 			NodeType::CanvasGroup(ref mut cloned) => {
 				cloned.set_name(self.name.clone());
 			}
+			_ => {
+				return None;
+			}
 		}
 
 		Some(cloned)

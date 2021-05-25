@@ -119,6 +119,7 @@ impl Command for AddChildCommand {
 		&self.target
 	}
 	fn execute_impl(&self, node: &NodeType) -> Option<NodeType> {
+		// TODO try_into &mut dyn HasChildren
 		match node {
 			NodeType::Group(node) => {
 				let mut cloned = node.clone();
@@ -141,6 +142,7 @@ impl Command for RemoveChildCommand {
 		&self.target
 	}
 	fn execute_impl(&self, node: &NodeType) -> Option<NodeType> {
+		// TODO try_into &mut dyn HasChildren
 		match node {
 			NodeType::Group(node) => {
 				let mut cloned = node.clone();
@@ -168,6 +170,7 @@ impl Command for MoveChildCommand {
 		&self.target
 	}
 	fn execute_impl(&self, node: &NodeType) -> Option<NodeType> {
+		// TODO try_into &mut dyn HasChildren
 		match node {
 			NodeType::Group(node) => {
 				let mut cloned = node.clone();

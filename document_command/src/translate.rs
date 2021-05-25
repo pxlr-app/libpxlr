@@ -45,6 +45,9 @@ impl Command for TranslateCommand {
 			NodeType::CanvasGroup(ref mut cloned) => {
 				cloned.set_position(self.position.clone());
 			}
+			_ => {
+				return None;
+			}
 		}
 
 		Some(cloned)

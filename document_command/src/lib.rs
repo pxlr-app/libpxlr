@@ -6,12 +6,14 @@ mod note;
 mod palette;
 mod rename;
 mod translate;
+mod unloaded;
 
 pub use self::group::*;
 pub use self::note::*;
 pub use self::palette::*;
 pub use self::rename::*;
 pub use self::translate::*;
+pub use self::unloaded::*;
 
 pub static DOCUMENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
@@ -64,6 +66,8 @@ pub trait Command {
 
 #[derive(Debug, Clone)]
 pub enum CommandType {
+	LoadNode(unloaded::LoadNodeCommand),
+	UnloadNode(unloaded::UnloadNodeCommand),
 	AddChild(group::AddChildCommand),
 	MoveChild(group::MoveChildCommand),
 	RemoveChild(group::RemoveChildCommand),
@@ -78,6 +82,8 @@ pub enum CommandType {
 impl Command for CommandType {
 	fn target(&self) -> &Uuid {
 		match self {
+			CommandType::LoadNode(cmd) => cmd.target(),
+			CommandType::UnloadNode(cmd) => cmd.target(),
 			CommandType::AddChild(cmd) => cmd.target(),
 			CommandType::MoveChild(cmd) => cmd.target(),
 			CommandType::RemoveChild(cmd) => cmd.target(),
@@ -91,6 +97,8 @@ impl Command for CommandType {
 	}
 	fn execute_impl(&self, node: &NodeType) -> Option<NodeType> {
 		match self {
+			CommandType::LoadNode(cmd) => cmd.execute(node),
+			CommandType::UnloadNode(cmd) => cmd.execute(node),
 			CommandType::AddChild(cmd) => cmd.execute(node),
 			CommandType::MoveChild(cmd) => cmd.execute(node),
 			CommandType::RemoveChild(cmd) => cmd.execute(node),

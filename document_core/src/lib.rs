@@ -4,6 +4,7 @@ mod group;
 mod note;
 mod palette;
 mod traits;
+mod unloaded;
 mod walk;
 
 pub use self::canvas::*;
@@ -11,6 +12,7 @@ pub use self::group::*;
 pub use self::note::*;
 pub use self::palette::*;
 pub use self::traits::*;
+pub use self::unloaded::*;
 pub use self::walk::*;
 
 pub static DOCUMENT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -18,6 +20,7 @@ pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum NodeType {
+	Unloaded(unloaded::Unloaded),
 	Note(note::Note),
 	Group(group::Group),
 	Palette(palette::Palette),
@@ -27,6 +30,7 @@ pub enum NodeType {
 impl Node for NodeType {
 	fn id(&self) -> &Uuid {
 		match self {
+			NodeType::Unloaded(node) => node.id(),
 			NodeType::Note(node) => node.id(),
 			NodeType::Group(node) => node.id(),
 			NodeType::Palette(node) => node.id(),
@@ -35,6 +39,7 @@ impl Node for NodeType {
 	}
 	fn set_id(&mut self, id: Uuid) {
 		match self {
+			NodeType::Unloaded(node) => node.set_id(id),
 			NodeType::Note(node) => node.set_id(id),
 			NodeType::Group(node) => node.set_id(id),
 			NodeType::Palette(node) => node.set_id(id),
@@ -43,6 +48,7 @@ impl Node for NodeType {
 	}
 	fn name(&self) -> &str {
 		match self {
+			NodeType::Unloaded(node) => node.name(),
 			NodeType::Note(node) => node.name(),
 			NodeType::Group(node) => node.name(),
 			NodeType::Palette(node) => node.name(),
@@ -51,6 +57,7 @@ impl Node for NodeType {
 	}
 	fn set_name(&mut self, name: String) {
 		match self {
+			NodeType::Unloaded(node) => node.set_name(name),
 			NodeType::Note(node) => node.set_name(name),
 			NodeType::Group(node) => node.set_name(name),
 			NodeType::Palette(node) => node.set_name(name),
@@ -76,6 +83,7 @@ impl<'a> std::convert::TryFrom<&'a NodeType> for &'a dyn HasBounds {
 
 	fn try_from(value: &'a NodeType) -> Result<&'a dyn HasBounds, Self::Error> {
 		match value {
+			NodeType::Unloaded(ref node) => Ok(node),
 			NodeType::Note(ref node) => Ok(node),
 			NodeType::Group(ref node) => Ok(node),
 			NodeType::CanvasGroup(ref node) => Ok(node),
