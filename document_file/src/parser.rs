@@ -12,25 +12,6 @@ use std::sync::Arc;
 use uuid::Uuid;
 use vek::geom::repr_c::Rect;
 
-pub trait NodeParse {
-	fn parse<'bytes>(
-		version: u8,
-		chunk: &Chunk,
-		dependencies: ChunkDependencies,
-		bytes: &'bytes [u8],
-	) -> IResult<&'bytes [u8], Arc<NodeType>>
-	where
-		Self: Sized;
-}
-
-#[async_trait(?Send)]
-pub trait NodeWrite {
-	async fn write<W: io::Write + std::marker::Unpin>(
-		&self,
-		writer: &mut W,
-	) -> io::Result<(usize, ChunkDependencies)>;
-}
-
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct Footer {
 	pub version: u8,
