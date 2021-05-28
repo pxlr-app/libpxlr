@@ -70,49 +70,49 @@ impl Write for CommandType {
 	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
 		use async_std::io::prelude::WriteExt;
 		let size = match self {
-			CommandType::LoadNode(node) => {
+			CommandType::LoadNode(cmd) => {
 				writer.write_all(&0u16.to_le_bytes()).await?;
-				node.write(writer).await?
+				cmd.write(writer).await?
 			}
-			CommandType::UnloadNode(node) => {
+			CommandType::UnloadNode(cmd) => {
 				writer.write_all(&1u16.to_le_bytes()).await?;
-				node.write(writer).await?
+				cmd.write(writer).await?
 			}
-			CommandType::AddChild(node) => {
+			CommandType::AddChild(cmd) => {
 				writer.write_all(&2u16.to_le_bytes()).await?;
-				node.write(writer).await?
+				cmd.write(writer).await?
 			}
-			CommandType::MoveChild(node) => {
+			CommandType::MoveChild(cmd) => {
 				writer.write_all(&3u16.to_le_bytes()).await?;
-				node.write(writer).await?
+				cmd.write(writer).await?
 			}
-			CommandType::RemoveChild(node) => {
+			CommandType::RemoveChild(cmd) => {
 				writer.write_all(&4u16.to_le_bytes()).await?;
-				node.write(writer).await?
+				cmd.write(writer).await?
 			}
-			CommandType::Rename(node) => {
+			CommandType::Rename(cmd) => {
 				writer.write_all(&5u16.to_le_bytes()).await?;
-				node.write(writer).await?
+				cmd.write(writer).await?
 			}
-			CommandType::SetNoteContent(node) => {
+			CommandType::SetNoteContent(cmd) => {
 				writer.write_all(&6u16.to_le_bytes()).await?;
-				node.write(writer).await?
+				cmd.write(writer).await?
 			}
-			CommandType::Translate(node) => {
+			CommandType::Translate(cmd) => {
 				writer.write_all(&7u16.to_le_bytes()).await?;
-				node.write(writer).await?
+				cmd.write(writer).await?
 			}
-			CommandType::AddPaletteColor(node) => {
+			CommandType::AddPaletteColor(cmd) => {
 				writer.write_all(&8u16.to_le_bytes()).await?;
-				node.write(writer).await?
+				cmd.write(writer).await?
 			}
-			CommandType::MovePaletteColor(node) => {
+			CommandType::MovePaletteColor(cmd) => {
 				writer.write_all(&9u16.to_le_bytes()).await?;
-				node.write(writer).await?
+				cmd.write(writer).await?
 			}
-			CommandType::RemovePaletteColor(node) => {
+			CommandType::RemovePaletteColor(cmd) => {
 				writer.write_all(&10u16.to_le_bytes()).await?;
-				node.write(writer).await?
+				cmd.write(writer).await?
 			}
 		};
 		Ok(size + 2)
