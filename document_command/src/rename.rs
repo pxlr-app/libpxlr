@@ -13,10 +13,23 @@ pub trait Renamable: Node {
 
 impl<N: Node> Renamable for N {}
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RenameCommand {
-	pub target: Uuid,
-	pub name: String,
+	target: Uuid,
+	name: String,
+}
+
+impl RenameCommand {
+	pub fn new<U: Into<Uuid>, S: Into<String>>(target: U, name: S) -> Self {
+		Self {
+			target: target.into(),
+			name: name.into(),
+		}
+	}
+
+	pub fn name(&self) -> &str {
+		&self.name
+	}
 }
 
 impl Command for RenameCommand {

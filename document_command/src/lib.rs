@@ -64,7 +64,7 @@ pub trait Command {
 	}
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CommandType {
 	LoadNode(unloaded::LoadNodeCommand),
 	UnloadNode(unloaded::UnloadNodeCommand),

@@ -13,10 +13,23 @@ pub trait EditContent: HasContent + Node {
 
 impl<N: HasContent + Node> EditContent for N {}
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SetNoteContentCommand {
-	pub target: Uuid,
-	pub content: String,
+	target: Uuid,
+	content: String,
+}
+
+impl SetNoteContentCommand {
+	pub fn new<U: Into<Uuid>, S: Into<String>>(target: U, content: S) -> Self {
+		Self {
+			target: target.into(),
+			content: content.into(),
+		}
+	}
+
+	pub fn content(&self) -> &String {
+		&self.content
+	}
 }
 
 impl Command for SetNoteContentCommand {

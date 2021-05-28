@@ -69,23 +69,67 @@ pub trait Parenting: HasChildren + Node {
 
 impl<N: HasChildren + Node> Parenting for N {}
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct AddChildCommand {
-	pub target: Uuid,
-	pub child: Arc<NodeType>,
+	target: Uuid,
+	child: Arc<NodeType>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RemoveChildCommand {
-	pub target: Uuid,
-	pub child_id: Uuid,
+	target: Uuid,
+	child_id: Uuid,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MoveChildCommand {
-	pub target: Uuid,
-	pub child_id: Uuid,
-	pub position: usize,
+	target: Uuid,
+	child_id: Uuid,
+	position: usize,
+}
+
+impl AddChildCommand {
+	pub fn new<U: Into<Uuid>>(target: U, node: Arc<NodeType>) -> Self {
+		Self {
+			target: target.into(),
+			child: node,
+		}
+	}
+
+	pub fn child(&self) -> &Arc<NodeType> {
+		&self.child
+	}
+}
+
+impl RemoveChildCommand {
+	pub fn new<U: Into<Uuid>>(target: U, child_id: U) -> Self {
+		Self {
+			target: target.into(),
+			child_id: child_id.into(),
+		}
+	}
+
+	pub fn child_id(&self) -> &Uuid {
+		&self.child_id
+	}
+}
+
+impl MoveChildCommand {
+	pub fn new<U: Into<Uuid>>(target: U, child_id: U, position: usize) -> Self {
+		Self {
+			target: target.into(),
+			child_id: child_id.into(),
+			position,
+		}
+	}
+
+	pub fn child_id(&self) -> &Uuid {
+		&self.child_id
+	}
+
+	pub fn position(&self) -> &usize {
+		&self.position
+	}
 }
 
 impl Command for AddChildCommand {

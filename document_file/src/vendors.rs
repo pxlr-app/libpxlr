@@ -82,16 +82,16 @@ impl Write for Rect<i32, i32> {
 	}
 }
 
-impl Parse for Vec2<u32> {
-	fn parse(bytes: &[u8]) -> IResult<&[u8], Vec2<u32>> {
-		let (bytes, x) = le_u32(bytes)?;
-		let (bytes, y) = le_u32(bytes)?;
+impl Parse for Vec2<i32> {
+	fn parse(bytes: &[u8]) -> IResult<&[u8], Vec2<i32>> {
+		let (bytes, x) = le_i32(bytes)?;
+		let (bytes, y) = le_i32(bytes)?;
 		Ok((bytes, Vec2::new(x, y)))
 	}
 }
 
 #[async_trait(?Send)]
-impl Write for Vec2<u32> {
+impl Write for Vec2<i32> {
 	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
 		use async_std::io::prelude::WriteExt;
 		writer.write(&self.x.to_le_bytes()).await?;
@@ -155,14 +155,14 @@ mod tests {
 
 	#[test]
 	fn vec_parse() {
-		let vec: Vec2<u32> = Vec2::new(1, 2);
+		let vec: Vec2<i32> = Vec2::new(1, 2);
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
 		let size = task::block_on(vec.write(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
 		assert_eq!(buffer.get_ref(), &vec![1u8, 0, 0, 0, 2, 0, 0, 0]);
 
-		let (_, vec2) = Vec2::<u32>::parse(&buffer.get_ref()).expect("Could not parse");
+		let (_, vec2) = Vec2::<i32>::parse(&buffer.get_ref()).expect("Could not parse");
 		assert_eq!(vec2, vec);
 	}
 }

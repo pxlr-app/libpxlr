@@ -27,15 +27,36 @@ impl<N: Node> UnloadNode for N {
 	}
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct LoadNodeCommand {
-	pub target: Uuid,
-	pub node: Arc<NodeType>,
+	target: Uuid,
+	node: Arc<NodeType>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct UnloadNodeCommand {
-	pub target: Uuid,
+	target: Uuid,
+}
+
+impl LoadNodeCommand {
+	pub fn new<U: Into<Uuid>>(target: U, node: Arc<NodeType>) -> Self {
+		Self {
+			target: target.into(),
+			node,
+		}
+	}
+
+	pub fn node(&self) -> &Arc<NodeType> {
+		&self.node
+	}
+}
+
+impl UnloadNodeCommand {
+	pub fn new<U: Into<Uuid>>(target: U) -> Self {
+		Self {
+			target: target.into(),
+		}
+	}
 }
 
 impl Command for LoadNodeCommand {

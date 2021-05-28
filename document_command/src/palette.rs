@@ -57,23 +57,67 @@ pub trait ColorManager: HasColors + Node {
 
 impl<N: HasColors + Node> ColorManager for N {}
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct AddPaletteColorCommand {
-	pub target: Uuid,
-	pub color: Rgba,
+	target: Uuid,
+	color: Rgba,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RemovePaletteColorCommand {
-	pub target: Uuid,
-	pub color: Rgba,
+	target: Uuid,
+	color: Rgba,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MovePaletteColorCommand {
-	pub target: Uuid,
-	pub color: Rgba,
-	pub position: usize,
+	target: Uuid,
+	color: Rgba,
+	position: usize,
+}
+
+impl AddPaletteColorCommand {
+	pub fn new<U: Into<Uuid>, C: Into<Rgba>>(target: U, color: C) -> Self {
+		Self {
+			target: target.into(),
+			color: color.into(),
+		}
+	}
+
+	pub fn color(&self) -> &Rgba {
+		&self.color
+	}
+}
+
+impl RemovePaletteColorCommand {
+	pub fn new<U: Into<Uuid>, C: Into<Rgba>>(target: U, color: C) -> Self {
+		Self {
+			target: target.into(),
+			color: color.into(),
+		}
+	}
+
+	pub fn color(&self) -> &Rgba {
+		&self.color
+	}
+}
+
+impl MovePaletteColorCommand {
+	pub fn new<U: Into<Uuid>, C: Into<Rgba>>(target: U, color: C, position: usize) -> Self {
+		Self {
+			target: target.into(),
+			color: color.into(),
+			position,
+		}
+	}
+
+	pub fn color(&self) -> &Rgba {
+		&self.color
+	}
+
+	pub fn position(&self) -> &usize {
+		&self.position
+	}
 }
 
 impl Command for AddPaletteColorCommand {

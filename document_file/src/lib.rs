@@ -1,5 +1,6 @@
 mod canvas;
 mod colors;
+mod command;
 mod document;
 pub mod io;
 mod parser;
@@ -7,6 +8,7 @@ mod traits;
 mod vendors;
 pub use self::canvas::*;
 pub use self::colors::*;
+pub use self::command::*;
 pub use self::document::*;
 pub use self::parser::*;
 pub use self::traits::*;
@@ -334,9 +336,9 @@ impl File {
 		}
 
 		let (node_size, node_deps) = if content {
-			node.write(writer).await
+			NodeWrite::write(&*node, writer).await
 		} else {
-			node.write(&mut crate::io::Void).await
+			NodeWrite::write(&*node, &mut crate::io::Void).await
 		}?;
 
 		chunk.size = node_size as u32;
@@ -522,10 +524,7 @@ mod tests {
 		let written = task::block_on(doc.append(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), written);
 
-		let rename = RenameCommand {
-			target: *root.id(),
-			name: "Your note".into(),
-		};
+		let rename = RenameCommand::new(*root.id(), "Your note");
 		let root2 = Arc::new(rename.execute(&*root).expect("Could not rename"));
 		assert_eq!(root2.name(), "Your note");
 		assert_ne!(*root2, *root);

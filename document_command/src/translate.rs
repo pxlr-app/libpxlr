@@ -14,10 +14,23 @@ pub trait Translatable: HasBounds + Node {
 
 impl<N: HasBounds + Node> Translatable for N {}
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TranslateCommand {
-	pub target: Uuid,
-	pub position: Vec2<i32>,
+	target: Uuid,
+	position: Vec2<i32>,
+}
+
+impl TranslateCommand {
+	pub fn new<U: Into<Uuid>, P: Into<Vec2<i32>>>(target: U, position: P) -> Self {
+		Self {
+			target: target.into(),
+			position: position.into(),
+		}
+	}
+
+	pub fn position(&self) -> &Vec2<i32> {
+		&self.position
+	}
 }
 
 impl Command for TranslateCommand {
