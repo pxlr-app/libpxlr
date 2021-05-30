@@ -341,13 +341,14 @@ impl File {
 			NodeWrite::write(&*node, &mut crate::io::Void).await
 		}?;
 
-		chunk.size = node_size as u32;
 		chunk.children = node_deps.children.iter().map(|dep| *dep.id()).collect();
 		chunk.dependencies = node_deps.dependencies.iter().map(|dep| *dep.id()).collect();
 
 		if content {
+			chunk.size = node_size as u32;
 			size += node_size;
 		}
+
 		if !shallow {
 			for child in node_deps.children.iter() {
 				size += self
