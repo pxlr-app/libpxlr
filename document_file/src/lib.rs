@@ -18,14 +18,14 @@ use document_core::{HasBounds, Node, NodeType, Unloaded};
 use std::{collections::HashMap, convert::TryInto, sync::Arc};
 use uuid::Uuid;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 struct DirtyNode {
 	content: bool,
 	shallow: bool,
 	node: Arc<NodeType>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct File {
 	footer: Footer,
 	index: Index,
@@ -86,6 +86,22 @@ impl From<nom::Err<nom::error::Error<&[u8]>>> for FileError {
 }
 
 impl File {
+	pub fn footer(&self) -> &Footer {
+		&self.footer
+	}
+
+	pub fn index(&self) -> &Index {
+		&self.index
+	}
+
+	pub fn message(&self) -> &Message {
+		&self.message
+	}
+
+	pub fn chunks(&self) -> &HashMap<Uuid, Chunk> {
+		&self.chunks
+	}
+
 	/// Read from file
 	pub async fn read<R: async_std::io::Read + async_std::io::Seek + std::marker::Unpin>(
 		reader: &mut R,
@@ -489,6 +505,46 @@ impl File {
 			Self::read_at(reader, self.index.prev_offset).await
 		}
 	}
+
+	/// Repair file by search last valid footer chunk and appending it back.
+	/// Thus discarding incomplete chunks after last valid footer
+	pub async fn repair<
+		R: async_std::io::Read + async_std::io::Write + async_std::io::Seek + std::marker::Unpin,
+	>(
+		source: &mut R,
+		author: impl Into<String>,
+		message: impl Into<String>,
+	) -> Result<(), FileError> {
+		use async_std::io::prelude::ReadExt;
+		use async_std::io::prelude::SeekExt;
+		use async_std::io::Error;
+		use async_std::io::ErrorKind;
+
+		let mut buffer = vec![0u8; 5];
+		let mut offset = 0u64;
+		let mut last_valid_doc: Option<File> = None;
+
+		while let Ok(_) = source.seek(async_std::io::SeekFrom::Start(offset)).await {
+			if let Ok(_) = source.read_exact(&mut buffer).await {
+				if let Ok(_) = Footer::parse(&buffer) {
+					if let Ok(doc) = File::read_at(source, offset + 5).await {
+						last_valid_doc.replace(doc);
+					}
+				}
+				offset += 1;
+			} else {
+				break;
+			}
+		}
+
+		match last_valid_doc.take() {
+			None => Err(Into::<Error>::into(ErrorKind::UnexpectedEof).into()),
+			Some(mut doc) => {
+				doc.append(source, author, message).await?;
+				Ok(())
+			}
+		}
+	}
 }
 
 #[cfg(test)]
@@ -613,5 +669,38 @@ mod tests {
 			task::block_on(doc.trim(&mut buffer, &mut buffer2)).expect("Could not trim document");
 		assert_eq!(buffer2.get_ref().len(), size);
 		assert!(buffer2.get_ref().len() < buffer.get_ref().len());
+	}
+
+	#[test]
+	fn repair_doc() {
+		let mut doc = File::default();
+		let note = Note::new("My note", (0, 0), "");
+		let root = Arc::new(NodeType::Note(note));
+		doc.set_root_node(root.clone());
+
+		let mut buffer: async_std::io::Cursor<Vec<u8>> = async_std::io::Cursor::new(Vec::new());
+		let written =
+			task::block_on(doc.append(&mut buffer, "Test", "A")).expect("Could not write");
+		assert_eq!(buffer.get_ref().len(), written);
+		let doc1 = doc.clone();
+
+		let rename = RenameCommand::new(*root.id(), "Your note");
+		let root2 = Arc::new(rename.execute(&*root).expect("Could not rename"));
+		assert_eq!(root2.name(), "Your note");
+		assert_ne!(*root2, *root);
+
+		doc.update_node(root2.clone(), false);
+
+		let written2 =
+			task::block_on(doc.append(&mut buffer, "Test", "B")).expect("Could not write");
+		assert_eq!(buffer.get_ref().len(), written + written2);
+
+		let len = buffer.get_ref().len();
+		let mut broken_buffer = async_std::io::Cursor::new(buffer.get_mut()[0..len - 100].to_vec());
+
+		task::block_on(File::repair(&mut broken_buffer, "Repair", ""))
+			.expect("Could not repair document");
+		let doc2 = task::block_on(File::read(&mut broken_buffer)).expect("Could not read document");
+		assert_eq!(doc1.chunks, doc2.chunks);
 	}
 }
