@@ -54,7 +54,7 @@ impl Write for Arc<NodeType> {
 		let mut file = File::default();
 		let mut buffer = async_std::io::Cursor::new(Vec::new());
 		file.set_root_node(self.clone());
-		let size = file.append(&mut buffer).await.unwrap();
+		let size = file.append(&mut buffer, "", "").await.unwrap();
 		writer.write_all(&(size as u32).to_le_bytes()).await?;
 		writer.write_all(buffer.get_ref()).await?;
 		Ok(size + 4)

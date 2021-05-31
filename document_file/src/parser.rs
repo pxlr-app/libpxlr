@@ -23,11 +23,16 @@ pub const MAGIC_NUMBER: &'static str = "PXLR";
 pub struct Index {
 	pub hash: Uuid,
 	pub root: Uuid,
-	pub size: u32,
+	pub message_size: u32,
+	pub chunks_size: u32,
 	pub prev_offset: u64,
-	// TODO date
-	// TODO author
-	// TODO message
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Message {
+	pub date: u64,
+	pub author: String,
+	pub message: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -53,8 +58,19 @@ impl Default for Index {
 		Index {
 			hash: Uuid::new_v4(),
 			root: Uuid::default(),
-			size: 0,
+			message_size: 0,
+			chunks_size: 0,
 			prev_offset: 0,
+		}
+	}
+}
+
+impl Default for Message {
+	fn default() -> Self {
+		Message {
+			date: chrono::offset::Utc::now().timestamp() as u64,
+			author: "".into(),
+			message: "".into(),
 		}
 	}
 }
@@ -95,7 +111,8 @@ impl Write for Footer {
 impl Parse for Index {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], Index> {
 		let (bytes, prev_offset) = le_u64(bytes)?;
-		let (bytes, size) = le_u32(bytes)?;
+		let (bytes, message_size) = le_u32(bytes)?;
+		let (bytes, chunks_size) = le_u32(bytes)?;
 		let (bytes, root) = Uuid::parse(bytes)?;
 		let (bytes, hash) = Uuid::parse(bytes)?;
 		Ok((
@@ -103,7 +120,8 @@ impl Parse for Index {
 			Index {
 				hash,
 				root,
-				size,
+				message_size,
+				chunks_size,
 				prev_offset,
 			},
 		))
@@ -115,10 +133,39 @@ impl Write for Index {
 	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
 		use async_std::io::prelude::WriteExt;
 		writer.write(&self.prev_offset.to_le_bytes()).await?;
-		writer.write(&self.size.to_le_bytes()).await?;
+		writer.write(&self.message_size.to_le_bytes()).await?;
+		writer.write(&self.chunks_size.to_le_bytes()).await?;
 		self.root.write(writer).await?;
 		self.hash.write(writer).await?;
-		Ok(44)
+		Ok(48)
+	}
+}
+
+impl Parse for Message {
+	fn parse(bytes: &[u8]) -> IResult<&[u8], Message> {
+		let (bytes, date) = le_u64(bytes)?;
+		let (bytes, author) = String::parse(bytes)?;
+		let (bytes, message) = String::parse(bytes)?;
+		Ok((
+			bytes,
+			Message {
+				date,
+				author,
+				message,
+			},
+		))
+	}
+}
+
+#[async_trait(?Send)]
+impl Write for Message {
+	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
+		use async_std::io::prelude::WriteExt;
+		let mut size = 8;
+		writer.write(&self.date.to_le_bytes()).await?;
+		size += self.author.write(writer).await?;
+		size += self.message.write(writer).await?;
+		Ok(size)
 	}
 }
 
@@ -191,7 +238,6 @@ mod tests {
 
 		let size = task::block_on(footer.write(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
-		assert_eq!(buffer.get_ref(), &vec![1, 80, 88, 76, 82]);
 
 		let (_, footer2) = Footer::parse(&buffer.get_ref()).expect("Could not parse");
 		assert_eq!(footer2, footer);
@@ -202,24 +248,33 @@ mod tests {
 		let index = Index {
 			hash: Uuid::parse_str("68204970-a53a-4eb5-bee4-93e3fd19e8de").unwrap(),
 			root: Uuid::parse_str("4a89c955-54fe-4a48-b367-378a8a47ab34").unwrap(),
-			size: 1,
-			prev_offset: 2,
+			chunks_size: 1,
+			message_size: 2,
+			prev_offset: 3,
 		};
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 
 		let size = task::block_on(index.write(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
-		assert_eq!(
-			buffer.get_ref(),
-			&vec![
-				2u8, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 74, 137, 201, 85, 84, 254, 74, 72, 179, 103,
-				55, 138, 138, 71, 171, 52, 104, 32, 73, 112, 165, 58, 78, 181, 190, 228, 147, 227,
-				253, 25, 232, 222
-			]
-		);
 
 		let (_, index2) = Index::parse(&buffer.get_ref()).expect("Could not parse");
 		assert_eq!(index2, index);
+	}
+
+	#[test]
+	fn message_parse() {
+		let message = Message {
+			author: "Michael Grenier <michael@grenier.dev>".into(),
+			message: "My first message".into(),
+			..Message::default()
+		};
+		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
+
+		let size = task::block_on(message.write(&mut buffer)).expect("Could not write");
+		assert_eq!(buffer.get_ref().len(), size);
+
+		let (_, message2) = Message::parse(&buffer.get_ref()).expect("Could not parse");
+		assert_eq!(message2, message);
 	}
 
 	#[test]
@@ -241,17 +296,6 @@ mod tests {
 
 		let size = task::block_on(chunk.write(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
-		assert_eq!(
-			buffer.get_ref(),
-			&vec![
-				172u8, 22, 186, 207, 154, 149, 65, 62, 178, 244, 252, 249, 66, 116, 173, 98, 1, 0,
-				2, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0,
-				2, 0, 0, 0, 1, 0, 0, 0, 5, 0, 0, 0, 67, 104, 117, 110, 107, 41, 22, 102, 215, 233,
-				226, 68, 1, 142, 123, 195, 23, 122, 47, 133, 54, 90, 237, 73, 14, 228, 240, 74, 24,
-				148, 237, 1, 71, 47, 141, 82, 167, 177, 224, 42, 241, 70, 139, 74, 148, 184, 15,
-				112, 80, 135, 75, 57, 239
-			]
-		);
 
 		let (_, chunk2) = Chunk::parse(&buffer.get_ref()).expect("Could not parse");
 		assert_eq!(chunk2, chunk);

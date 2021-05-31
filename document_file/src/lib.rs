@@ -18,17 +18,18 @@ use document_core::{HasBounds, Node, NodeType, Unloaded};
 use std::{collections::HashMap, convert::TryInto, sync::Arc};
 use uuid::Uuid;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct DirtyNode {
 	content: bool,
 	shallow: bool,
 	node: Arc<NodeType>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct File {
 	footer: Footer,
 	index: Index,
+	message: Message,
 	chunks: HashMap<Uuid, Chunk>,
 	dirty_nodes: HashMap<Uuid, DirtyNode>,
 }
@@ -38,6 +39,7 @@ impl Default for File {
 		File {
 			footer: Footer::default(),
 			index: Index::default(),
+			message: Message::default(),
 			chunks: HashMap::default(),
 			dirty_nodes: HashMap::default(),
 		}
@@ -110,17 +112,26 @@ impl File {
 
 		match footer.version {
 			0 => {
-				let mut buffer = [0u8; 44];
+				let mut buffer = [0u8; 48];
 				reader
-					.seek(async_std::io::SeekFrom::Start(offset - 5 - 44))
+					.seek(async_std::io::SeekFrom::Start(offset - 5 - 48))
 					.await?;
 				reader.read_exact(&mut buffer).await?;
 				let (_, index) = Index::parse(&buffer)?;
 
-				let mut buffer = vec![0u8; index.size as usize];
+				let mut buffer = vec![0u8; index.message_size as usize];
 				reader
 					.seek(async_std::io::SeekFrom::Start(
-						offset - 5 - 44 - index.size as u64,
+						offset - 5 - 48 - index.message_size as u64,
+					))
+					.await?;
+				reader.read_exact(&mut buffer).await?;
+				let (_, message) = Message::parse(&buffer)?;
+
+				let mut buffer = vec![0u8; index.chunks_size as usize];
+				reader
+					.seek(async_std::io::SeekFrom::Start(
+						offset - 5 - 48 - index.message_size as u64 - index.chunks_size as u64,
 					))
 					.await?;
 				reader.read_exact(&mut buffer).await?;
@@ -138,6 +149,7 @@ impl File {
 					footer,
 					index,
 					chunks: chunk_map,
+					message,
 					dirty_nodes: HashMap::default(),
 				})
 			}
@@ -370,6 +382,8 @@ impl File {
 	pub async fn append<W: async_std::io::Write + async_std::io::Seek + std::marker::Unpin>(
 		&mut self,
 		writer: &mut W,
+		author: impl Into<String>,
+		message: impl Into<String>,
 	) -> async_std::io::Result<usize> {
 		use async_std::io::prelude::SeekExt;
 
@@ -387,15 +401,22 @@ impl File {
 				.await?;
 		}
 
-		let mut index_size = 0;
+		let mut chunks_size = 0;
 		for (_, chunk) in self.chunks.iter() {
-			index_size += chunk.write(writer).await?;
+			chunks_size += chunk.write(writer).await?;
 		}
-		size += index_size;
+		size += chunks_size;
+
+		self.message.date = chrono::offset::Utc::now().timestamp() as u64;
+		self.message.author = author.into();
+		self.message.message = message.into();
+		let message_size = self.message.write(writer).await?;
+		size += message_size;
 
 		self.index.hash = Uuid::new_v4();
 		self.index.prev_offset = prev_offset;
-		self.index.size = index_size as u32;
+		self.index.message_size = message_size as u32;
+		self.index.chunks_size = chunks_size as u32;
 
 		size += self.index.write(writer).await?;
 		size += (Footer { version: 0 }).write(writer).await?;
@@ -435,15 +456,19 @@ impl File {
 			size += buffer.len();
 		}
 
-		let mut index_size = 0;
+		let mut chunks_size = 0;
 		for chunk in chunks.drain(..) {
-			index_size += chunk.write(destination).await?;
+			chunks_size += chunk.write(destination).await?;
 		}
-		size += index_size;
+		size += chunks_size;
+
+		let message_size = self.message.write(destination).await?;
+		size += message_size;
 
 		let mut index = self.index.clone();
 		index.prev_offset = 0;
-		index.size = index_size as u32;
+		index.message_size = message_size as u32;
+		index.chunks_size = chunks_size as u32;
 
 		size += index.write(destination).await?;
 		size += (Footer { version: 0 }).write(destination).await?;
@@ -481,7 +506,7 @@ mod tests {
 		doc.set_root_node(root.clone());
 
 		let mut buffer: async_std::io::Cursor<Vec<u8>> = async_std::io::Cursor::new(Vec::new());
-		let written = task::block_on(doc.append(&mut buffer)).expect("Could not write");
+		let written = task::block_on(doc.append(&mut buffer, "Test", "")).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), written);
 
 		let doc2 = task::block_on(File::read(&mut buffer)).expect("Could not read");
@@ -502,7 +527,7 @@ mod tests {
 		doc.set_root_node(root.clone());
 
 		let mut buffer: async_std::io::Cursor<Vec<u8>> = async_std::io::Cursor::new(Vec::new());
-		let written = task::block_on(doc.append(&mut buffer)).expect("Could not write");
+		let written = task::block_on(doc.append(&mut buffer, "Test", "")).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), written);
 
 		let doc2 = task::block_on(File::read(&mut buffer)).expect("Could not read");
@@ -522,7 +547,51 @@ mod tests {
 		doc.set_root_node(root.clone());
 
 		let mut buffer: async_std::io::Cursor<Vec<u8>> = async_std::io::Cursor::new(Vec::new());
-		let written = task::block_on(doc.append(&mut buffer)).expect("Could not write");
+		let written =
+			task::block_on(doc.append(&mut buffer, "Test", "A")).expect("Could not write");
+		assert_eq!(buffer.get_ref().len(), written);
+		let doc1 = doc.clone();
+
+		let rename = RenameCommand::new(*root.id(), "Your note");
+		let root2 = Arc::new(rename.execute(&*root).expect("Could not rename"));
+		assert_eq!(root2.name(), "Your note");
+		assert_ne!(*root2, *root);
+
+		doc.update_node(root2.clone(), false);
+
+		let written2 =
+			task::block_on(doc.append(&mut buffer, "Test", "B")).expect("Could not write");
+		assert_eq!(buffer.get_ref().len(), written + written2);
+
+		let doc2 = task::block_on(File::read(&mut buffer)).expect("Could not read");
+		assert_eq!(doc.index, doc2.index);
+		assert_eq!(doc.message, doc2.message);
+		assert_eq!(doc.chunks, doc2.chunks);
+
+		let root3 =
+			task::block_on(doc2.get_root_node(&mut buffer, false)).expect("Could not get root");
+		assert_eq!(*root3, *root2);
+
+		let doc3 =
+			task::block_on(doc2.read_previous(&mut buffer)).expect("Could not read previous");
+		assert_eq!(doc1.index, doc3.index);
+		assert_eq!(doc1.message, doc3.message);
+		assert_eq!(doc1.chunks, doc3.chunks);
+		let root4 =
+			task::block_on(doc3.get_root_node(&mut buffer, false)).expect("Could not get root");
+		assert_eq!(*root4, *root);
+	}
+
+	#[test]
+	fn trim_doc() {
+		let mut doc = File::default();
+		let note = Note::new("My note", (0, 0), "");
+		let root = Arc::new(NodeType::Note(note));
+		doc.set_root_node(root.clone());
+
+		let mut buffer: async_std::io::Cursor<Vec<u8>> = async_std::io::Cursor::new(Vec::new());
+		let written =
+			task::block_on(doc.append(&mut buffer, "Test", "A")).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), written);
 
 		let rename = RenameCommand::new(*root.id(), "Your note");
@@ -532,46 +601,17 @@ mod tests {
 
 		doc.update_node(root2.clone(), false);
 
-		let written2 = task::block_on(doc.append(&mut buffer)).expect("Could not write");
+		let written2 =
+			task::block_on(doc.append(&mut buffer, "Test", "B")).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), written + written2);
 
-		let doc2 = task::block_on(File::read(&mut buffer)).expect("Could not read");
-		assert_eq!(doc.index, doc2.index);
-		assert_eq!(doc.chunks, doc2.chunks);
-
-		let root3 =
-			task::block_on(doc2.get_root_node(&mut buffer, false)).expect("Could not get root");
-		assert_eq!(*root3, *root2);
-
-		let doc3 =
-			task::block_on(doc2.read_previous(&mut buffer)).expect("Could not read previous");
-		let root4 =
-			task::block_on(doc3.get_root_node(&mut buffer, false)).expect("Could not get root");
-		assert_eq!(*root4, *root);
-	}
-
-	#[test]
-	fn trim_doc() {
-		let mut buffer: async_std::io::Cursor<Vec<u8>> = async_std::io::Cursor::new(vec![
-			1, 0, 0, 0, 0, 0, 24, 224, 18, 32, 86, 187, 66, 11, 187, 108, 2, 255, 22, 121, 210,
-			221, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 77, 121, 32, 110, 111, 116, 101, 0, 0, 0,
-			0, 0, 0, 0, 0, 65, 0, 0, 0, 24, 224, 18, 32, 86, 187, 66, 11, 187, 108, 2, 255, 22,
-			121, 210, 221, 195, 112, 8, 189, 227, 99, 69, 139, 143, 161, 176, 32, 202, 148, 6, 201,
-			0, 80, 88, 76, 82, 1, 0, 0, 0, 0, 0, 24, 224, 18, 32, 86, 187, 66, 11, 187, 108, 2,
-			255, 22, 121, 210, 221, 1, 0, 120, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 89, 111, 117, 114,
-			32, 110, 111, 116, 101, 120, 0, 0, 0, 0, 0, 0, 0, 67, 0, 0, 0, 24, 224, 18, 32, 86,
-			187, 66, 11, 187, 108, 2, 255, 22, 121, 210, 221, 31, 232, 217, 133, 171, 17, 79, 69,
-			131, 66, 82, 225, 238, 60, 215, 141, 0, 80, 88, 76, 82,
-		]);
 		let doc = task::block_on(File::read(&mut buffer)).expect("Could not read document");
-		assert_eq!(doc.index.prev_offset, 120);
 
 		let mut buffer2: async_std::io::Cursor<Vec<u8>> = async_std::io::Cursor::new(vec![]);
 
 		let size =
 			task::block_on(doc.trim(&mut buffer, &mut buffer2)).expect("Could not trim document");
 		assert_eq!(buffer2.get_ref().len(), size);
+		assert!(buffer2.get_ref().len() < buffer.get_ref().len());
 	}
 }

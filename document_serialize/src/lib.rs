@@ -22,7 +22,7 @@ impl Serialize for Arc<NodeType> {
 		let mut file = File::default();
 		let mut buffer = async_std::io::Cursor::new(Vec::new());
 		file.set_root_node(self.clone());
-		async_std::task::block_on(file.append(&mut buffer))?;
+		async_std::task::block_on(file.append(&mut buffer, "", ""))?;
 		Ok(buffer.into_inner())
 	}
 }

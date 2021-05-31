@@ -9,6 +9,7 @@ async-std = "1.9.0"
 async-trait = "0.1.50"
 bitvec = { version = "0.19.5" }
 bytes = "1.0"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
 canvas = { path = "../canvas" }
 color = { path = "../color" }
 document_core = { path = "../document_core" }
