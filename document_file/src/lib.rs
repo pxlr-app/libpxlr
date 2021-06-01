@@ -514,36 +514,26 @@ impl File {
 		source: &mut R,
 		author: impl Into<String>,
 		message: impl Into<String>,
-	) -> Result<(), FileError> {
-		use async_std::io::prelude::ReadExt;
+	) -> Result<usize, FileError> {
 		use async_std::io::prelude::SeekExt;
 		use async_std::io::Error;
 		use async_std::io::ErrorKind;
 
-		let mut buffer = vec![0u8; 5];
-		let mut offset = 0u64;
-		let mut last_valid_doc: Option<File> = None;
+		let mut cursor = 0i64;
 
-		while let Ok(_) = source.seek(async_std::io::SeekFrom::Start(offset)).await {
-			if let Ok(_) = source.read_exact(&mut buffer).await {
-				if let Ok(_) = Footer::parse(&buffer) {
-					if let Ok(doc) = File::read_at(source, offset + 5).await {
-						last_valid_doc.replace(doc);
-					}
+		while let Ok(offset) = source.seek(async_std::io::SeekFrom::End(cursor)).await {
+			if let Ok(mut doc) = File::read_at(source, offset).await {
+				if cursor == 0 {
+					return Ok(0);
+				} else {
+					let written = doc.append(source, author, message).await?;
+					return Ok(written);
 				}
-				offset += 1;
-			} else {
-				break;
 			}
+			cursor -= 1;
 		}
 
-		match last_valid_doc.take() {
-			None => Err(Into::<Error>::into(ErrorKind::UnexpectedEof).into()),
-			Some(mut doc) => {
-				doc.append(source, author, message).await?;
-				Ok(())
-			}
-		}
+		return Err(Into::<Error>::into(ErrorKind::UnexpectedEof).into());
 	}
 }
 
@@ -695,11 +685,16 @@ mod tests {
 			task::block_on(doc.append(&mut buffer, "Test", "B")).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), written + written2);
 
+		let written = task::block_on(File::repair(&mut buffer, "Repair", ""))
+			.expect("Could not repair document");
+		assert_eq!(written, 0);
+
 		let len = buffer.get_ref().len();
 		let mut broken_buffer = async_std::io::Cursor::new(buffer.get_mut()[0..len - 100].to_vec());
 
-		task::block_on(File::repair(&mut broken_buffer, "Repair", ""))
+		let written = task::block_on(File::repair(&mut broken_buffer, "Repair", ""))
 			.expect("Could not repair document");
+		assert!(written > 0);
 		let doc2 = task::block_on(File::read(&mut broken_buffer)).expect("Could not read document");
 		assert_eq!(doc1.chunks, doc2.chunks);
 	}
