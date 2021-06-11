@@ -40,13 +40,13 @@ impl Write for Stencil {
 		self.bounds().write(writer).await?;
 		// Write mask
 		let buffer = self.mask().as_slice();
-		writer.write(&buffer).await?;
+		writer.write_all(&buffer).await?;
 		size += buffer.len();
 		// Write channel
 		self.channel().write(writer).await?;
 		// Write data
 		let buffer = self.data().as_slice();
-		writer.write(&buffer).await?;
+		writer.write_all(&buffer).await?;
 		size += buffer.len();
 		Ok(size)
 	}
@@ -73,7 +73,9 @@ impl Write for Canvas {
 		self.channel().write(writer).await?;
 		// Write stencils
 		let stencils = self.stencils();
-		writer.write(&(stencils.len() as u32).to_le_bytes()).await?;
+		writer
+			.write_all(&(stencils.len() as u32).to_le_bytes())
+			.await?;
 		for stencil in stencils {
 			size += stencil.write(writer).await?;
 		}

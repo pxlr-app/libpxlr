@@ -1,5 +1,5 @@
 [package]
-name = "document_file"
+name = "document_cloudfile"
 version = "0.2.0"
 edition = "2018"
 
@@ -12,11 +12,13 @@ bytes = "1.0"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 canvas = { path = "../canvas" }
 color = { path = "../color" }
-document_core = { path = "../document_core" }
 document_command = { path = "../document_command" }
+document_core = { path = "../document_core" }
+document_file = { path = "../document_file" }
 nom = "6"
 uuid = { version = "0.8", features = ["stdweb", "v4"] }
 vek = { version = "0.15" }
 
 [dev-dependencies]
+tempdir = "0.3"
 cargo-husky = { version = "1", default-features = false, features = ["user-hooks"] }

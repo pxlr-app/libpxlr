@@ -102,8 +102,8 @@ impl Parse for Footer {
 impl Write for Footer {
 	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
 		use async_std::io::prelude::WriteExt;
-		writer.write(&self.version.to_le_bytes()).await?;
-		writer.write(MAGIC_NUMBER.as_bytes()).await?;
+		writer.write_all(&self.version.to_le_bytes()).await?;
+		writer.write_all(MAGIC_NUMBER.as_bytes()).await?;
 		Ok(5)
 	}
 }
@@ -132,9 +132,9 @@ impl Parse for Index {
 impl Write for Index {
 	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
 		use async_std::io::prelude::WriteExt;
-		writer.write(&self.prev_offset.to_le_bytes()).await?;
-		writer.write(&self.message_size.to_le_bytes()).await?;
-		writer.write(&self.chunks_size.to_le_bytes()).await?;
+		writer.write_all(&self.prev_offset.to_le_bytes()).await?;
+		writer.write_all(&self.message_size.to_le_bytes()).await?;
+		writer.write_all(&self.chunks_size.to_le_bytes()).await?;
 		self.root.write(writer).await?;
 		self.hash.write(writer).await?;
 		Ok(48)
@@ -162,7 +162,7 @@ impl Write for Message {
 	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
 		use async_std::io::prelude::WriteExt;
 		let mut size = 8;
-		writer.write(&self.date.to_le_bytes()).await?;
+		writer.write_all(&self.date.to_le_bytes()).await?;
 		size += self.author.write(writer).await?;
 		size += self.message.write(writer).await?;
 		Ok(size)
@@ -205,9 +205,9 @@ impl Write for Chunk {
 		use async_std::io::prelude::WriteExt;
 		let mut b: usize = 54;
 		self.id.write(writer).await?;
-		writer.write(&self.node_type.to_le_bytes()).await?;
-		writer.write(&self.offset.to_le_bytes()).await?;
-		writer.write(&self.size.to_le_bytes()).await?;
+		writer.write_all(&self.node_type.to_le_bytes()).await?;
+		writer.write_all(&self.offset.to_le_bytes()).await?;
+		writer.write_all(&self.size.to_le_bytes()).await?;
 		self.rect.write(writer).await?;
 		writer
 			.write(&(self.children.len() as u32).to_le_bytes())
@@ -238,6 +238,7 @@ mod tests {
 
 		let size = task::block_on(footer.write(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
+		assert_eq!(size, 5);
 
 		let (_, footer2) = Footer::parse(&buffer.get_ref()).expect("Could not parse");
 		assert_eq!(footer2, footer);
@@ -246,8 +247,8 @@ mod tests {
 	#[test]
 	fn index_parse() {
 		let index = Index {
-			hash: Uuid::parse_str("68204970-a53a-4eb5-bee4-93e3fd19e8de").unwrap(),
-			root: Uuid::parse_str("4a89c955-54fe-4a48-b367-378a8a47ab34").unwrap(),
+			hash: Uuid::new_v4(),
+			root: Uuid::new_v4(),
 			chunks_size: 1,
 			message_size: 2,
 			prev_offset: 3,
@@ -256,6 +257,7 @@ mod tests {
 
 		let size = task::block_on(index.write(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
+		assert_eq!(size, 48);
 
 		let (_, index2) = Index::parse(&buffer.get_ref()).expect("Could not parse");
 		assert_eq!(index2, index);
@@ -280,17 +282,14 @@ mod tests {
 	#[test]
 	fn chunk_parse() {
 		let chunk = Chunk {
-			id: Uuid::parse_str("ac16bacf-9a95-413e-b2f4-fcf94274ad62").unwrap(),
+			id: Uuid::new_v4(),
 			node_type: 1,
 			offset: 2,
 			size: 3,
 			rect: Rect::new(4, 5, 6, 7),
 			name: "Chunk".into(),
-			children: vec![
-				Uuid::parse_str("291666d7-e9e2-4401-8e7b-c3177a2f8536").unwrap(),
-				Uuid::parse_str("5aed490e-e4f0-4a18-94ed-01472f8d52a7").unwrap(),
-			],
-			dependencies: vec![Uuid::parse_str("b1e02af1-468b-4a94-b80f-7050874b39ef").unwrap()],
+			children: vec![Uuid::new_v4(), Uuid::new_v4()],
+			dependencies: vec![Uuid::new_v4()],
 		};
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 

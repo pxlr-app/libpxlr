@@ -89,23 +89,23 @@ impl NodeWrite for NodeType {
 		use async_std::io::prelude::WriteExt;
 		let (size, deps) = match self {
 			NodeType::Unloaded(node) => {
-				writer.write(&0u16.to_le_bytes()).await?;
+				writer.write_all(&0u16.to_le_bytes()).await?;
 				node.write(writer).await
 			}
 			NodeType::Group(node) => {
-				writer.write(&1u16.to_le_bytes()).await?;
+				writer.write_all(&1u16.to_le_bytes()).await?;
 				node.write(writer).await
 			}
 			NodeType::Note(node) => {
-				writer.write(&2u16.to_le_bytes()).await?;
+				writer.write_all(&2u16.to_le_bytes()).await?;
 				node.write(writer).await
 			}
 			NodeType::Palette(node) => {
-				writer.write(&3u16.to_le_bytes()).await?;
+				writer.write_all(&3u16.to_le_bytes()).await?;
 				node.write(writer).await
 			}
 			NodeType::CanvasGroup(node) => {
-				writer.write(&4u16.to_le_bytes()).await?;
+				writer.write_all(&4u16.to_le_bytes()).await?;
 				node.write(writer).await
 			}
 		}?;

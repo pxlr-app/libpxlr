@@ -7,7 +7,5 @@ edition = "2018"
 palette = { version = "0.5" }
 vek = { version = "0.15" }
 
-[dev-dependencies.cargo-husky]
-version = "1"
-default-features = false
-features = ["user-hooks"]
+[dev-dependencies]
+cargo-husky = { version = "1", default-features = false, features = ["user-hooks"] }

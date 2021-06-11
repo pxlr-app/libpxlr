@@ -377,6 +377,8 @@ impl File {
 			size += node_size;
 		}
 
+		self.chunks.insert(*node.id(), chunk);
+
 		if !shallow {
 			for child in node_deps.children.iter() {
 				size += self
@@ -390,7 +392,6 @@ impl File {
 			}
 		}
 
-		self.chunks.insert(*node.id(), chunk);
 		Ok(size)
 	}
 
@@ -401,7 +402,7 @@ impl File {
 		author: impl Into<String>,
 		message: impl Into<String>,
 	) -> async_std::io::Result<usize> {
-		use async_std::io::prelude::SeekExt;
+		use async_std::io::prelude::*;
 
 		let mut size = 0;
 		let prev_offset = writer.seek(async_std::io::SeekFrom::End(0)).await?;
@@ -436,6 +437,8 @@ impl File {
 
 		size += self.index.write(writer).await?;
 		size += (Footer { version: 0 }).write(writer).await?;
+
+		writer.flush().await?;
 
 		Ok(size)
 	}

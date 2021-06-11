@@ -13,7 +13,5 @@ vek = { version = "0.15" }
 [build-dependencies]
 rustc_version = "0.2.3"
 
-[dev-dependencies.cargo-husky]
-version = "1"
-default-features = false
-features = ["user-hooks"]
+[dev-dependencies]
+cargo-husky = { version = "1", default-features = false, features = ["user-hooks"] }

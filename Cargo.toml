@@ -2,6 +2,7 @@
 members = [
 	"canvas",
 	"color",
+	"document_cloudfile",
 	"document_command",
 	"document_core",
 	"document_file",

@@ -18,7 +18,7 @@ impl Parse for Luma {
 impl Write for Luma {
 	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
 		use async_std::io::prelude::WriteExt;
-		writer.write(&self.luma.to_le_bytes()).await?;
+		writer.write_all(&self.luma.to_le_bytes()).await?;
 		Ok(1)
 	}
 }
@@ -54,9 +54,9 @@ impl Parse for Rgb {
 impl Write for Rgb {
 	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
 		use async_std::io::prelude::WriteExt;
-		writer.write(&self.red.to_le_bytes()).await?;
-		writer.write(&self.green.to_le_bytes()).await?;
-		writer.write(&self.blue.to_le_bytes()).await?;
+		writer.write_all(&self.red.to_le_bytes()).await?;
+		writer.write_all(&self.green.to_le_bytes()).await?;
+		writer.write_all(&self.blue.to_le_bytes()).await?;
 		Ok(3)
 	}
 }
@@ -74,7 +74,7 @@ impl Write for Rgba {
 	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
 		use async_std::io::prelude::WriteExt;
 		let size = self.color.write(writer).await?;
-		writer.write(&self.alpha.to_le_bytes()).await?;
+		writer.write_all(&self.alpha.to_le_bytes()).await?;
 		Ok(1 + size)
 	}
 }
@@ -91,8 +91,8 @@ impl Parse for Uv {
 impl Write for Uv {
 	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
 		use async_std::io::prelude::WriteExt;
-		writer.write(&self.u.to_le_bytes()).await?;
-		writer.write(&self.v.to_le_bytes()).await?;
+		writer.write_all(&self.u.to_le_bytes()).await?;
+		writer.write_all(&self.v.to_le_bytes()).await?;
 		Ok(8)
 	}
 }
@@ -110,9 +110,9 @@ impl Parse for Normal {
 impl Write for Normal {
 	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
 		use async_std::io::prelude::WriteExt;
-		writer.write(&self.x.to_le_bytes()).await?;
-		writer.write(&self.y.to_le_bytes()).await?;
-		writer.write(&self.z.to_le_bytes()).await?;
+		writer.write_all(&self.x.to_le_bytes()).await?;
+		writer.write_all(&self.y.to_le_bytes()).await?;
+		writer.write_all(&self.z.to_le_bytes()).await?;
 		Ok(12)
 	}
 }
@@ -158,7 +158,7 @@ impl Write for Channel {
 			Channel::RgbNormal => 8,
 			Channel::RgbaNormal => 9,
 		};
-		writer.write(&id.to_le_bytes()).await?;
+		writer.write_all(&id.to_le_bytes()).await?;
 		Ok(1)
 	}
 }

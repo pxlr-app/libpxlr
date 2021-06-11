@@ -26,9 +26,9 @@ impl Parse for String {
 impl Write for String {
 	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
 		use async_std::io::prelude::WriteExt;
-		writer.write(&(self.len() as u32).to_le_bytes()).await?;
+		writer.write_all(&(self.len() as u32).to_le_bytes()).await?;
 		let buf = self.as_bytes();
-		writer.write(buf).await?;
+		writer.write_all(buf).await?;
 		Ok(4usize + buf.len())
 	}
 }
@@ -37,9 +37,9 @@ impl Write for String {
 impl Write for &str {
 	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
 		use async_std::io::prelude::WriteExt;
-		writer.write(&(self.len() as u32).to_le_bytes()).await?;
+		writer.write_all(&(self.len() as u32).to_le_bytes()).await?;
 		let buf = self.as_bytes();
-		writer.write(buf).await?;
+		writer.write_all(buf).await?;
 		Ok(4usize + buf.len())
 	}
 }
@@ -55,7 +55,7 @@ impl Parse for Uuid {
 impl Write for Uuid {
 	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
 		use async_std::io::prelude::WriteExt;
-		writer.write(self.as_bytes()).await?;
+		writer.write_all(self.as_bytes()).await?;
 		Ok(16)
 	}
 }
@@ -74,10 +74,10 @@ impl Parse for Rect<i32, i32> {
 impl Write for Rect<i32, i32> {
 	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
 		use async_std::io::prelude::WriteExt;
-		writer.write(&self.x.to_le_bytes()).await?;
-		writer.write(&self.y.to_le_bytes()).await?;
-		writer.write(&self.w.to_le_bytes()).await?;
-		writer.write(&self.h.to_le_bytes()).await?;
+		writer.write_all(&self.x.to_le_bytes()).await?;
+		writer.write_all(&self.y.to_le_bytes()).await?;
+		writer.write_all(&self.w.to_le_bytes()).await?;
+		writer.write_all(&self.h.to_le_bytes()).await?;
 		Ok(16)
 	}
 }
@@ -94,8 +94,8 @@ impl Parse for Vec2<i32> {
 impl Write for Vec2<i32> {
 	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
 		use async_std::io::prelude::WriteExt;
-		writer.write(&self.x.to_le_bytes()).await?;
-		writer.write(&self.y.to_le_bytes()).await?;
+		writer.write_all(&self.x.to_le_bytes()).await?;
+		writer.write_all(&self.y.to_le_bytes()).await?;
 		Ok(8)
 	}
 }
