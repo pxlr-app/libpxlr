@@ -4,32 +4,12 @@ use async_trait::async_trait;
 use std::{marker, path::PathBuf};
 use uuid::Uuid;
 
-fn uuid_to_pathbuf(uuid: &Uuid) -> PathBuf {
-	#[cfg(target_os = "windows")]
-	let path = Into::<std::ffi::OsString>::into(uuid.to_string());
-	#[cfg(not(target_os = "windows"))]
-	let path = <std::ffi::OsStr as std::os::unix::ffi::OsStrExt>::from_bytes(uuid.as_bytes());
-	let mut pathbuf = PathBuf::new();
-	pathbuf.push(path);
-	pathbuf
-}
-
 impl From<&Location<Uuid>> for PathBuf {
 	fn from(location: &Location<Uuid>) -> Self {
-		let mut path = PathBuf::new();
-
-		match location {
-			Location::Public(key) => {
-				path.push(uuid_to_pathbuf(key));
-			}
-			Location::Private { owner, key } => {
-				path.push(uuid_to_pathbuf(owner));
-				path.push(uuid_to_pathbuf(key));
-			}
-			_ => {}
-		};
-
-		path
+		let mut path = location.0.to_string();
+		path.push('_');
+		path.push_str(&location.1.to_string());
+		path.into()
 	}
 }
 

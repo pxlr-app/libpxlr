@@ -33,7 +33,6 @@ pub struct CloudFile<B: Backend + PartialEq> {
 #[derive(Debug)]
 pub enum CloudFileError {
 	FileError(FileError),
-	LocationError(LocationError<Uuid>),
 }
 
 impl std::error::Error for CloudFileError {}
@@ -42,7 +41,6 @@ impl std::fmt::Display for CloudFileError {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match self {
 			CloudFileError::FileError(err) => err.fmt(f),
-			CloudFileError::LocationError(err) => err.fmt(f),
 		}
 	}
 }
@@ -56,12 +54,6 @@ impl From<async_std::io::Error> for CloudFileError {
 impl From<FileError> for CloudFileError {
 	fn from(error: FileError) -> Self {
 		CloudFileError::FileError(error)
-	}
-}
-
-impl From<LocationError<Uuid>> for CloudFileError {
-	fn from(error: LocationError<Uuid>) -> Self {
-		CloudFileError::LocationError(error)
 	}
 }
 
@@ -80,8 +72,8 @@ impl From<nom::Err<nom::error::Error<&[u8]>>> for CloudFileError {
 }
 
 impl<B: Backend + PartialEq + Clone> CloudFile<B> {
-	pub fn location(&self) -> Location<Uuid> {
-		(self.index.realm, self.index.inner_index.hash).into()
+	pub fn location(&self) -> &Location<Uuid> {
+		&self.index.location
 	}
 
 	pub fn backend(&self) -> &B {
@@ -128,15 +120,15 @@ impl<B: Backend + PartialEq + Clone> CloudFile<B> {
 
 		match footer.version {
 			0 => {
-				let mut buffer = [0u8; 99];
-				reader.seek(async_std::io::SeekFrom::End(-5 - 99)).await?;
+				let mut buffer = [0u8; 113];
+				reader.seek(async_std::io::SeekFrom::End(-5 - 113)).await?;
 				reader.read_exact(&mut buffer).await?;
 				let (_, index) = CloudIndex::parse(&buffer)?;
 
 				let mut buffer = vec![0u8; index.inner_index.message_size as usize];
 				reader
 					.seek(async_std::io::SeekFrom::End(
-						-5 - 99 - index.inner_index.message_size as i64,
+						-5 - 113 - index.inner_index.message_size as i64,
 					))
 					.await?;
 				reader.read_exact(&mut buffer).await?;
@@ -145,7 +137,7 @@ impl<B: Backend + PartialEq + Clone> CloudFile<B> {
 				let mut buffer = vec![0u8; index.inner_index.chunks_size as usize];
 				reader
 					.seek(async_std::io::SeekFrom::End(
-						-5 - 99
+						-5 - 113
 							- index.inner_index.message_size as i64
 							- index.inner_index.chunks_size as i64,
 					))
@@ -228,7 +220,7 @@ impl<B: Backend + PartialEq + Clone> CloudFile<B> {
 		let mut chunk = match self.chunks.remove(node.id()) {
 			Some(chunk) => chunk,
 			None => CloudChunk {
-				location: Location::Local,
+				location: None,
 				inner_chunk: Chunk {
 					id: *node.id(),
 					node_type: 0,
@@ -238,7 +230,7 @@ impl<B: Backend + PartialEq + Clone> CloudFile<B> {
 				},
 			},
 		};
-		chunk.location = location;
+		chunk.location = Some(location);
 		chunk.inner_chunk.node_type = node.node_id();
 		chunk.inner_chunk.offset = offset;
 		chunk.inner_chunk.name = node.name().to_string();
@@ -297,36 +289,19 @@ impl<B: Backend + PartialEq + Clone> CloudFile<B> {
 	/// Write new object to backend
 	pub async fn write(
 		&mut self,
-		realm: Realm<Uuid>,
+		location: Location<Uuid>,
 		author: impl Into<String>,
 		message: impl Into<String>,
 	) -> Result<usize, CloudFileError> {
 		let new_id = Uuid::new_v4();
 
 		for (_, chunk) in self.chunks.iter_mut() {
-			chunk.location = match (&realm, &chunk.location) {
-				(&Realm::Public, &Location::Local) => Location::Public(new_id),
-				(&Realm::Private(owner), &Location::Local) => {
-					Location::Private { owner, key: new_id }
-				}
-				(_, &Location::Public(key)) => Location::Public(key),
-				(&Realm::Public, &Location::Private { .. }) => {
-					return Err(LocationError::PrivateLeak.into())
-				}
-				(&Realm::Private(owner_a), &Location::Private { owner, key }) => {
-					if owner_a == owner {
-						Location::Private { owner, key }
-					} else {
-						return Err(LocationError::NotSameOwner(owner_a, owner).into());
-					}
-				}
-			};
+			chunk.location = chunk.location.take().or(Some(location));
 		}
 
-		let new_loc: Location<Uuid> = (realm, new_id).into();
 		let mut written = 0;
 
-		let mut writer = self.backend.get_writer(&new_loc).await?;
+		let mut writer = self.backend.get_writer(&location).await?;
 		let dirty_nodes: Vec<DirtyNode> = self.dirty_nodes.drain().map(|(_, node)| node).collect();
 		for doc_node in dirty_nodes.iter() {
 			written += self
@@ -336,7 +311,7 @@ impl<B: Backend + PartialEq + Clone> CloudFile<B> {
 					doc_node.shallow,
 					doc_node.node.clone(),
 					written as u64,
-					new_loc,
+					location,
 				)
 				.await?;
 		}
@@ -353,8 +328,8 @@ impl<B: Backend + PartialEq + Clone> CloudFile<B> {
 		let message_size = self.message.write(&mut writer).await?;
 		written += message_size;
 
-		self.index.prev_location = Some((self.index.realm, self.index.inner_index.hash).into());
-		self.index.realm = realm;
+		self.index.prev_location = Some(self.index.location);
+		self.index.location = location;
 		self.index.inner_index.hash = new_id;
 		self.index.inner_index.prev_offset = 0;
 		self.index.inner_index.message_size = message_size as u32;
@@ -401,13 +376,13 @@ mod tests {
 		let root = Arc::new(NodeType::Note(note));
 		doc.set_root_node(root.clone());
 
-		let written = task::block_on(doc.write(Realm::Public, "Test", "My message"))
+		let location = Location(Uuid::new_v4(), Uuid::new_v4());
+		let written = task::block_on(doc.write(location, "Test", "My message"))
 			.expect("Could not write file");
 		assert!(written > 0);
 
-		let loc = doc.location();
 		let doc2 =
-			task::block_on(CloudFile::read(vault.clone(), loc)).expect("Could not read file");
+			task::block_on(CloudFile::read(vault.clone(), location)).expect("Could not read file");
 		assert_eq!(doc, doc2);
 	}
 
@@ -434,10 +409,10 @@ mod tests {
 		let root = Arc::new(NodeType::Group(group));
 		doc0.set_root_node(root.clone());
 
-		let written = task::block_on(doc0.write(Realm::Public, "Test", "My message"))
-			.expect("Could not write file");
+		let loc0 = Location(Uuid::new_v4(), Uuid::new_v4());
+		let written =
+			task::block_on(doc0.write(loc0, "Test", "My message")).expect("Could not write file");
 		assert!(written > 0);
-		let loc = doc0.location();
 
 		let rename = RenameCommand::new(note_id, "Note AA");
 		let root2 = Arc::new(rename.execute(&*root).expect("Could not rename"));
@@ -446,19 +421,16 @@ mod tests {
 		let mut doc1 = doc0.clone();
 		doc1.update_node(note_a.clone(), false);
 
-		let written2 =
-			task::block_on(doc1.write(Realm::Public, "Test", "B")).expect("Could not write");
+		let loc1 = Location(Uuid::new_v4(), Uuid::new_v4());
+		let written2 = task::block_on(doc1.write(loc1, "Test", "B")).expect("Could not write");
 		assert!(written2 > 0);
-		let loc2 = doc1.location();
-
-		assert_ne!(loc2, loc);
 
 		let doc2 =
-			task::block_on(CloudFile::read(vault.clone(), loc2)).expect("Could not read file");
+			task::block_on(CloudFile::read(vault.clone(), loc1)).expect("Could not read file");
 		assert_eq!(doc2, doc1);
 
 		let doc3 =
-			task::block_on(CloudFile::read(vault.clone(), loc)).expect("Could not read file");
+			task::block_on(CloudFile::read(vault.clone(), loc0)).expect("Could not read file");
 		assert_eq!(doc3, doc0);
 	}
 }
