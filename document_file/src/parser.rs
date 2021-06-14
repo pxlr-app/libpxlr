@@ -210,10 +210,10 @@ impl Write for Chunk {
 		writer.write_all(&self.size.to_le_bytes()).await?;
 		self.rect.write(writer).await?;
 		writer
-			.write(&(self.children.len() as u32).to_le_bytes())
+			.write_all(&(self.children.len() as u32).to_le_bytes())
 			.await?;
 		writer
-			.write(&(self.dependencies.len() as u32).to_le_bytes())
+			.write_all(&(self.dependencies.len() as u32).to_le_bytes())
 			.await?;
 		b += self.name.write(writer).await?;
 		for item in self.children.iter() {

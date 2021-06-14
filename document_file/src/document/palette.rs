@@ -39,7 +39,7 @@ impl NodeWrite for Palette {
 		use async_std::io::prelude::WriteExt;
 		let mut size = 1;
 		writer
-			.write(&(self.colors().len() as u8).to_le_bytes())
+			.write_all(&(self.colors().len() as u8).to_le_bytes())
 			.await?;
 		for color in self.colors().iter() {
 			size += color.write(writer).await?;

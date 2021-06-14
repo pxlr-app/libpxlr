@@ -1,8 +1,7 @@
 use async_std::io;
 use async_trait::async_trait;
 use document_file::{Chunk, Index, Parse, Write};
-use nom::{number::complete::le_u8, IResult};
-use std::path::{Path, PathBuf};
+use nom::IResult;
 use uuid::Uuid;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -67,13 +66,11 @@ impl Parse for CloudIndex {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], CloudIndex> {
 		let (bytes, location) = <Location<Uuid>>::parse(bytes)?;
 		let (bytes, index) = Index::parse(bytes)?;
-		let (bytes, has_location) = le_u8(bytes)?;
-		let (bytes, prev_location) = if has_location == 1 {
-			let (bytes, location) = Location::parse(bytes)?;
-			(bytes, Some(location))
+		let (bytes, prev_location) = Location::parse(bytes)?;
+		let prev_location = if prev_location == <Location<Uuid>>::default() {
+			None
 		} else {
-			let (bytes, _) = <Location<Uuid>>::parse(bytes)?;
-			(bytes, None)
+			Some(prev_location)
 		};
 
 		Ok((
@@ -90,30 +87,25 @@ impl Parse for CloudIndex {
 #[async_trait(?Send)]
 impl Write for CloudIndex {
 	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
-		use async_std::io::prelude::WriteExt;
 		let mut size = self.location.write(writer).await?;
 		size += self.inner_index.write(writer).await?;
 		if let Some(location) = &self.prev_location {
-			writer.write_all(&1u8.to_le_bytes()).await?;
 			size += location.write(writer).await?;
 		} else {
-			writer.write_all(&0u8.to_le_bytes()).await?;
 			size += <Location<Uuid>>::default().write(writer).await?;
 		}
-		Ok(size + 1)
+		Ok(size)
 	}
 }
 
 impl Parse for CloudChunk {
 	fn parse(bytes: &[u8]) -> IResult<&[u8], CloudChunk> {
 		let (bytes, chunk) = Chunk::parse(bytes)?;
-		let (bytes, has_location) = le_u8(bytes)?;
-		let (bytes, location) = if has_location == 1 {
-			let (bytes, location) = Location::parse(bytes)?;
-			(bytes, Some(location))
+		let (bytes, location) = Location::parse(bytes)?;
+		let location = if location == <Location<Uuid>>::default() {
+			None
 		} else {
-			let (bytes, _) = <Location<Uuid>>::parse(bytes)?;
-			(bytes, None)
+			Some(location)
 		};
 		Ok((
 			bytes,
@@ -128,17 +120,14 @@ impl Parse for CloudChunk {
 #[async_trait(?Send)]
 impl Write for CloudChunk {
 	async fn write<W: io::Write + std::marker::Unpin>(&self, writer: &mut W) -> io::Result<usize> {
-		use async_std::io::prelude::WriteExt;
 		let mut size: usize = 0;
 		size += self.inner_chunk.write(writer).await?;
 		if let Some(location) = &self.location {
-			writer.write_all(&1u8.to_le_bytes()).await?;
 			size += location.write(writer).await?;
 		} else {
-			writer.write_all(&0u8.to_le_bytes()).await?;
 			size += <Location<Uuid>>::default().write(writer).await?;
 		}
-		Ok(size + 1)
+		Ok(size)
 	}
 }
 
@@ -185,7 +174,7 @@ mod tests {
 
 		let size = task::block_on(index.write(&mut buffer)).expect("Could not write");
 		assert_eq!(buffer.get_ref().len(), size);
-		assert_eq!(size, 113);
+		assert_eq!(size, 112);
 
 		let (_, index2) = CloudIndex::parse(&buffer.get_ref()).expect("Could not parse");
 		assert_eq!(index2, index);
@@ -204,7 +193,7 @@ mod tests {
 				children: vec![Uuid::new_v4(), Uuid::new_v4()],
 				dependencies: vec![Uuid::new_v4()],
 			},
-			location: Some(Location::default()),
+			location: None,
 		};
 		let mut buffer: io::Cursor<Vec<u8>> = io::Cursor::new(Vec::new());
 

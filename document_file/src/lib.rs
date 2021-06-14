@@ -144,19 +144,21 @@ impl File {
 				reader.read_exact(&mut buffer).await?;
 				let (_, message) = Message::parse(&buffer)?;
 
-				let mut buffer = vec![0u8; index.chunks_size as usize];
-				reader
-					.seek(async_std::io::SeekFrom::Start(
-						offset - 5 - 48 - index.message_size as u64 - index.chunks_size as u64,
-					))
-					.await?;
-				reader.read_exact(&mut buffer).await?;
-
-				let (_, mut chunks) = nom::multi::many0(Chunk::parse)(&buffer)?;
 				let mut chunk_map = HashMap::default();
+				if index.chunks_size > 0 {
+					let mut buffer = vec![0u8; index.chunks_size as usize];
+					reader
+						.seek(async_std::io::SeekFrom::Start(
+							offset - 5 - 48 - index.message_size as u64 - index.chunks_size as u64,
+						))
+						.await?;
+					reader.read_exact(&mut buffer).await?;
 
-				for chunk in chunks.drain(..) {
-					chunk_map.insert(chunk.id, chunk);
+					let (_, mut chunks) = nom::multi::many1(Chunk::parse)(&buffer)?;
+
+					for chunk in chunks.drain(..) {
+						chunk_map.insert(chunk.id, chunk);
+					}
 				}
 
 				// TODO assert chunks tree is sound (all children/deps ID exists)

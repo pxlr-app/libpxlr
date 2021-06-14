@@ -18,8 +18,8 @@ pub trait Backend {
 	type Reader: io::Read + io::Seek + marker::Unpin;
 	type Writer: io::Write + marker::Unpin;
 
-	async fn get_reader(&mut self, location: &Location<Uuid>) -> io::Result<Self::Reader>;
-	async fn get_writer(&mut self, location: &Location<Uuid>) -> io::Result<Self::Writer>;
+	async fn get_reader(&self, location: &Location<Uuid>) -> io::Result<Self::Reader>;
+	async fn get_writer(&self, location: &Location<Uuid>) -> io::Result<Self::Writer>;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -38,7 +38,7 @@ impl Backend for LocalVaultBackend {
 	type Reader = fs::File;
 	type Writer = fs::File;
 
-	async fn get_reader(&mut self, location: &Location<Uuid>) -> io::Result<Self::Reader> {
+	async fn get_reader(&self, location: &Location<Uuid>) -> io::Result<Self::Reader> {
 		let path: PathBuf = location.into();
 		let file = fs::OpenOptions::new()
 			.read(true)
@@ -47,10 +47,11 @@ impl Backend for LocalVaultBackend {
 		Ok(file)
 	}
 
-	async fn get_writer(&mut self, location: &Location<Uuid>) -> io::Result<Self::Writer> {
+	async fn get_writer(&self, location: &Location<Uuid>) -> io::Result<Self::Writer> {
 		let path: PathBuf = location.into();
 		let file = fs::OpenOptions::new()
 			.create(true)
+			.truncate(true)
 			.write(true)
 			.open(self.root.join(path))
 			.await?;

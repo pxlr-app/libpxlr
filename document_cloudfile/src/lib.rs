@@ -6,10 +6,11 @@ pub use self::parser::*;
 use async_recursion::async_recursion;
 use async_std::io;
 use async_std::io::prelude::WriteExt;
-use document_core::HasBounds;
-use document_core::{Node, NodeType};
-use document_file::NodeWrite;
-use document_file::{Chunk, FileError, Footer, Message, NodeId, Parse, Write};
+use document_core::{HasBounds, Node, NodeType, Unloaded};
+use document_file::{
+	Chunk, ChunkDependencies, FileError, Footer, Message, NodeId, NodeParse, NodeWrite, Parse,
+	Write,
+};
 use std::{collections::HashMap, convert::TryInto, sync::Arc};
 use uuid::Uuid;
 
@@ -28,47 +29,6 @@ pub struct CloudFile<B: Backend + PartialEq> {
 	message: Message,
 	chunks: HashMap<Uuid, CloudChunk>,
 	dirty_nodes: HashMap<Uuid, DirtyNode>,
-}
-
-#[derive(Debug)]
-pub enum CloudFileError {
-	FileError(FileError),
-}
-
-impl std::error::Error for CloudFileError {}
-
-impl std::fmt::Display for CloudFileError {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		match self {
-			CloudFileError::FileError(err) => err.fmt(f),
-		}
-	}
-}
-
-impl From<async_std::io::Error> for CloudFileError {
-	fn from(error: async_std::io::Error) -> Self {
-		CloudFileError::FileError(FileError::IO(error))
-	}
-}
-
-impl From<FileError> for CloudFileError {
-	fn from(error: FileError) -> Self {
-		CloudFileError::FileError(error)
-	}
-}
-
-impl From<nom::Err<nom::error::Error<&[u8]>>> for CloudFileError {
-	fn from(error: nom::Err<nom::error::Error<&[u8]>>) -> Self {
-		match error {
-			nom::Err::Incomplete(needed) => {
-				CloudFileError::FileError(FileError::Parse(nom::Err::Incomplete(needed)))
-			}
-			nom::Err::Failure(_) => {
-				CloudFileError::FileError(FileError::Parse(nom::Err::Failure(())))
-			}
-			nom::Err::Error(_) => CloudFileError::FileError(FileError::Parse(nom::Err::Error(()))),
-		}
-	}
 }
 
 impl<B: Backend + PartialEq + Clone> CloudFile<B> {
@@ -107,7 +67,7 @@ impl<B: Backend + PartialEq + Clone> CloudFile<B> {
 		})
 	}
 
-	pub async fn read(mut backend: B, location: Location<Uuid>) -> Result<Self, CloudFileError> {
+	pub async fn read(backend: B, location: Location<Uuid>) -> Result<Self, FileError> {
 		use async_std::io::prelude::ReadExt;
 		use async_std::io::prelude::SeekExt;
 
@@ -120,35 +80,37 @@ impl<B: Backend + PartialEq + Clone> CloudFile<B> {
 
 		match footer.version {
 			0 => {
-				let mut buffer = [0u8; 113];
-				reader.seek(async_std::io::SeekFrom::End(-5 - 113)).await?;
+				let mut buffer = [0u8; 112];
+				reader.seek(async_std::io::SeekFrom::End(-5 - 112)).await?;
 				reader.read_exact(&mut buffer).await?;
 				let (_, index) = CloudIndex::parse(&buffer)?;
 
 				let mut buffer = vec![0u8; index.inner_index.message_size as usize];
 				reader
 					.seek(async_std::io::SeekFrom::End(
-						-5 - 113 - index.inner_index.message_size as i64,
+						-5 - 112 - index.inner_index.message_size as i64,
 					))
 					.await?;
 				reader.read_exact(&mut buffer).await?;
 				let (_, message) = Message::parse(&buffer)?;
 
-				let mut buffer = vec![0u8; index.inner_index.chunks_size as usize];
-				reader
-					.seek(async_std::io::SeekFrom::End(
-						-5 - 113
-							- index.inner_index.message_size as i64
-							- index.inner_index.chunks_size as i64,
-					))
-					.await?;
-				reader.read_exact(&mut buffer).await?;
-
-				let (_, mut chunks) = nom::multi::many0(CloudChunk::parse)(&buffer)?;
 				let mut chunk_map = HashMap::default();
+				if index.inner_index.chunks_size > 0 {
+					let mut buffer = vec![0u8; index.inner_index.chunks_size as usize];
+					reader
+						.seek(async_std::io::SeekFrom::End(
+							-5 - 112
+								- index.inner_index.message_size as i64
+								- index.inner_index.chunks_size as i64,
+						))
+						.await?;
+					reader.read_exact(&mut buffer).await?;
 
-				for chunk in chunks.drain(..) {
-					chunk_map.insert(chunk.inner_chunk.id, chunk);
+					let (_, mut chunks) = nom::multi::many1(CloudChunk::parse)(&buffer)?;
+
+					for chunk in chunks.drain(..) {
+						chunk_map.insert(chunk.inner_chunk.id, chunk);
+					}
 				}
 
 				// TODO assert chunks tree is sound (all children/deps ID exists)
@@ -162,9 +124,131 @@ impl<B: Backend + PartialEq + Clone> CloudFile<B> {
 					dirty_nodes: HashMap::default(),
 				})
 			}
-			_ => Err(CloudFileError::FileError(FileError::UnsupportedVersion(
-				footer.version as u8,
-			))),
+			_ => Err(FileError::UnsupportedVersion(footer.version as u8)),
+		}
+	}
+
+	/// Retrieve root node
+	pub async fn get_root_node(&self, shallow: bool) -> Result<Arc<NodeType>, FileError> {
+		self.get_node_by_id(self.index.inner_index.root, shallow)
+			.await
+	}
+
+	/// Gather chunk by walking dependency tree from node
+	fn get_chunk_dependencies(&self, id: Uuid) -> Vec<&CloudChunk> {
+		let mut deps = vec![];
+		let mut queue: Vec<Uuid> = Vec::with_capacity(self.chunks.len());
+		queue.push(id);
+		while let Some(id) = queue.pop() {
+			if let Some(chunk) = self.chunks.get(&id) {
+				deps.push(chunk);
+				queue.extend_from_slice(&chunk.inner_chunk.children);
+				queue.extend_from_slice(&chunk.inner_chunk.dependencies);
+			}
+		}
+		deps
+	}
+
+	/// Retrieve a node by it's ID
+	pub async fn get_node_by_id(
+		&self,
+		id: Uuid,
+		shallow: bool,
+	) -> Result<Arc<NodeType>, FileError> {
+		use async_std::io::prelude::ReadExt;
+		use async_std::io::prelude::SeekExt;
+
+		if !self.chunks.contains_key(&id) {
+			Err(FileError::NodeNotFound(id))
+		} else {
+			let mut nodes: HashMap<Uuid, Arc<NodeType>> = HashMap::default();
+			let mut deps = self.get_chunk_dependencies(id);
+			deps.reverse();
+
+			for chunk in deps.drain(..) {
+				if !nodes.contains_key(&chunk.inner_chunk.id) {
+					let mut reader = self
+						.backend
+						.get_reader(&chunk.location.or(Some(self.index.location)).unwrap())
+						.await?;
+
+					let mut buffer = vec![0u8; chunk.inner_chunk.size as usize];
+					reader
+						.seek(async_std::io::SeekFrom::Start(chunk.inner_chunk.offset))
+						.await?;
+					reader.read_exact(&mut buffer).await?;
+
+					let (children, dependencies) = if shallow {
+						let children: Vec<_> = chunk
+							.inner_chunk
+							.children
+							.iter()
+							.map(|id| {
+								self.chunks
+									.get(&id)
+									.map(|chunk| {
+										Arc::new(NodeType::Unloaded(unsafe {
+											Unloaded::construct(
+												chunk.inner_chunk.id,
+												chunk.inner_chunk.name.clone(),
+												chunk.inner_chunk.rect.clone(),
+											)
+										}))
+									})
+									.unwrap()
+							})
+							.collect();
+						let dependencies: Vec<_> = chunk
+							.inner_chunk
+							.dependencies
+							.iter()
+							.map(|id| {
+								self.chunks
+									.get(&id)
+									.map(|chunk| {
+										Arc::new(NodeType::Unloaded(unsafe {
+											Unloaded::construct(
+												chunk.inner_chunk.id,
+												chunk.inner_chunk.name.clone(),
+												chunk.inner_chunk.rect.clone(),
+											)
+										}))
+									})
+									.unwrap()
+							})
+							.collect();
+						(children, dependencies)
+					} else {
+						let children: Vec<_> = chunk
+							.inner_chunk
+							.children
+							.iter()
+							.map(|id| nodes.get(&id).unwrap().clone())
+							.collect();
+						let dependencies: Vec<_> = chunk
+							.inner_chunk
+							.dependencies
+							.iter()
+							.map(|id| nodes.get(&id).unwrap().clone())
+							.collect();
+						(children, dependencies)
+					};
+
+					let (_, node) = NodeType::parse(
+						self.footer.version,
+						&chunk.inner_chunk,
+						ChunkDependencies {
+							children,
+							dependencies,
+						},
+						&buffer,
+					)?;
+					nodes.insert(*node.id(), node);
+				}
+			}
+
+			let node = nodes.get(&id).unwrap().clone();
+			Ok(node)
 		}
 	}
 
@@ -292,7 +376,7 @@ impl<B: Backend + PartialEq + Clone> CloudFile<B> {
 		location: Location<Uuid>,
 		author: impl Into<String>,
 		message: impl Into<String>,
-	) -> Result<usize, CloudFileError> {
+	) -> Result<usize, FileError> {
 		let new_id = Uuid::new_v4();
 
 		for (_, chunk) in self.chunks.iter_mut() {
@@ -328,7 +412,11 @@ impl<B: Backend + PartialEq + Clone> CloudFile<B> {
 		let message_size = self.message.write(&mut writer).await?;
 		written += message_size;
 
-		self.index.prev_location = Some(self.index.location);
+		self.index.prev_location = if self.index.location == Location::default() {
+			None
+		} else {
+			Some(self.index.location)
+		};
 		self.index.location = location;
 		self.index.inner_index.hash = new_id;
 		self.index.inner_index.prev_offset = 0;
@@ -344,7 +432,7 @@ impl<B: Backend + PartialEq + Clone> CloudFile<B> {
 	}
 
 	/// Retrieve a new document pointing to previous File
-	pub async fn read_previous(&self) -> Result<Self, CloudFileError> {
+	pub async fn read_previous(&self) -> Result<Self, FileError> {
 		match self.index.prev_location {
 			Some(prev_location) => Self::read(self.backend.clone(), prev_location).await,
 			None => Err(FileError::NoPreviousVersion.into()),
@@ -384,6 +472,9 @@ mod tests {
 		let doc2 =
 			task::block_on(CloudFile::read(vault.clone(), location)).expect("Could not read file");
 		assert_eq!(doc, doc2);
+
+		let root2 = task::block_on(doc2.get_root_node(false)).expect("Could not get root");
+		assert_eq!(*root2, *root);
 	}
 
 	#[test]
@@ -398,18 +489,38 @@ mod tests {
 		let mut doc0 =
 			task::block_on(CloudFile::new(vault.clone())).expect("Could not create new file");
 
-		let note_a = Arc::new(NodeType::Note(Note::new("Note A", (0, 0), "AAAAAAAAAA")));
+		let note_a = Arc::new(NodeType::Note(unsafe {
+			Note::construct(
+				Uuid::parse_str("1b1fb655-1110-4e25-9c88-0d49d21456ad").unwrap(),
+				"Note A".into(),
+				(0, 0).into(),
+				"AAAAAAAAAA".into(),
+			)
+		}));
 		let note_id = *note_a.id();
-		let note_b = Note::new("Note B", (0, 0), "BBBBBBBBBB");
-		let group = Group::new(
-			"Group",
-			(0, 0),
-			vec![note_a.clone(), Arc::new(NodeType::Note(note_b))],
-		);
+		let note_b = unsafe {
+			Note::construct(
+				Uuid::parse_str("cfc592b5-9bc1-49b4-b2d9-40ae0cb97c6a").unwrap(),
+				"Note B".into(),
+				(0, 0).into(),
+				"BBBBBBBBBB".into(),
+			)
+		};
+		let group = unsafe {
+			Group::construct(
+				Uuid::parse_str("4e3da9cc-2661-4725-b70e-15425a0d1ac2").unwrap(),
+				"Group".into(),
+				(0, 0).into(),
+				vec![note_a.clone(), Arc::new(NodeType::Note(note_b))],
+			)
+		};
 		let root = Arc::new(NodeType::Group(group));
 		doc0.set_root_node(root.clone());
 
-		let loc0 = Location(Uuid::new_v4(), Uuid::new_v4());
+		let loc0 = Location(
+			Uuid::parse_str("9da7f444-6bf0-4723-b4dd-5b695f30d42e").unwrap(),
+			Uuid::parse_str("8369e12b-e3e6-4c3a-87f2-c77073a3f3ae").unwrap(),
+		);
 		let written =
 			task::block_on(doc0.write(loc0, "Test", "My message")).expect("Could not write file");
 		assert!(written > 0);
@@ -418,16 +529,24 @@ mod tests {
 		let root2 = Arc::new(rename.execute(&*root).expect("Could not rename"));
 		assert_ne!(*root2, *root);
 
-		let mut doc1 = doc0.clone();
-		doc1.update_node(note_a.clone(), false);
+		let note_a2 = find(&root2, &note_id).expect("Could not find note_id");
 
-		let loc1 = Location(Uuid::new_v4(), Uuid::new_v4());
+		let mut doc1 = doc0.clone();
+		doc1.update_node(note_a2.clone(), false);
+
+		let loc1 = Location(
+			Uuid::parse_str("1ab52e6b-109b-40e8-bb4b-ece03bf7c3f7").unwrap(),
+			Uuid::parse_str("c542dcee-68e5-4875-a055-14e1b96ef4f1").unwrap(),
+		);
 		let written2 = task::block_on(doc1.write(loc1, "Test", "B")).expect("Could not write");
-		assert!(written2 > 0);
+		assert_eq!(written2, 474);
 
 		let doc2 =
 			task::block_on(CloudFile::read(vault.clone(), loc1)).expect("Could not read file");
-		assert_eq!(doc2, doc1);
+
+		let root2 = task::block_on(doc2.get_root_node(false)).expect("Could not get root");
+		let note_a3 = find(&root2, &note_id).expect("Could not find note_id");
+		assert_eq!(note_a3.name(), "Note AA");
 
 		let doc3 =
 			task::block_on(CloudFile::read(vault.clone(), loc0)).expect("Could not read file");
