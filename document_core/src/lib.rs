@@ -1,5 +1,6 @@
 use uuid::Uuid;
 mod canvas;
+mod find;
 mod group;
 mod note;
 mod palette;
@@ -8,6 +9,7 @@ mod unloaded;
 mod walk;
 
 pub use self::canvas::*;
+pub use self::find::*;
 pub use self::group::*;
 pub use self::note::*;
 pub use self::palette::*;
