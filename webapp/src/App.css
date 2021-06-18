@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+.text-2xs {
+	font-size: 0.625rem;
+}
+
+.text-3xs {
+	font-size: 0.5rem;
+}
+
+.shadow-hard {
+	box-shadow: #000 0px 2px 4px;
+}
+
 .firebase-emulator-warning {
 	display: none;
 }
