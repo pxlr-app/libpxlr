@@ -1,16 +1,17 @@
 import React from "react";
 import { Story, Meta } from "@storybook/react";
+import { Menubar, MenubarItem, ControlledMenubar } from "./Menubar";
 import { Menu, MenuItem, Separator, ControlledMenu } from "./Menu";
 
 export default {
-	title: "Layout/Menu",
-	component: Menu,
+	title: "Layout/Menubar",
+	component: Menubar,
 	argTypes: {
 		//   backgroundColor: { control: 'color' },
 	},
 } as Meta;
 
-const Template = () => (
+const MenuTemplate = () => (
 	<Menu width="300px">
 		<MenuItem
 			id="newfile"
@@ -90,10 +91,30 @@ const Template = () => (
 	</Menu>
 );
 
+const Template = () => (
+	<Menubar>
+		<MenubarItem id="file" label="File" accesskey="F" />
+		<MenubarItem id="edit" label="Edit" accesskey="E" />
+		<MenubarItem id="selection" label="Selection" accesskey="S" />
+		<MenubarItem id="view" label="View" accesskey="V" />
+		<MenubarItem id="help" label="Help" accesskey="H" />
+	</Menubar>
+);
+
 export const Uncontrolled: Story<{}> = (args) => <Template />;
 
 export const Controlled: Story<{}> = (args) => (
-	<ControlledMenu containerRef={document as any}>
-		<Template />
-	</ControlledMenu>
+	<ControlledMenubar containerRef={document as any}>
+		<Menubar>
+			<MenubarItem id="file" label="File" accesskey="F">
+				<ControlledMenu containerRef={document as any}>
+					<MenuTemplate />
+				</ControlledMenu>
+			</MenubarItem>
+			<MenubarItem id="edit" label="Edit" accesskey="E" />
+			<MenubarItem id="selection" label="Selection" accesskey="S" />
+			<MenubarItem id="view" label="View" accesskey="V" />
+			<MenubarItem id="help" label="Help" accesskey="H" />
+		</Menubar>
+	</ControlledMenubar>
 );

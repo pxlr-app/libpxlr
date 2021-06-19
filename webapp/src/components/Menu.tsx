@@ -1,21 +1,20 @@
 import React, {
 	createContext,
-	useState,
 	PropsWithChildren,
 	useEffect,
 	useContext,
 	useReducer,
-	Reducer,
 	useRef,
 } from "react";
 import { faCheck, faChevronRight } from "@fortawesome/pro-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import type { StandardLonghandProperties } from "csstype";
 
 type MenuNav = {
 	id: string;
 	accesskey: string;
 	isLeaf: boolean;
-	action: ItemProps["action"];
+	action: MenuItemProps["action"];
 };
 
 type ControlledMenuAction =
@@ -122,11 +121,16 @@ const MenuContext = createContext<{ addNavItem: (item: MenuNav) => void }>({
 const MenuItemContext = createContext<string[]>([]);
 
 export type MenuProps = {
-	width?: string;
+	/**
+	 * Width of the Menu (see {@link StandardLonghandProperties.width})
+	 */
+	width?: number | string;
 };
 
+/**
+ * Uncontrolled Menu component
+ */
 export function Menu(props: PropsWithChildren<MenuProps>) {
-	const parentPath = useContext(MenuItemContext);
 	const [_, dispatch] = useContext(ControlledMenuContext);
 	const navItems = useRef<MenuNav[]>([]);
 
@@ -138,11 +142,10 @@ export function Menu(props: PropsWithChildren<MenuProps>) {
 	}, []);
 	return (
 		<div
-			className="absolute z-2000 shadow-hard border-0 outline-none bg-gray-800 text-gray-200 text-xs select-none"
+			className="absolute z-2000 shadow-hard border-0 outline-none bg-gray-700 text-gray-200 text-xs select-none"
 			style={{ width: props.width }}
 			onPointerLeave={(e) => {
-				dispatch({ type: "SELECT", path: parentPath });
-				dispatch({ type: "OPEN", path: parentPath });
+				dispatch({ type: "RESET" });
 			}}
 		>
 			<div className="flex flex-1 p-0 m-0 overflow-visible">
@@ -167,16 +170,37 @@ export function Menu(props: PropsWithChildren<MenuProps>) {
 	);
 }
 
-export type ItemProps = {
+export type MenuItemProps = {
+	/**
+	 * A unique identifier for this menu item
+	 */
 	id: string;
+	/**
+	 * The label of this menu item
+	 */
 	label: string;
+	/**
+	 * The access key used for accessibility navigation
+	 */
 	accesskey: string;
+	/**
+	 * The keybind to be displayed
+	 */
 	keybind?: string;
+	/**
+	 * Indicate if this menu item is checked
+	 */
 	checked?: boolean;
+	/**
+	 * The action to execute when clicking on the menu item
+	 */
 	action?: () => void;
 };
 
-export function Item(props: PropsWithChildren<ItemProps>) {
+/**
+ * Uncontrolled MenuItem component
+ */
+export function MenuItem(props: PropsWithChildren<MenuItemProps>) {
 	const menu = useContext(MenuContext);
 	const parentPath = useContext(MenuItemContext);
 	const parentAbsolutePath = parentPath.join("/") + "/";
@@ -194,14 +218,13 @@ export function Item(props: PropsWithChildren<ItemProps>) {
 	}, []);
 	return (
 		<li
-			key={currentPath.join("/")}
 			className={`relative mx-px ${
 				state &&
 				(state.selected.join("/") + "/").substr(
 					0,
 					itemAbsolutePath.length,
 				) == itemAbsolutePath
-					? "bg-blue-500"
+					? "bg-gray-900 text-blue-400"
 					: ""
 			}`}
 			onPointerEnter={(e) =>
@@ -210,14 +233,17 @@ export function Item(props: PropsWithChildren<ItemProps>) {
 			onPointerLeave={(e) => dispatch({ type: "OPEN", path: parentPath })}
 		>
 			<a
-				className="flex flex-1 flex-nowrap whitespace-nowrap py-0.5 px-1"
 				href="#"
+				className="flex flex-1 flex-nowrap whitespace-nowrap pt-0.5 pb-1 px-1"
 				onClick={(e) => {
 					e.preventDefault();
+				}}
+				onPointerUp={(e) => {
 					if (navItem.isLeaf) {
 						props.action && props.action();
 						dispatch({ type: "RESET" });
 					} else {
+						e.stopPropagation();
 						dispatch({ type: "OPEN", path: currentPath });
 					}
 				}}
@@ -275,6 +301,9 @@ export function Item(props: PropsWithChildren<ItemProps>) {
 	);
 }
 
+/**
+ * Uncontrolled Separator component
+ */
 export function Separator() {
 	return (
 		<li className="flex p-0 pt-1 mt-0 mr-2 mb-1 ml-2 border-b border-gray-600"></li>
@@ -282,9 +311,15 @@ export function Separator() {
 }
 
 export type ControlledMenuProps = {
+	/**
+	 * The HTML Element to attach keyboard events to
+	 */
 	containerRef: HTMLElement;
 };
 
+/**
+ * Controlled Menu component
+ */
 export function ControlledMenu(props: PropsWithChildren<ControlledMenuProps>) {
 	const [state, dispatch] = useReducer(controlledMenuReducer, {
 		accesskey: false,
@@ -355,6 +390,7 @@ export function ControlledMenu(props: PropsWithChildren<ControlledMenuProps>) {
 							path: parentSelected.slice(0, -1),
 						});
 					} else {
+						// TODO onBlur?
 						dispatch({ type: "RESET" });
 					}
 					break;
@@ -383,12 +419,12 @@ export function ControlledMenu(props: PropsWithChildren<ControlledMenuProps>) {
 				}
 				default:
 					if (state.accesskey) {
-						e.preventDefault();
 						let item = state.navigation[0].find(
 							(item) =>
 								`Key${item.accesskey.toUpperCase()}` === e.code,
 						);
 						if (item) {
+							e.preventDefault();
 							if (item.isLeaf) {
 								item.action && item.action();
 								dispatch({ type: "RESET" });
@@ -409,7 +445,7 @@ export function ControlledMenu(props: PropsWithChildren<ControlledMenuProps>) {
 		return () => {
 			props.containerRef.removeEventListener("keydown", onKeyDown);
 		};
-	}, [props.containerRef, state]);
+	}, [props.containerRef, state, dispatch]);
 	return (
 		<ControlledMenuContext.Provider value={[state, dispatch]}>
 			{props.children}
