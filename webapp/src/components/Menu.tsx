@@ -10,7 +10,7 @@ import { faCheck, faChevronRight } from "@fortawesome/pro-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { StandardLonghandProperties } from "csstype";
 
-const MenuContext = createContext<{
+export const MenuContext = createContext<{
 	showAccessKey: boolean;
 	autoSelectFirst: boolean;
 	setShowAccessKey: (state: boolean) => void;
@@ -63,6 +63,7 @@ export function Menu({ width, children }: PropsWithChildren<MenuProps>) {
 
 	useEffect(() => {
 		function onLeave() {
+			console.log("Menu Leaving?");
 			setSelected(null);
 			setOpened(null);
 		}
@@ -86,7 +87,7 @@ export function Menu({ width, children }: PropsWithChildren<MenuProps>) {
 		>
 			<div
 				tabIndex={0}
-				className="absolute z-2000 cursor-default shadow-hard border border-transparent outline-none bg-gray-700 text-gray-200 text-xs select-none focus:border-blue-500"
+				className="pointer-events-auto absolute z-2000 cursor-default shadow-hard border border-transparent outline-none bg-gray-700 text-gray-200 text-xs select-none focus:border-blue-500"
 				ref={element}
 				style={{ width: width }}
 				onKeyDown={(e) => {
@@ -179,7 +180,7 @@ export function Menu({ width, children }: PropsWithChildren<MenuProps>) {
 	);
 }
 
-const MenuItemContext = createContext<{
+export const MenuItemContext = createContext<{
 	selectedId: string | null;
 	openedId: string | null;
 	setSelected: (id: string) => void;
