@@ -40,7 +40,43 @@ const Template = () => (
 			accesskey="R"
 			keybind="Ctrl+Shift+O"
 			action={() => console.log("openrecent")}
-		/>
+		>
+			<Menu width="300px">
+				<MenuItem
+					id="reopen"
+					label="Reopen Closed File"
+					accesskey="R"
+					keybind="Ctrl+Shift+T"
+					action={() => console.log("reopen")}
+				/>
+				<Separator />
+				<MenuItem
+					id="filea"
+					label="File A"
+					accesskey="1"
+					action={() => console.log("filea")}
+				/>
+				<MenuItem
+					id="fileb"
+					label="File B"
+					accesskey="2"
+					action={() => console.log("fileb")}
+				/>
+				<MenuItem
+					id="filec"
+					label="File C"
+					accesskey="3"
+					action={() => console.log("filec")}
+				/>
+				<Separator />
+				<MenuItem
+					id="clearrecent"
+					label="Clear Recent Files"
+					accesskey="C"
+					action={() => console.log("clearrecent")}
+				/>
+			</Menu>
+		</MenuItem>
 		<Separator />
 		<MenuItem
 			id="save"
@@ -93,7 +129,7 @@ const Template = () => (
 export const Uncontrolled: Story<{}> = (args) => <Template />;
 
 export const Controlled: Story<{}> = (args) => (
-	<ControlledMenu containerRef={document as any}>
+	<ControlledMenu container={document as any}>
 		<Template />
 	</ControlledMenu>
 );

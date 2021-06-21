@@ -1,124 +1,24 @@
 import React, {
+	useState,
 	createContext,
 	PropsWithChildren,
-	useEffect,
 	useContext,
-	useReducer,
 	useRef,
+	useEffect,
 } from "react";
 import { faCheck, faChevronRight } from "@fortawesome/pro-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { StandardLonghandProperties } from "csstype";
 
-type MenuNav = {
-	id: string;
-	accesskey: string;
-	isLeaf: boolean;
-	action: MenuItemProps["action"];
-};
-
-type ControlledMenuAction =
-	| {
-			type: "RESET";
-	  }
-	| {
-			type: "SELECT";
-			path: string[];
-	  }
-	| {
-			type: "OPEN";
-			path: string[];
-			autoSelectFirst?: boolean;
-	  }
-	| {
-			type: "ACCESSKEY";
-			path: false | string[];
-	  }
-	| {
-			type: "NAV_PUSH";
-			nav: MenuNav[];
-	  }
-	| {
-			type: "NAV_POP";
-	  };
-
-type ControlledMenuState = {
-	accesskey: false | string[];
-	selected: string[];
-	opened: string[];
-
-	navigation: MenuNav[][];
-	autoSelectFirst?: boolean;
-};
-
-function controlledMenuReducer(
-	state: ControlledMenuState,
-	action: ControlledMenuAction,
-) {
-	switch (action.type) {
-		case "RESET":
-			state = {
-				accesskey: false,
-				selected: [],
-				opened: [],
-				navigation: state.navigation,
-			};
-			break;
-		case "ACCESSKEY":
-			state = { ...state, accesskey: action.path };
-			break;
-		case "SELECT":
-			state = { ...state, selected: action.path };
-			break;
-		case "OPEN":
-			state = {
-				...state,
-				opened: action.path,
-				autoSelectFirst: action.autoSelectFirst,
-			};
-			break;
-		case "NAV_PUSH": {
-			let queue = state.navigation.concat([]);
-			queue.unshift(action.nav);
-			if (state.autoSelectFirst) {
-				state = {
-					...state,
-					navigation: queue,
-					autoSelectFirst: undefined,
-					selected: state.opened.concat(action.nav[0].id),
-				};
-			} else {
-				state = { ...state, navigation: queue };
-			}
-			break;
-		}
-		case "NAV_POP": {
-			let queue = state.navigation.concat([]);
-			queue.shift();
-			state = { ...state, navigation: queue };
-			break;
-		}
-		default:
-			throw new Error();
-	}
-	return state;
-}
-
-const ControlledMenuContext = createContext<
-	[ControlledMenuState, React.Dispatch<ControlledMenuAction>]
->([
-	{
-		accesskey: false,
-		selected: [],
-		opened: [],
-		navigation: [],
-	},
-	() => {},
-]);
-const MenuContext = createContext<{ addNavItem: (item: MenuNav) => void }>({
-	addNavItem: () => {},
+const MenuContext = createContext<{
+	showAccessKey: boolean;
+	autoSelectFirst: boolean;
+	setShowAccessKey: (state: boolean) => void;
+}>({
+	showAccessKey: false,
+	autoSelectFirst: false,
+	setShowAccessKey() {},
 });
-const MenuItemContext = createContext<string[]>([]);
 
 export type MenuProps = {
 	/**
@@ -130,45 +30,168 @@ export type MenuProps = {
 /**
  * Uncontrolled Menu component
  */
-export function Menu(props: PropsWithChildren<MenuProps>) {
-	const [_, dispatch] = useContext(ControlledMenuContext);
-	const navItems = useRef<MenuNav[]>([]);
+export function Menu({ width, children }: PropsWithChildren<MenuProps>) {
+	const { showAccessKey, autoSelectFirst, setShowAccessKey } = useContext(
+		MenuContext,
+	);
+	const [selected, setSelected] = useState<string | null>(null);
+	const [opened, setOpened] = useState<string | null>(null);
+	const [subAutoSelectFirst, setSubAutoSelectFirst] = useState<boolean>(
+		false,
+	);
+	const element = useRef<HTMLDivElement>(null);
+
+	const items: Pick<MenuItemProps, "id" | "accesskey" | "action">[] = [];
+	React.Children.forEach(children, (item, idx) => {
+		if (React.isValidElement(item) && "id" in item.props) {
+			const id = item.props.id as string;
+			const accesskey = item.props.accesskey as string;
+			const action = item.props.action;
+			items.push({
+				id,
+				accesskey,
+				action,
+			});
+		}
+	});
 
 	useEffect(() => {
-		dispatch({ type: "NAV_PUSH", nav: navItems.current });
+		if (autoSelectFirst && selected === null) {
+			setSelected(items[0].id);
+		}
+	}, [autoSelectFirst]);
+
+	useEffect(() => {
+		function onLeave() {
+			setSelected(null);
+			setOpened(null);
+		}
+
+		document.addEventListener("click", onLeave);
+		document.addEventListener("keydown", onLeave);
+
 		return () => {
-			dispatch({ type: "NAV_POP" });
+			document.removeEventListener("click", onLeave);
+			document.removeEventListener("keydown", onLeave);
 		};
 	}, []);
+
 	return (
-		<div
-			className="absolute z-2000 shadow-hard border-0 outline-none bg-gray-700 text-gray-200 text-xs select-none"
-			style={{ width: props.width }}
-			onPointerLeave={(e) => {
-				dispatch({ type: "RESET" });
+		<MenuContext.Provider
+			value={{
+				showAccessKey,
+				autoSelectFirst: subAutoSelectFirst,
+				setShowAccessKey,
 			}}
 		>
-			<div className="flex flex-1 p-0 m-0 overflow-visible">
-				<ul className="flex flex-1 flex-col py-2 px-0 m-0 justify-end flex-nowrap">
-					{React.Children.toArray(props.children).map(
-						(child, idx) => (
-							<MenuContext.Provider
-								key={idx}
+			<div
+				tabIndex={0}
+				className="absolute z-2000 cursor-default shadow-hard border border-transparent outline-none bg-gray-700 text-gray-200 text-xs select-none focus:border-blue-500"
+				ref={element}
+				style={{ width: width }}
+				onKeyDown={(e) => {
+					if (opened === null) {
+						if (e.code === "ArrowDown") {
+							e.stopPropagation();
+							let selectedIdx = items.findIndex(
+								(item) => item.id === selected,
+							);
+							selectedIdx = (selectedIdx + 1) % items.length;
+							setSelected(items[selectedIdx].id);
+						} else if (e.code === "ArrowUp") {
+							e.stopPropagation();
+							let selectedIdx = items.findIndex(
+								(item) => item.id === selected,
+							);
+							if (selectedIdx === -1) {
+								selectedIdx = items.length - 1;
+							} else {
+								selectedIdx =
+									(items.length + (selectedIdx - 1)) %
+									items.length;
+							}
+							setSelected(items[selectedIdx].id);
+						} else if (e.code === "ArrowLeft") {
+							setSelected(null);
+							setOpened(null);
+						} else if (showAccessKey) {
+							const accessedItem = items.find(
+								(item) =>
+									`Key${item.accesskey.toUpperCase()}` ===
+									e.code,
+							);
+							if (accessedItem) {
+								if (accessedItem.action) {
+									setSubAutoSelectFirst(false);
+									setSelected(null);
+									setOpened(null);
+									setShowAccessKey(false);
+									accessedItem.action();
+								} else {
+									e.stopPropagation();
+									setSubAutoSelectFirst(true);
+									setSelected(accessedItem.id);
+									setOpened(accessedItem.id);
+								}
+							}
+						}
+					} else {
+						if (e.code === "ArrowLeft") {
+							e.stopPropagation();
+							setSubAutoSelectFirst(false);
+							setOpened(null);
+						}
+					}
+				}}
+			>
+				<div className="flex flex-1 p-0 m-0 overflow-visible">
+					<ul className="flex flex-1 flex-col py-2 px-0 m-0 justify-end flex-nowrap">
+						{React.Children.map(children, (child, idx) => (
+							<MenuItemContext.Provider
+								key={`menuitem-${idx}`}
 								value={{
-									addNavItem(nav) {
-										navItems.current.push(nav);
+									selectedId: selected,
+									openedId: opened,
+									setSelected(id) {
+										setSelected(id);
+									},
+									setOpened(id) {
+										if (id) {
+											setSelected(id);
+											setOpened(id);
+										} else {
+											setSelected(null);
+											setOpened(null);
+										}
+									},
+									setAutoSelectFirst() {
+										setSubAutoSelectFirst(true);
 									},
 								}}
 							>
 								{child}
-							</MenuContext.Provider>
-						),
-					)}
-				</ul>
+							</MenuItemContext.Provider>
+						))}
+					</ul>
+				</div>
 			</div>
-		</div>
+		</MenuContext.Provider>
 	);
 }
+
+const MenuItemContext = createContext<{
+	selectedId: string | null;
+	openedId: string | null;
+	setSelected: (id: string) => void;
+	setAutoSelectFirst: () => void;
+	setOpened: (id: string | false) => void;
+}>({
+	selectedId: null,
+	openedId: null,
+	setSelected: () => {},
+	setAutoSelectFirst: () => {},
+	setOpened: () => {},
+});
 
 export type MenuItemProps = {
 	/**
@@ -200,103 +223,99 @@ export type MenuItemProps = {
 /**
  * Uncontrolled MenuItem component
  */
-export function MenuItem(props: PropsWithChildren<MenuItemProps>) {
-	const menu = useContext(MenuContext);
-	const parentPath = useContext(MenuItemContext);
-	const parentAbsolutePath = parentPath.join("/") + "/";
-	const currentPath = parentPath.concat([props.id]);
-	const itemAbsolutePath = currentPath.join("/") + "/";
-	const [state, dispatch] = useContext(ControlledMenuContext);
-	const navItem = {
-		id: props.id,
-		accesskey: props.accesskey,
-		isLeaf: !props.children,
-		action: props.action,
-	};
+export function MenuItem({
+	id,
+	accesskey,
+	action,
+	checked,
+	label,
+	keybind,
+	children,
+}: PropsWithChildren<MenuItemProps>) {
+	const { showAccessKey } = useContext(MenuContext);
+	const {
+		selectedId,
+		openedId,
+		setSelected,
+		setAutoSelectFirst,
+		setOpened,
+	} = useContext(MenuItemContext);
+	const element = useRef<HTMLLIElement>(null);
+
 	useEffect(() => {
-		menu.addNavItem(navItem);
-	}, []);
+		if (selectedId === id && element.current) {
+			element.current.focus();
+		} else if (
+			element.current &&
+			document.activeElement == element.current
+		) {
+			element.current.blur();
+		}
+	}, [selectedId, openedId]);
+
+	function onClick(e: React.MouseEvent | React.KeyboardEvent) {
+		if (children) {
+			e.stopPropagation();
+			setOpened(openedId === id ? false : id);
+		} else if (action) {
+			setOpened(false);
+			action();
+		}
+	}
+
 	return (
 		<li
-			className={`relative mx-px ${
-				state &&
-				(state.selected.join("/") + "/").substr(
-					0,
-					itemAbsolutePath.length,
-				) == itemAbsolutePath
-					? "bg-gray-900 text-blue-400"
-					: ""
-			}`}
-			onPointerEnter={(e) =>
-				dispatch({ type: "SELECT", path: currentPath })
-			}
-			onPointerLeave={(e) => dispatch({ type: "OPEN", path: parentPath })}
+			tabIndex={-1}
+			accessKey={accesskey}
+			className="pointer-events-auto relative flex flex-1 pt-0.5 pb-1 px-1 mx-px cursor-pointer outline-none focus:bg-gray-900 focus:text-blue-400 focus-within:bg-gray-900 focus-within:text-blue-400"
+			ref={element}
+			onPointerEnter={(e) => {
+				setSelected(id);
+			}}
+			onFocus={(e) => {
+				setSelected(id);
+			}}
+			onClick={onClick}
+			onKeyDown={(e) => {
+				if (
+					e.code === "Space" ||
+					e.code === "Enter" ||
+					e.code === "ArrowRight"
+				) {
+					setAutoSelectFirst();
+					onClick(e);
+				}
+			}}
 		>
-			<a
-				href="#"
-				className="flex flex-1 flex-nowrap whitespace-nowrap pt-0.5 pb-1 px-1"
-				onClick={(e) => {
-					e.preventDefault();
-				}}
-				onPointerUp={(e) => {
-					if (navItem.isLeaf) {
-						props.action && props.action();
-						dispatch({ type: "RESET" });
-					} else {
-						e.stopPropagation();
-						dispatch({ type: "OPEN", path: currentPath });
-					}
-				}}
-			>
+			<div className="pointer-events-none flex flex-1 flex-nowrap whitespace-nowrap ">
 				<div className="w-4 text-center text-2xs">
-					{props.checked && <FontAwesomeIcon icon={faCheck} />}
+					{checked && <FontAwesomeIcon icon={faCheck} />}
 				</div>
 				<div className="px-1 flex-1">
-					{props.accesskey ? (
+					{accesskey ? (
 						<>
-							{props.label.split(props.accesskey).shift()}
+							{label.split(accesskey).shift()}
 							<span
 								className={`${
-									state &&
-									state.accesskey &&
-									(state.opened.join("/") + "/").substr(
-										0,
-										parentAbsolutePath.length,
-									) == parentAbsolutePath
-										? "underline uppercase"
-										: ""
+									showAccessKey ? "underline uppercase" : ""
 								}`}
 							>
-								{props.accesskey}
+								{accesskey}
 							</span>
-							{props.label
-								.split(props.accesskey)
-								.slice(1)
-								.join(props.accesskey)}
+							{label.split(accesskey).slice(1).join(accesskey)}
 						</>
 					) : (
-						props.label
+						label
 					)}
 				</div>
-				<div className="px-1 text-gray-500">{props.keybind}</div>
+				<div className="px-1 text-gray-500">{keybind}</div>
 				<div className="w-4 text-center text-2xs">
-					{props.children && (
-						<FontAwesomeIcon icon={faChevronRight} />
-					)}
+					{children && <FontAwesomeIcon icon={faChevronRight} />}
 				</div>
-			</a>
-			{props.children &&
-				(!state ||
-					(state.opened.join("/") + "/").substr(
-						0,
-						itemAbsolutePath.length,
-					) == itemAbsolutePath) && (
-					<MenuItemContext.Provider value={currentPath}>
-						<div className="absolute -top-2 right-0">
-							{props.children}
-						</div>
-					</MenuItemContext.Provider>
-				)}
+			</div>
+			{children && openedId === id && (
+				<div className="absolute -top-2 right-0">{children}</div>
+			)}
 		</li>
 	);
 }
@@ -306,7 +325,10 @@ export function MenuItem(props: PropsWithChildren<MenuItemProps>) {
  */
 export function Separator() {
 	return (
-		<li className="flex p-0 pt-1 mt-0 mr-2 mb-1 ml-2 border-b border-gray-600"></li>
+		<li
+			tabIndex={-1}
+			className="flex p-0 pt-1 mt-0 mr-2 mb-1 ml-2 border-b border-gray-600"
+		></li>
 	);
 }
 
@@ -314,141 +336,43 @@ export type ControlledMenuProps = {
 	/**
 	 * The HTML Element to attach keyboard events to
 	 */
-	containerRef: HTMLElement;
+	container: HTMLElement;
 };
 
 /**
  * Controlled Menu component
  */
-export function ControlledMenu(props: PropsWithChildren<ControlledMenuProps>) {
-	const [state, dispatch] = useReducer(controlledMenuReducer, {
-		accesskey: false,
-		selected: [],
-		opened: [],
-		navigation: [],
-	});
-	useEffect(() => {
-		const onKeyDown = (e: KeyboardEvent) => {
-			switch (e.code) {
-				case "AltLeft": {
-					e.preventDefault();
-					dispatch({
-						type: "ACCESSKEY",
-						path: state.accesskey !== false ? false : state.opened,
-					});
-					break;
-				}
-				case "ArrowUp": {
-					e.preventDefault();
-					let idx: number;
-					if (state.selected.length === 0) {
-						idx = state.navigation[0].length - 1;
-					} else {
-						let currentSelected =
-							state.selected[state.selected.length - 1];
-						idx = state.navigation[0].findIndex(
-							(props) => props.id === currentSelected,
-						);
-						idx = Math.max(0, idx - 1);
-					}
-					let selected = state.opened.concat([
-						state.navigation[0][idx].id,
-					]);
-					dispatch({ type: "SELECT", path: selected });
-					break;
-				}
-				case "ArrowDown": {
-					e.preventDefault();
-					let idx: number;
-					if (state.selected.length === 0) {
-						idx = 0;
-					} else {
-						let currentSelected =
-							state.selected[state.selected.length - 1];
-						idx = state.navigation[0].findIndex(
-							(props) => props.id === currentSelected,
-						);
-						idx = Math.min(state.navigation[0].length - 1, idx + 1);
-					}
-					let selected = state.opened.concat([
-						state.navigation[0][idx].id,
-					]);
-					dispatch({ type: "SELECT", path: selected });
-					break;
-				}
-				case "ArrowLeft":
-				case "Escape": {
-					e.preventDefault();
-					if (state.navigation.length > 1) {
-						let parentSelected = state.selected.slice(0, -1);
-						dispatch({
-							type: "SELECT",
-							path: parentSelected,
-						});
-						dispatch({
-							type: "OPEN",
-							path: parentSelected.slice(0, -1),
-						});
-					} else {
-						// TODO onBlur?
-						dispatch({ type: "RESET" });
-					}
-					break;
-				}
-				case "ArrowRight":
-				case "Enter": {
-					e.preventDefault();
-					let currentSelected =
-						state.selected[state.selected.length - 1];
-					let item = state.navigation[0].find(
-						(props) => props.id === currentSelected,
-					);
-					if (item) {
-						if (item.isLeaf) {
-							item.action && item.action();
-							dispatch({ type: "RESET" });
-						} else {
-							dispatch({
-								type: "OPEN",
-								path: state.selected,
-								autoSelectFirst: true,
-							});
-						}
-					}
-					break;
-				}
-				default:
-					if (state.accesskey) {
-						let item = state.navigation[0].find(
-							(item) =>
-								`Key${item.accesskey.toUpperCase()}` === e.code,
-						);
-						if (item) {
-							e.preventDefault();
-							if (item.isLeaf) {
-								item.action && item.action();
-								dispatch({ type: "RESET" });
-							} else {
-								dispatch({
-									type: "OPEN",
-									path: state.opened.concat([item.id]),
-									autoSelectFirst: true,
-								});
-							}
-						}
-					}
-			}
-		};
+export function ControlledMenu({
+	children,
+	container,
+}: PropsWithChildren<ControlledMenuProps>) {
+	const [showAccessKey, setShowAccessKey] = useState<boolean>(false);
 
-		props.containerRef.addEventListener("keydown", onKeyDown);
+	useEffect(() => {
+		function onKeyDown(e: KeyboardEvent) {
+			if (e.code === "AltLeft") {
+				e.preventDefault();
+				e.stopPropagation();
+				setShowAccessKey(!showAccessKey);
+			}
+		}
+
+		container.addEventListener("keydown", onKeyDown);
 
 		return () => {
-			props.containerRef.removeEventListener("keydown", onKeyDown);
+			container.removeEventListener("keydown", onKeyDown);
 		};
-	}, [props.containerRef, state, dispatch]);
+	}, [container, showAccessKey, setShowAccessKey]);
+
 	return (
-		<ControlledMenuContext.Provider value={[state, dispatch]}>
-			{props.children}
-		</ControlledMenuContext.Provider>
+		<MenuContext.Provider
+			value={{
+				showAccessKey,
+				autoSelectFirst: showAccessKey,
+				setShowAccessKey,
+			}}
+		>
+			{children}
+		</MenuContext.Provider>
 	);
 }
