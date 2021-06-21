@@ -14,10 +14,12 @@ export const MenuContext = createContext<{
 	showAccessKey: boolean;
 	autoSelectFirst: boolean;
 	setShowAccessKey: (state: boolean) => void;
+	setAutoSelectFirst: (state: boolean) => void;
 }>({
 	showAccessKey: false,
 	autoSelectFirst: false,
 	setShowAccessKey() {},
+	setAutoSelectFirst() {},
 });
 
 export type MenuProps = {
@@ -31,14 +33,14 @@ export type MenuProps = {
  * Uncontrolled Menu component
  */
 export function Menu({ width, children }: PropsWithChildren<MenuProps>) {
-	const { showAccessKey, autoSelectFirst, setShowAccessKey } = useContext(
-		MenuContext,
-	);
+	const {
+		showAccessKey,
+		autoSelectFirst,
+		setShowAccessKey,
+		setAutoSelectFirst,
+	} = useContext(MenuContext);
 	const [selected, setSelected] = useState<string | null>(null);
 	const [opened, setOpened] = useState<string | null>(null);
-	const [subAutoSelectFirst, setSubAutoSelectFirst] = useState<boolean>(
-		false,
-	);
 	const element = useRef<HTMLDivElement>(null);
 
 	const items: Pick<MenuItemProps, "id" | "accesskey" | "action">[] = [];
@@ -56,14 +58,18 @@ export function Menu({ width, children }: PropsWithChildren<MenuProps>) {
 	});
 
 	useEffect(() => {
-		if (autoSelectFirst && selected === null) {
-			setSelected(items[0].id);
+		if (autoSelectFirst) {
+			setAutoSelectFirst(false);
+			if (selected === null) {
+				setSelected(items[0].id);
+			}
 		}
 	}, [autoSelectFirst]);
 
 	useEffect(() => {
 		function onLeave() {
-			console.log("Menu Leaving?");
+			setShowAccessKey(false);
+			setAutoSelectFirst(false);
 			setSelected(null);
 			setOpened(null);
 		}
@@ -78,120 +84,98 @@ export function Menu({ width, children }: PropsWithChildren<MenuProps>) {
 	}, []);
 
 	return (
-		<MenuContext.Provider
-			value={{
-				showAccessKey,
-				autoSelectFirst: subAutoSelectFirst,
-				setShowAccessKey,
-			}}
-		>
-			<div
-				tabIndex={0}
-				className="pointer-events-auto absolute z-2000 cursor-default shadow-hard border border-transparent outline-none bg-gray-700 text-gray-200 text-xs select-none focus:border-blue-500"
-				ref={element}
-				style={{ width: width }}
-				onKeyDown={(e) => {
-					if (opened === null) {
-						if (e.code === "ArrowDown") {
-							e.stopPropagation();
-							let selectedIdx = items.findIndex(
-								(item) => item.id === selected,
-							);
-							selectedIdx = (selectedIdx + 1) % items.length;
-							setSelected(items[selectedIdx].id);
-						} else if (e.code === "ArrowUp") {
-							e.stopPropagation();
-							let selectedIdx = items.findIndex(
-								(item) => item.id === selected,
-							);
-							if (selectedIdx === -1) {
-								selectedIdx = items.length - 1;
-							} else {
-								selectedIdx =
-									(items.length + (selectedIdx - 1)) %
-									items.length;
-							}
-							setSelected(items[selectedIdx].id);
-						} else if (e.code === "ArrowLeft") {
-							setSelected(null);
-							setOpened(null);
-						} else if (showAccessKey) {
-							const accessedItem = items.find(
-								(item) =>
-									`Key${item.accesskey.toUpperCase()}` ===
-									e.code,
-							);
-							if (accessedItem) {
-								if (accessedItem.action) {
-									setSubAutoSelectFirst(false);
-									setSelected(null);
-									setOpened(null);
-									setShowAccessKey(false);
-									accessedItem.action();
-								} else {
-									e.stopPropagation();
-									setSubAutoSelectFirst(true);
-									setSelected(accessedItem.id);
-									setOpened(accessedItem.id);
-								}
-							}
+		<nav
+			tabIndex={0}
+			className="pointer-events-auto absolute z-2000 cursor-default shadow-hard border border-transparent outline-none bg-gray-700 text-gray-200 text-xs select-none focus:border-blue-500"
+			ref={element}
+			style={{ width: width }}
+			onKeyDown={(e) => {
+				if (opened === null) {
+					if (e.code === "ArrowDown") {
+						e.preventDefault();
+						e.stopPropagation();
+						let selectedIdx = items.findIndex(
+							(item) => item.id === selected,
+						);
+						selectedIdx = (selectedIdx + 1) % items.length;
+						setSelected(items[selectedIdx].id);
+					} else if (e.code === "ArrowUp") {
+						e.preventDefault();
+						e.stopPropagation();
+						let selectedIdx = items.findIndex(
+							(item) => item.id === selected,
+						);
+						if (selectedIdx === -1) {
+							selectedIdx = items.length - 1;
+						} else {
+							selectedIdx =
+								(items.length + (selectedIdx - 1)) %
+								items.length;
 						}
-					} else {
-						if (e.code === "ArrowLeft") {
-							e.stopPropagation();
-							setSubAutoSelectFirst(false);
-							setOpened(null);
+						setSelected(items[selectedIdx].id);
+					} else if (e.code === "ArrowLeft") {
+						setSelected(null);
+						setOpened(null);
+					} else if (showAccessKey) {
+						const accessedItem = items.find(
+							(item) =>
+								`Key${item.accesskey.toUpperCase()}` === e.code,
+						);
+						if (accessedItem) {
+							if (accessedItem.action) {
+								setShowAccessKey(false);
+								setAutoSelectFirst(false);
+								setSelected(null);
+								setOpened(null);
+								accessedItem.action();
+							} else {
+								e.preventDefault();
+								e.stopPropagation();
+								setAutoSelectFirst(true);
+								setSelected(accessedItem.id);
+								setOpened(accessedItem.id);
+							}
 						}
 					}
-				}}
-			>
-				<div className="flex flex-1 p-0 m-0 overflow-visible">
-					<ul className="flex flex-1 flex-col py-2 px-0 m-0 justify-end flex-nowrap">
-						{React.Children.map(children, (child, idx) => (
-							<MenuItemContext.Provider
-								key={`menuitem-${idx}`}
-								value={{
-									selectedId: selected,
-									openedId: opened,
-									setSelected(id) {
-										setSelected(id);
-									},
-									setOpened(id) {
-										if (id) {
-											setSelected(id);
-											setOpened(id);
-										} else {
-											setSelected(null);
-											setOpened(null);
-										}
-									},
-									setAutoSelectFirst() {
-										setSubAutoSelectFirst(true);
-									},
-								}}
-							>
-								{child}
-							</MenuItemContext.Provider>
-						))}
-					</ul>
-				</div>
+				} else {
+					if (e.code === "ArrowLeft") {
+						e.stopPropagation();
+						setOpened(null);
+					}
+				}
+			}}
+		>
+			<div className="flex flex-1 p-0 m-0 overflow-visible">
+				<ul className="flex flex-1 flex-col py-2 px-0 m-0 justify-end flex-nowrap">
+					{React.Children.map(children, (child, idx) => (
+						<MenuItemContext.Provider
+							key={`menuitem-${idx}`}
+							value={{
+								selected: selected,
+								opened: opened,
+								setSelected,
+								setOpened,
+							}}
+						>
+							{child}
+						</MenuItemContext.Provider>
+					))}
+				</ul>
 			</div>
-		</MenuContext.Provider>
+		</nav>
 	);
 }
 
 export const MenuItemContext = createContext<{
-	selectedId: string | null;
-	openedId: string | null;
-	setSelected: (id: string) => void;
-	setAutoSelectFirst: () => void;
-	setOpened: (id: string | false) => void;
+	selected: string | null;
+	opened: string | null;
+	setSelected: (id: string | null) => void;
+	setOpened: (id: string | null) => void;
 }>({
-	selectedId: null,
-	openedId: null,
-	setSelected: () => {},
-	setAutoSelectFirst: () => {},
-	setOpened: () => {},
+	selected: null,
+	opened: null,
+	setSelected() {},
+	setOpened() {},
 });
 
 export type MenuItemProps = {
@@ -233,18 +217,14 @@ export function MenuItem({
 	keybind,
 	children,
 }: PropsWithChildren<MenuItemProps>) {
-	const { showAccessKey } = useContext(MenuContext);
-	const {
-		selectedId,
-		openedId,
-		setSelected,
-		setAutoSelectFirst,
-		setOpened,
-	} = useContext(MenuItemContext);
+	const { showAccessKey, setAutoSelectFirst } = useContext(MenuContext);
+	const { selected, opened, setSelected, setOpened } = useContext(
+		MenuItemContext,
+	);
 	const element = useRef<HTMLLIElement>(null);
 
 	useEffect(() => {
-		if (selectedId === id && element.current) {
+		if (selected === id && element.current) {
 			element.current.focus();
 		} else if (
 			element.current &&
@@ -252,15 +232,22 @@ export function MenuItem({
 		) {
 			element.current.blur();
 		}
-	}, [selectedId, openedId]);
+	}, [selected, opened]);
 
 	function onClick(e: React.MouseEvent | React.KeyboardEvent) {
-		if (children) {
-			e.stopPropagation();
-			setOpened(openedId === id ? false : id);
-		} else if (action) {
-			setOpened(false);
-			action();
+		// Not bubbling up
+		if (e.target === e.currentTarget) {
+			// Has children
+			if (children) {
+				e.preventDefault();
+				e.stopPropagation();
+				setOpened(opened === id ? null : id);
+			}
+			// Has action
+			else if (action) {
+				setOpened(null);
+				action();
+			}
 		}
 	}
 
@@ -268,6 +255,7 @@ export function MenuItem({
 		<li
 			tabIndex={-1}
 			accessKey={accesskey}
+			aria-label={label}
 			className="pointer-events-auto relative flex flex-1 pt-0.5 pb-1 px-1 mx-px cursor-pointer outline-none focus:bg-gray-900 focus:text-blue-400 focus-within:bg-gray-900 focus-within:text-blue-400"
 			ref={element}
 			onPointerEnter={(e) => {
@@ -283,7 +271,7 @@ export function MenuItem({
 					e.code === "Enter" ||
 					e.code === "ArrowRight"
 				) {
-					setAutoSelectFirst();
+					setAutoSelectFirst(true);
 					onClick(e);
 				}
 			}}
@@ -314,8 +302,10 @@ export function MenuItem({
 					{children && <FontAwesomeIcon icon={faChevronRight} />}
 				</div>
 			</div>
-			{children && openedId === id && (
-				<div className="absolute -top-2 right-0">{children}</div>
+			{children && opened === id && (
+				<div className="absolute -top-2 right-0 transform -translate-y-px">
+					{children}
+				</div>
 			)}
 		</li>
 	);
@@ -343,11 +333,12 @@ export type ControlledMenuProps = {
 /**
  * Controlled Menu component
  */
-export function ControlledMenu({
+export function KeyboardMenu({
 	children,
 	container,
 }: PropsWithChildren<ControlledMenuProps>) {
 	const [showAccessKey, setShowAccessKey] = useState<boolean>(false);
+	const [autoSelectFirst, setAutoSelectFirst] = useState<boolean>(false);
 
 	useEffect(() => {
 		function onKeyDown(e: KeyboardEvent) {
@@ -355,6 +346,7 @@ export function ControlledMenu({
 				e.preventDefault();
 				e.stopPropagation();
 				setShowAccessKey(!showAccessKey);
+				setAutoSelectFirst(!showAccessKey);
 			}
 		}
 
@@ -369,8 +361,9 @@ export function ControlledMenu({
 		<MenuContext.Provider
 			value={{
 				showAccessKey,
-				autoSelectFirst: showAccessKey,
+				autoSelectFirst,
 				setShowAccessKey,
+				setAutoSelectFirst,
 			}}
 		>
 			{children}

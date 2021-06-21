@@ -1,6 +1,6 @@
 import React from "react";
 import { Story, Meta } from "@storybook/react";
-import { Menu, MenuItem, Separator, ControlledMenu } from "./Menu";
+import { Menu, MenuItem, Separator, KeyboardMenu } from "./Menu";
 
 export default {
 	title: "Layout/Menu",
@@ -17,14 +17,14 @@ const Template = () => (
 			label="New File"
 			accesskey="N"
 			keybind="Ctrl+N"
-			action={() => console.log("newfile")}
+			action={() => alert("newfile")}
 		/>
 		<MenuItem
 			id="newwindow"
 			label="New Window"
 			accesskey="W"
 			keybind="Ctrl+Shift+N"
-			action={() => console.log("newwindow")}
+			action={() => alert("newwindow")}
 		/>
 		<Separator />
 		<MenuItem
@@ -32,14 +32,13 @@ const Template = () => (
 			label="Open File…"
 			accesskey="O"
 			keybind="Ctrl+O"
-			action={() => console.log("openfile")}
+			action={() => alert("openfile")}
 		/>
 		<MenuItem
 			id="openrecent"
 			label="Open Recent"
 			accesskey="R"
 			keybind="Ctrl+Shift+O"
-			action={() => console.log("openrecent")}
 		>
 			<Menu width="300px">
 				<MenuItem
@@ -47,33 +46,36 @@ const Template = () => (
 					label="Reopen Closed File"
 					accesskey="R"
 					keybind="Ctrl+Shift+T"
-					action={() => console.log("reopen")}
+					action={() => alert("reopen")}
 				/>
-				<Separator />
-				<MenuItem
-					id="filea"
-					label="File A"
-					accesskey="1"
-					action={() => console.log("filea")}
-				/>
-				<MenuItem
-					id="fileb"
-					label="File B"
-					accesskey="2"
-					action={() => console.log("fileb")}
-				/>
-				<MenuItem
-					id="filec"
-					label="File C"
-					accesskey="3"
-					action={() => console.log("filec")}
-				/>
-				<Separator />
+				<MenuItem id="recentfiles" label="Recent Files" accesskey="F">
+					<Menu width="300px">
+						<MenuItem
+							id="filea"
+							label="File A"
+							accesskey="A"
+							action={() => alert("filea")}
+						/>
+						<MenuItem
+							id="fileb"
+							label="File B"
+							accesskey="B"
+							action={() => alert("fileb")}
+						/>
+						<MenuItem
+							id="filec"
+							label="File C"
+							accesskey="C"
+							action={() => alert("filec")}
+						/>
+					</Menu>
+				</MenuItem>
+
 				<MenuItem
 					id="clearrecent"
 					label="Clear Recent Files"
 					accesskey="C"
-					action={() => console.log("clearrecent")}
+					action={() => alert("clearrecent")}
 				/>
 			</Menu>
 		</MenuItem>
@@ -83,21 +85,21 @@ const Template = () => (
 			label="Save"
 			accesskey="S"
 			keybind="Ctrl+S"
-			action={() => console.log("save")}
+			action={() => alert("save")}
 		/>
 		<MenuItem
 			id="saveas"
 			label="Save As…"
 			accesskey="A"
 			keybind="Ctrl+Shift+S"
-			action={() => console.log("saveas")}
+			action={() => alert("saveas")}
 		/>
 		<MenuItem
 			id="autosave"
 			label="Auto Save"
 			accesskey="t"
 			checked
-			action={() => console.log("autosave")}
+			action={() => alert("autosave")}
 		/>
 		<Separator />
 		<MenuItem id="preferences" label="Preferences" accesskey="P">
@@ -107,13 +109,13 @@ const Template = () => (
 					label="Settings"
 					accesskey="S"
 					keybind="Ctrl+,"
-					action={() => console.log("settings")}
+					action={() => alert("settings")}
 				/>
 				<MenuItem
 					id="keyboardshortcuts"
 					label="Keyboard Shortcuts"
 					accesskey="K"
-					action={() => console.log("keyboardshortcuts")}
+					action={() => alert("keyboardshortcuts")}
 				/>
 			</Menu>
 		</MenuItem>
@@ -121,15 +123,15 @@ const Template = () => (
 			id="useraccount"
 			label="User Account"
 			accesskey="U"
-			action={() => console.log("useraccount")}
+			action={() => alert("useraccount")}
 		/>
 	</Menu>
 );
 
-export const Uncontrolled: Story<{}> = (args) => <Template />;
+export const Pointer: Story<{}> = (args) => <Template />;
 
-export const Controlled: Story<{}> = (args) => (
-	<ControlledMenu container={document as any}>
+export const Keyboard: Story<{}> = (args) => (
+	<KeyboardMenu container={document as any}>
 		<Template />
-	</ControlledMenu>
+	</KeyboardMenu>
 );
