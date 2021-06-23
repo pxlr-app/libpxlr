@@ -2,6 +2,7 @@ import React, { PropsWithChildren, useContext, useEffect, useRef } from "react";
 import {
 	MenuContainer,
 	MenuContext,
+	MenuContextData,
 	MenuGlobalContext,
 	MenuItemContainer,
 	MenuItemContainerProps,
@@ -19,22 +20,47 @@ export type MenuProps = {
 };
 
 export function Menu({ children, ...props }: PropsWithChildren<MenuProps>) {
+	function InnerMenu({
+		selected,
+		onKeyDown,
+	}: PropsWithChildren<MenuProps & MenuContextData>) {
+		const { showAccessKey } = useContext(MenuGlobalContext);
+		const element = useRef<HTMLElement>(null);
+
+		useEffect(() => {
+			if (selected === null) {
+				if (showAccessKey) {
+					element.current!.focus();
+				} else if (document.activeElement == element.current) {
+					element.current!.blur();
+				}
+			}
+		}, [showAccessKey, selected]);
+
+		return (
+			<nav
+				ref={element}
+				tabIndex={0}
+				className="pointer-events-auto absolute z-2000 cursor-default shadow-hard border border-transparent outline-none bg-gray-700 text-gray-200 text-xs select-none focus:border-blue-500"
+				style={{ width: props.width }}
+				onKeyDown={onKeyDown}
+			>
+				<div className="flex flex-1 p-0 m-0 overflow-visible">
+					<ul className="flex flex-1 flex-col py-2 px-0 m-0 justify-end flex-nowrap">
+						{children}
+					</ul>
+				</div>
+			</nav>
+		);
+	}
+
 	return (
 		<MenuContainer>
 			<MenuContext.Consumer>
-				{({ onKeyDown }) => (
-					<nav
-						tabIndex={0}
-						className="pointer-events-auto absolute z-2000 cursor-default shadow-hard border border-transparent outline-none bg-gray-700 text-gray-200 text-xs select-none focus:border-blue-500"
-						style={{ width: props.width }}
-						onKeyDown={onKeyDown}
-					>
-						<div className="flex flex-1 p-0 m-0 overflow-visible">
-							<ul className="flex flex-1 flex-col py-2 px-0 m-0 justify-end flex-nowrap">
-								{children}
-							</ul>
-						</div>
-					</nav>
+				{(context) => (
+					<InnerMenu {...props} {...context}>
+						{children}
+					</InnerMenu>
 				)}
 			</MenuContext.Consumer>
 		</MenuContainer>
