@@ -14,7 +14,6 @@ export default {
 const Template = () => (
 	<Menu width="300px">
 		<MenuItem
-			key="newfile"
 			id="newfile"
 			label="New File"
 			accessKey="N"
@@ -22,16 +21,14 @@ const Template = () => (
 			action={() => alert("newfile")}
 		/>
 		<MenuItem
-			key="newwindow"
 			id="newwindow"
 			label="New Window"
 			accessKey="W"
 			keybind="Ctrl+Shift+N"
 			action={() => alert("newwindow")}
 		/>
-		<Separator key="sep1" />
+		<Separator />
 		<MenuItem
-			key="openfile"
 			id="openfile"
 			label="Open File…"
 			accessKey="O"
@@ -39,7 +36,6 @@ const Template = () => (
 			action={() => alert("openfile")}
 		/>
 		<MenuItem
-			key="openrecent"
 			id="openrecent"
 			label="Open Recent"
 			accessKey="R"
@@ -47,36 +43,27 @@ const Template = () => (
 		>
 			<Menu width="300px">
 				<MenuItem
-					key="reopen"
 					id="reopen"
 					label="Reopen Closed File"
 					accessKey="R"
 					keybind="Ctrl+Shift+T"
 					action={() => alert("reopen")}
 				/>
-				<MenuItem
-					key="recentfiles"
-					id="recentfiles"
-					label="Recent Files"
-					accessKey="F"
-				>
+				<MenuItem id="recentfiles" label="Recent Files" accessKey="F">
 					<Menu width="300px">
 						<MenuItem
-							key="filea"
 							id="filea"
 							label="File A"
 							accessKey="A"
 							action={() => alert("filea")}
 						/>
 						<MenuItem
-							key="fileb"
 							id="fileb"
 							label="File B"
 							accessKey="B"
 							action={() => alert("fileb")}
 						/>
 						<MenuItem
-							key="filec"
 							id="filec"
 							label="File C"
 							accessKey="C"
@@ -86,7 +73,6 @@ const Template = () => (
 				</MenuItem>
 
 				<MenuItem
-					key="clearrecent"
 					id="clearrecent"
 					label="Clear Recent Files"
 					accessKey="C"
@@ -96,7 +82,6 @@ const Template = () => (
 		</MenuItem>
 		<Separator />
 		<MenuItem
-			key="save"
 			id="save"
 			label="Save"
 			accessKey="S"
@@ -104,7 +89,6 @@ const Template = () => (
 			action={() => alert("save")}
 		/>
 		<MenuItem
-			key="saveas"
 			id="saveas"
 			label="Save As…"
 			accessKey="A"
@@ -112,18 +96,16 @@ const Template = () => (
 			action={() => alert("saveas")}
 		/>
 		<MenuItem
-			key="autosave"
 			id="autosave"
 			label="Auto Save"
 			accessKey="t"
 			checked
 			action={() => alert("autosave")}
 		/>
-		<Separator key="sep2" />
+		<Separator />
 		<MenuItem id="preferences" label="Preferences" accessKey="P">
 			<Menu width="300px">
 				<MenuItem
-					key="settings"
 					id="settings"
 					label="Settings"
 					accessKey="S"
@@ -131,7 +113,6 @@ const Template = () => (
 					action={() => alert("settings")}
 				/>
 				<MenuItem
-					key="keyboardshortcuts"
 					id="keyboardshortcuts"
 					label="Keyboard Shortcuts"
 					accessKey="K"
@@ -140,7 +121,6 @@ const Template = () => (
 			</Menu>
 		</MenuItem>
 		<MenuItem
-			key="useraccount"
 			id="useraccount"
 			label="User Account"
 			accessKey="U"
