@@ -2,16 +2,17 @@ import React from "react";
 import { Story, Meta } from "@storybook/react";
 import { AccessibleMenuContainer } from "./MenuContainer";
 import { Menu, MenuItem, Separator } from "./Menu";
+import { Menubar, MenubarItem } from "./Menubar";
 
 export default {
-	title: "Layout/Menu",
-	component: Menu,
+	title: "Layout/Menubar",
+	component: Menubar,
 	argTypes: {
 		//   backgroundColor: { control: 'color' },
 	},
 } as Meta;
 
-const Template = () => (
+const MenuTemplate = () => (
 	<Menu width="300px">
 		<MenuItem
 			key="newfile"
@@ -147,6 +148,18 @@ const Template = () => (
 			action={() => alert("useraccount")}
 		/>
 	</Menu>
+);
+
+const Template = () => (
+	<Menubar>
+		<MenubarItem id="file" label="File" accessKey="F">
+			<MenuTemplate />
+		</MenubarItem>
+		<MenubarItem id="edit" label="Edit" accessKey="E" />
+		<MenubarItem id="selection" label="Selection" accessKey="S" />
+		<MenubarItem id="view" label="View" accessKey="V" />
+		<MenubarItem id="help" label="Help" accessKey="H" />
+	</Menubar>
 );
 
 export const Default: Story<{}> = (args) => <Template />;

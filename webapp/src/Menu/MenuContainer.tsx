@@ -9,155 +9,91 @@ import React, {
 	useState,
 } from "react";
 
-export const MenuGlobalContext = createContext<{
+export type AccessibleMenuData = {
 	showAccessKey: boolean;
-	setShowAccessKey: (state: boolean) => void;
-	autoSelectFirst: React.MutableRefObject<boolean>;
-}>({
+	setShowAccessKey: React.Dispatch<React.SetStateAction<boolean>>;
+	navigationMethod: "pointer" | "keyboard";
+	setNavigationMethod: React.Dispatch<
+		React.SetStateAction<"pointer" | "keyboard">
+	>;
+};
+
+export const AccessibleMenuContext = createContext<AccessibleMenuData>({
 	showAccessKey: false,
 	setShowAccessKey() {},
-	autoSelectFirst: createRef<boolean>() as React.MutableRefObject<boolean>,
+	navigationMethod: "pointer",
+	setNavigationMethod() {},
 });
 
-export type MenuContextData = {
-	addOrUpdateMenuItem: (ref: object, item: MenuItemState) => void;
-	removeMenuItem: (ref: object) => void;
-	onKeyDown: (event: React.KeyboardEvent) => void;
+export type AccessibleMenuContainerProps = {
+	/**
+	 * The HTML Element to attach keyboard events to
+	 */
+	container: HTMLElement;
+};
+
+export type MenuData = AccessibleMenuData & {
+	direction: "horizontal" | "vertical";
 
 	selected: string | null;
 	opened: string | null;
-	setSelected: (id: string | null) => void;
-	setOpened: (id: string | null) => void;
+	setSelected: React.Dispatch<React.SetStateAction<string | null>>;
+	setOpened: React.Dispatch<React.SetStateAction<string | null>>;
+	elementRef: React.Ref<HTMLElement>;
+
+	props: {
+		tabIndex: number;
+		onKeyDown: (event: React.KeyboardEvent) => void;
+	};
 };
 
-export const MenuContext = createContext<MenuContextData>({
-	addOrUpdateMenuItem() {},
-	removeMenuItem() {},
-	onKeyDown() {},
+export const MenuContext = createContext<
+	Omit<MenuData, "elementRef" | "props"> | undefined
+>(undefined);
 
-	selected: null,
-	opened: null,
-	setSelected() {},
-	setOpened() {},
-});
+export type MenuContainerProps = {
+	direction: "horizontal" | "vertical";
+	children: (context: MenuData) => React.ReactNode;
+};
 
-type MenuItemState = Pick<
-	MenuItemContainerProps,
-	"id" | "accessKey" | "action"
->;
+export type MenuItemData = AccessibleMenuData & {
+	selected: boolean;
+	opened: boolean;
+	setSelected: React.Dispatch<React.SetStateAction<string | null>>;
+	setOpened: React.Dispatch<React.SetStateAction<string | null>>;
+	elementRef: React.Ref<HTMLElement>;
 
-export type MenuContainerProps = {};
+	props: {
+		tabIndex: number;
+		onPointerEnter: (event: React.PointerEvent) => void;
+		onFocus: (event: React.FocusEvent) => void;
+		onClick: (event: React.MouseEvent) => void;
+		onKeyDown: (event: React.KeyboardEvent) => void;
+	};
+};
 
-export function MenuContainer({
-	children,
-}: PropsWithChildren<MenuContainerProps>) {
-	const { showAccessKey, setShowAccessKey, autoSelectFirst } = useContext(
-		MenuGlobalContext,
-	);
+export type MenuItemContainerProps = {
+	id: string;
+	accessKey: string;
+	action?: () => void;
+	hasChildren: boolean;
+	children: (context: MenuItemData) => React.ReactNode;
+};
+
+export function MenuContainer({ children, direction }: MenuContainerProps) {
+	const {
+		showAccessKey,
+		setShowAccessKey,
+		setNavigationMethod,
+		navigationMethod,
+	} = useContext(AccessibleMenuContext);
 	const [selected, setSelected] = useState<string | null>(null);
 	const [opened, setOpened] = useState<string | null>(null);
-	const items = useRef<Map<object, MenuItemState>>(new Map());
-	const context = useMemo<MenuContextData>(
-		() => ({
-			selected,
-			setSelected,
-			opened,
-			setOpened,
-			addOrUpdateMenuItem(ref, item) {
-				items.current.set(ref, item);
-			},
-			removeMenuItem(ref) {
-				items.current.delete(ref);
-			},
-			onKeyDown(e) {
-				if (e.code === "AltLeft") {
-					console.log("AltLeft Menu");
-					e.preventDefault();
-					e.stopPropagation();
-					setShowAccessKey(!showAccessKey);
-				} else if (opened === null) {
-					if (e.code === "ArrowDown") {
-						e.preventDefault();
-						e.stopPropagation();
-						const entries = Array.from(items.current.entries());
-						let selectedIdx = entries.findIndex(
-							([, item]) => item.id === selected,
-						);
-						selectedIdx = (selectedIdx + 1) % entries.length;
-						setSelected(entries[selectedIdx][1].id);
-					} else if (e.code === "ArrowUp") {
-						e.preventDefault();
-						e.stopPropagation();
-						const entries = Array.from(items.current.entries());
-						let selectedIdx = entries.findIndex(
-							([, item]) => item.id === selected,
-						);
-						if (selectedIdx === -1) {
-							selectedIdx = entries.length - 1;
-						} else {
-							selectedIdx =
-								(entries.length + (selectedIdx - 1)) %
-								entries.length;
-						}
-						setSelected(entries[selectedIdx][1].id);
-					} else if (e.code === "ArrowLeft") {
-						setSelected(null);
-						setOpened(null);
-					} else if (showAccessKey) {
-						const entries = Array.from(items.current.entries());
-						const accessedItem = entries.find(
-							([, item]) =>
-								`Key${item.accessKey.toUpperCase()}` === e.code,
-						);
-						if (accessedItem) {
-							if (accessedItem[1].action) {
-								setShowAccessKey(false);
-								autoSelectFirst.current = false;
-								setSelected(null);
-								setOpened(null);
-								accessedItem[1].action();
-							} else {
-								e.preventDefault();
-								e.stopPropagation();
-								autoSelectFirst.current = true;
-								setSelected(accessedItem[1].id);
-								setOpened(accessedItem[1].id);
-							}
-						}
-					}
-				} else {
-					if (e.code === "ArrowLeft") {
-						e.stopPropagation();
-						setOpened(null);
-					}
-				}
-			},
-		}),
-		[
-			selected,
-			setSelected,
-			opened,
-			setOpened,
-			showAccessKey,
-			setShowAccessKey,
-			// autoSelectFirst,
-			// items,
-		],
-	);
-
-	useEffect(() => {
-		if (autoSelectFirst.current) {
-			autoSelectFirst.current = false;
-			if (selected === null) {
-				const entries = Array.from(items.current.entries());
-				setSelected(entries[0][1].id);
-			}
-		}
-	}, [autoSelectFirst, selected, setSelected]);
+	const elementRef = useRef<HTMLElement>();
 
 	useEffect(() => {
 		function onLeave() {
-			autoSelectFirst.current = false;
+			setNavigationMethod("pointer");
 			setSelected(null);
 			setOpened(null);
 		}
@@ -169,170 +105,290 @@ export function MenuContainer({
 			document.removeEventListener("click", onLeave);
 			document.removeEventListener("keydown", onLeave);
 		};
-	}, [setShowAccessKey, autoSelectFirst]);
+	}, [setShowAccessKey]);
 
-	console.log(selected, opened);
+	const data = useMemo<MenuData>(
+		() => ({
+			direction,
+			showAccessKey,
+			navigationMethod,
+			selected,
+			opened,
+			elementRef(element) {
+				if (element) {
+					elementRef.current = element;
+					element.setAttribute("role", "menu");
 
-	return (
-		<MenuContext.Provider value={context}>{children}</MenuContext.Provider>
+					if (!selected && navigationMethod === "keyboard") {
+						const menuitems = Array.from(
+							element.querySelectorAll(
+								":not([role='menu']) [role='menuitem']",
+							),
+						);
+						if (menuitems.length > 0) {
+							setSelected((menuitems[0] as any)._menuitem_id);
+							setOpened(null);
+						}
+					}
+				}
+			},
+			setShowAccessKey,
+			setNavigationMethod,
+			setSelected,
+			setOpened,
+
+			props: {
+				tabIndex: 0,
+				onKeyDown(e) {
+					if (e.code === "AltLeft") {
+						e.preventDefault();
+						e.stopPropagation();
+						setShowAccessKey((state) => !state);
+						setNavigationMethod("keyboard");
+					} else if (!opened) {
+						const menuitems = Array.from(
+							elementRef.current!.querySelectorAll(
+								":not([role='menu']) [role='menuitem']",
+							),
+						).map((menuitem) => ({
+							id: (menuitem as any)._menuitem_id,
+							accessKey: (menuitem as any)._menuitem_accessKey,
+							action: (menuitem as any)._menuitem_action,
+							element: menuitem,
+						}));
+						let selectedIdx = menuitems.findIndex(
+							(menuitem) => menuitem.id === selected,
+						);
+
+						if (
+							(direction === "vertical" &&
+								e.code === "ArrowDown") ||
+							(direction === "horizontal" &&
+								e.code === "ArrowRight")
+						) {
+							e.preventDefault();
+							e.stopPropagation();
+							selectedIdx = (selectedIdx + 1) % menuitems.length;
+							setNavigationMethod("keyboard");
+							setSelected(menuitems[selectedIdx].id);
+						} else if (
+							(direction === "vertical" &&
+								e.code === "ArrowUp") ||
+							(direction === "horizontal" &&
+								e.code === "ArrowLeft")
+						) {
+							e.preventDefault();
+							e.stopPropagation();
+							if (selectedIdx === -1) {
+								selectedIdx = menuitems.length - 1;
+							} else {
+								selectedIdx =
+									(menuitems.length + (selectedIdx - 1)) %
+									menuitems.length;
+							}
+							setNavigationMethod("keyboard");
+							setSelected(menuitems[selectedIdx].id);
+						} else if (
+							(direction === "vertical" &&
+								e.code === "ArrowLeft") ||
+							(direction === "horizontal" && e.code === "ArrowUp")
+						) {
+							setNavigationMethod("keyboard");
+							setSelected(null);
+							setOpened(null);
+						} else if (showAccessKey) {
+							const accessedItem = menuitems.find(
+								({ id, accessKey }) =>
+									`Key${accessKey.toUpperCase()}` === e.code,
+							);
+							if (accessedItem) {
+								if (accessedItem.action) {
+									setShowAccessKey(false);
+									setNavigationMethod("keyboard");
+									setSelected(null);
+									setOpened(null);
+									accessedItem.action();
+								} else {
+									e.preventDefault();
+									e.stopPropagation();
+									setNavigationMethod("keyboard");
+									setSelected(accessedItem.id);
+									setOpened(accessedItem.id);
+								}
+							}
+						}
+					} else if (
+						(direction === "vertical" && e.code === "ArrowLeft") ||
+						(direction === "horizontal" && e.code === "ArrowUp")
+					) {
+						e.preventDefault();
+						e.stopPropagation();
+						setNavigationMethod("keyboard");
+						setOpened(null);
+					}
+				},
+			},
+		}),
+		[direction, showAccessKey, navigationMethod, selected, opened],
+	);
+
+	return useMemo(
+		() => (
+			<MenuContext.Provider value={data}>
+				{children(data)}
+			</MenuContext.Provider>
+		),
+		[data],
 	);
 }
 
-export type MenuItemContextData = {
-	onPointerEnter: (event: React.PointerEvent) => void;
-	onFocus: (event: React.FocusEvent) => void;
-	onClick: (event: React.MouseEvent) => void;
-	onKeyDown: (event: React.KeyboardEvent) => void;
-};
-
-export const MenuItemContext = createContext<MenuItemContextData>({
-	onPointerEnter() {},
-	onFocus() {},
-	onClick() {},
-	onKeyDown() {},
-});
-
-export type MenuItemContainerProps = {
-	id: string;
-	accessKey: string;
-	hasChildren: boolean;
-	action?: () => void;
-};
-
 export function MenuItemContainer({
 	children,
+	id,
+	accessKey,
 	hasChildren,
-	...props
-}: PropsWithChildren<MenuItemContainerProps>) {
-	const menuItemRef = useRef({});
+	action,
+}: MenuItemContainerProps) {
+	const menuContext = useContext(MenuContext);
+	if (!menuContext) {
+		throw new Error(
+			"MenuItemContainer needs to be a descendant of MenuContainer.",
+		);
+	}
+
 	const {
-		addOrUpdateMenuItem,
-		removeMenuItem,
-		opened,
-		setSelected,
-		setOpened,
-	} = useContext(MenuContext);
-	const { autoSelectFirst, setShowAccessKey, showAccessKey } = useContext(
-		MenuGlobalContext,
-	);
+		showAccessKey,
+		setShowAccessKey,
+		navigationMethod,
+		setNavigationMethod,
+	} = useContext(AccessibleMenuContext);
 
-	// Add and remove MenuItem when mounting/unmounting
-	useEffect(() => {
-		addOrUpdateMenuItem(menuItemRef, {
-			id: props.id,
-			accessKey: props.accessKey,
-			action: props.action,
-		});
-		return () => {
-			removeMenuItem(menuItemRef);
-		};
-	}, [addOrUpdateMenuItem, removeMenuItem]);
+	const { direction, selected, opened, setSelected, setOpened } = menuContext;
+	const elementRef = useRef<HTMLElement>();
 
-	// Update MenuItem on props change
-	useEffect(() => {
-		addOrUpdateMenuItem(menuItemRef, {
-			id: props.id,
-			accessKey: props.accessKey,
-			action: props.action,
-		});
-	}, [props.id, props.accessKey, props.action]);
-
-	const onClick = useMemo(
-		() => (e: React.MouseEvent | React.KeyboardEvent) => {
+	const data = useMemo<MenuItemData>(() => {
+		function onClick(e: React.MouseEvent | React.KeyboardEvent) {
 			// Not bubbling up
 			if (e.target === e.currentTarget) {
 				// Has children
 				if (hasChildren) {
 					e.preventDefault();
 					e.stopPropagation();
-					setOpened(opened === props.id ? null : props.id);
+					if (opened === id) {
+						setSelected(null);
+						setOpened(null);
+					} else {
+						setSelected(id);
+						setOpened(id);
+					}
 				}
 				// Has action
-				else if (props.action) {
+				else if (action) {
+					setSelected(null);
 					setOpened(null);
-					props.action();
+					action();
 				}
 			}
-		},
-		[hasChildren, opened, setOpened, props.id, props.action],
-	);
+		}
+		return {
+			showAccessKey,
+			navigationMethod,
+			selected: selected === id,
+			opened: opened === id,
+			elementRef(element) {
+				if (element) {
+					elementRef.current = element;
+					element.setAttribute("role", "menuitem");
+					(element as any)._menuitem_id = id;
+					(element as any)._menuitem_accessKey = accessKey;
+					(element as any)._menuitem_action = action;
 
-	const context = useMemo<MenuItemContextData>(
-		() => ({
-			onPointerEnter(e) {
-				setSelected(props.id);
-			},
-			onFocus(e) {
-				setSelected(props.id);
-			},
-			onClick,
-			onKeyDown(e) {
-				if (e.code === "AltLeft") {
-					console.log("AltLeft Item");
-					e.preventDefault();
-					e.stopPropagation();
-					setShowAccessKey(!showAccessKey);
-				} else if (
-					e.code === "Space" ||
-					e.code === "Enter" ||
-					e.code === "ArrowRight"
-				) {
-					autoSelectFirst.current = true;
-					onClick(e);
+					if (selected === id) {
+						element.focus();
+					} else if (element === document.activeElement) {
+						element.blur();
+					}
 				}
 			},
-		}),
-		[
-			props.id,
-			setSelected,
-			showAccessKey,
 			setShowAccessKey,
-			// autoSelectFirst,
-		],
-	);
+			setNavigationMethod,
+			setSelected,
+			setOpened,
+			props: {
+				tabIndex: -1,
+				onPointerEnter(e) {
+					setNavigationMethod("pointer");
+					setSelected(id);
+					if (opened !== id) {
+						setOpened(null);
+					}
+				},
+				onFocus(e) {
+					setSelected(id);
+					if (opened !== id) {
+						setOpened(null);
+					}
+				},
+				onClick(e) {
+					setNavigationMethod("pointer");
+					onClick(e);
+				},
+				onKeyDown(e) {
+					if (e.code === "AltLeft") {
+						e.preventDefault();
+						e.stopPropagation();
+						setShowAccessKey((state) => !state);
+						setNavigationMethod("keyboard");
+					} else if (
+						e.code === "Space" ||
+						e.code === "Enter" ||
+						(direction === "vertical" && e.code === "ArrowRight") ||
+						(direction === "horizontal" && e.code === "ArrowDown")
+					) {
+						setNavigationMethod("keyboard");
+						onClick(e);
+					}
+				},
+			},
+		};
+	}, [
+		id,
+		direction,
+		showAccessKey,
+		navigationMethod,
+		selected === id,
+		opened === id,
+	]);
 
-	return (
-		<MenuItemContext.Provider value={context}>
-			{children}
-		</MenuItemContext.Provider>
-	);
+	return useMemo(() => <>{children(data)}</>, [data]);
 }
 
-export type KeyboardMenuContainer = {
-	/**
-	 * The HTML Element to attach keyboard events to
-	 */
-	container: HTMLElement;
-};
-
-export function KeyboardMenuContainer({
+export function AccessibleMenuContainer({
 	children,
 	container,
-}: PropsWithChildren<KeyboardMenuContainer>) {
+}: PropsWithChildren<AccessibleMenuContainerProps>) {
 	const [showAccessKey, setShowAccessKey] = useState<boolean>(false);
-	const autoSelectFirst = useRef<boolean>(false);
-	const context = useMemo(
+	const [navigationMethod, setNavigationMethod] = useState<
+		"pointer" | "keyboard"
+	>("pointer");
+
+	const data = useMemo(
 		() => ({
 			showAccessKey,
-			// setShowAccessKey,
-			setShowAccessKey: () => {},
-			autoSelectFirst,
-		}),
-		[
-			showAccessKey,
 			setShowAccessKey,
-			// autoSelectFirst
-		],
+			navigationMethod,
+			setNavigationMethod,
+		}),
+		[showAccessKey, navigationMethod],
 	);
 
 	useEffect(() => {
 		function onKeyDown(e: KeyboardEvent) {
 			if (e.code === "AltLeft") {
-				console.log("AltLeft KB");
 				e.preventDefault();
 				e.stopPropagation();
-				setShowAccessKey(!showAccessKey);
-				autoSelectFirst.current = !showAccessKey;
+				setShowAccessKey((state) => !state);
+				setNavigationMethod("keyboard");
 			}
 		}
 
@@ -341,11 +397,14 @@ export function KeyboardMenuContainer({
 		return () => {
 			container.removeEventListener("keydown", onKeyDown);
 		};
-	}, [container, showAccessKey, setShowAccessKey]);
+	}, [container]);
 
-	return (
-		<MenuGlobalContext.Provider value={context}>
-			{children}
-		</MenuGlobalContext.Provider>
+	return useMemo(
+		() => (
+			<AccessibleMenuContext.Provider value={data}>
+				{children}
+			</AccessibleMenuContext.Provider>
+		),
+		[data],
 	);
 }

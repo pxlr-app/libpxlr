@@ -1,14 +1,5 @@
 import React, { PropsWithChildren, useContext, useEffect, useRef } from "react";
-import {
-	MenuContainer,
-	MenuContext,
-	MenuContextData,
-	MenuGlobalContext,
-	MenuItemContainer,
-	MenuItemContainerProps,
-	MenuItemContext,
-	MenuItemContextData,
-} from "./MenuContainer";
+import { MenuContainer, MenuItemContainer } from "./MenuContainer";
 import { faCheck, faChevronRight } from "@fortawesome/pro-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
@@ -20,49 +11,21 @@ export type MenuProps = {
 };
 
 export function Menu({ children, ...props }: PropsWithChildren<MenuProps>) {
-	function InnerMenu({
-		selected,
-		onKeyDown,
-	}: PropsWithChildren<MenuProps & MenuContextData>) {
-		const { showAccessKey } = useContext(MenuGlobalContext);
-		const element = useRef<HTMLElement>(null);
-
-		useEffect(() => {
-			if (selected === null) {
-				if (showAccessKey) {
-					element.current!.focus();
-				} else if (document.activeElement == element.current) {
-					element.current!.blur();
-				}
-			}
-		}, [showAccessKey, selected]);
-
-		return (
-			<nav
-				ref={element}
-				tabIndex={0}
-				className="pointer-events-auto absolute z-2000 cursor-default shadow-hard border border-transparent outline-none bg-gray-700 text-gray-200 text-xs select-none focus:border-blue-500"
-				style={{ width: props.width }}
-				onKeyDown={onKeyDown}
-			>
-				<div className="flex flex-1 p-0 m-0 overflow-visible">
-					<ul className="flex flex-1 flex-col py-2 px-0 m-0 justify-end flex-nowrap">
-						{children}
-					</ul>
-				</div>
-			</nav>
-		);
-	}
-
 	return (
-		<MenuContainer>
-			<MenuContext.Consumer>
-				{(context) => (
-					<InnerMenu {...props} {...context}>
-						{children}
-					</InnerMenu>
-				)}
-			</MenuContext.Consumer>
+		<MenuContainer direction="vertical">
+			{({ elementRef, props }) => (
+				<nav
+					{...props}
+					ref={elementRef}
+					className="pointer-events-auto absolute z-2000 cursor-default shadow-hard border border-transparent outline-none bg-gray-700 text-gray-200 text-xs select-none focus:border-blue-500"
+				>
+					<div className="flex flex-1 p-0 m-0 overflow-visible">
+						<ul className="flex flex-1 flex-col py-2 px-0 m-0 justify-end flex-nowrap">
+							{children}
+						</ul>
+					</div>
+				</nav>
+			)}
 		</MenuContainer>
 	);
 }
@@ -96,93 +59,69 @@ export type MenuItemProps = {
 
 export function MenuItem({
 	children,
-	...props
+	id,
+	accessKey,
+	action,
+	checked,
+	label,
+	keybind,
 }: PropsWithChildren<MenuItemProps>) {
-	const { showAccessKey } = useContext(MenuGlobalContext);
-
-	function InnerMenuItem(
-		props: PropsWithChildren<MenuItemProps & MenuItemContextData>,
-	) {
-		const { selected, opened } = useContext(MenuContext);
-		const element = useRef<HTMLLIElement>(null);
-
-		useEffect(() => {
-			if (selected === props.id && element.current) {
-				element.current.focus();
-			} else if (
-				element.current &&
-				document.activeElement == element.current
-			) {
-				element.current.blur();
-			}
-		}, [selected, opened]);
-
-		return (
-			<li
-				ref={element}
-				tabIndex={-1}
-				accessKey={props.accessKey}
-				aria-label={props.label}
-				className="pointer-events-auto relative flex flex-1 pt-0.5 pb-1 px-1 mx-px cursor-pointer outline-none focus:bg-gray-900 focus:text-blue-400 focus-within:bg-gray-900 focus-within:text-blue-400"
-				onPointerEnter={props.onPointerEnter}
-				onFocus={props.onFocus}
-				onClick={props.onClick}
-				onKeyDown={props.onKeyDown}
-			>
-				<div className="pointer-events-none flex flex-1 flex-nowrap whitespace-nowrap ">
-					<div className="w-4 text-center text-2xs">
-						{props.checked && <FontAwesomeIcon icon={faCheck} />}
-					</div>
-					<div className="px-1 flex-1">
-						{props.accessKey ? (
-							<>
-								{props.label.split(props.accessKey).shift()}
-								<span
-									className={`${
-										showAccessKey
-											? "underline uppercase"
-											: ""
-									}`}
-								>
-									{props.accessKey}
-								</span>
-								{props.label
-									.split(props.accessKey)
-									.slice(1)
-									.join(props.accessKey)}
-							</>
-						) : (
-							props.label
-						)}
-					</div>
-					<div className="px-1 text-gray-500">{props.keybind}</div>
-					<div className="w-4 text-center text-2xs">
-						{children && <FontAwesomeIcon icon={faChevronRight} />}
-					</div>
-				</div>
-				{children && opened === props.id && (
-					<div className="absolute -top-2 right-0 transform -translate-y-px">
-						{children}
-					</div>
-				)}
-			</li>
-		);
-	}
-
 	return (
 		<MenuItemContainer
-			id={props.id}
-			accessKey={props.accessKey}
-			action={props.action}
+			id={id}
+			accessKey={accessKey}
+			action={action}
 			hasChildren={!!children}
 		>
-			<MenuItemContext.Consumer>
-				{(context) => (
-					<InnerMenuItem {...props} {...context}>
-						{children}
-					</InnerMenuItem>
-				)}
-			</MenuItemContext.Consumer>
+			{({ showAccessKey, selected, opened, elementRef, props }) => (
+				<li
+					{...props}
+					ref={elementRef as any}
+					className={[
+						"pointer-events-auto relative w-80 flex flex-1 pt-0.5 pb-1 px-1 mx-px cursor-pointer outline-none focus:bg-gray-800 focus:text-blue-300 focus-within:bg-gray-800 focus-within:text-blue-300",
+						selected && "bg-gray-800 text-blue-300",
+					].join(" ")}
+				>
+					<div className="pointer-events-none flex flex-1 flex-nowrap whitespace-nowrap ">
+						<div className="w-4 text-center text-2xs">
+							{checked && <FontAwesomeIcon icon={faCheck} />}
+						</div>
+						<div className="px-1 flex-1">
+							{accessKey ? (
+								<>
+									{label.split(accessKey).shift()}
+									<span
+										className={`${
+											showAccessKey
+												? "underline uppercase"
+												: ""
+										}`}
+									>
+										{accessKey}
+									</span>
+									{label
+										.split(accessKey)
+										.slice(1)
+										.join(accessKey)}
+								</>
+							) : (
+								label
+							)}
+						</div>
+						<div className="px-1 text-gray-500">{keybind}</div>
+						<div className="w-4 text-center text-2xs">
+							{children && (
+								<FontAwesomeIcon icon={faChevronRight} />
+							)}
+						</div>
+					</div>
+					{children && opened && (
+						<div className="absolute -top-2 right-0 transform -translate-y-px">
+							{children}
+						</div>
+					)}
+				</li>
+			)}
 		</MenuItemContainer>
 	);
 }
