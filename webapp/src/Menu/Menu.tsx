@@ -2,6 +2,7 @@ import React, { PropsWithChildren, useContext, useEffect, useRef } from "react";
 import { MenuContainer, MenuItemContainer } from "./MenuContainer";
 import { faCheck, faChevronRight } from "@fortawesome/pro-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Anchor, HorizontalAlign, VerticalAlign } from "../Anchor";
 
 export type MenuProps = {
 	/**
@@ -12,12 +13,12 @@ export type MenuProps = {
 
 export function Menu({ children, ...props }: PropsWithChildren<MenuProps>) {
 	return (
-		<MenuContainer direction="vertical">
+		<MenuContainer orientation="vertical">
 			{({ elementRef, props }) => (
 				<nav
 					{...props}
 					ref={elementRef}
-					className="pointer-events-auto absolute z-2000 cursor-default shadow-hard border border-transparent outline-none bg-gray-700 text-gray-200 text-xs select-none focus:border-blue-500"
+					className="pointer-events-auto inline-block relative cursor-default shadow-hard border border-transparent outline-none bg-gray-700 text-gray-200 text-xs select-none focus:border-blue-500"
 				>
 					<div className="flex flex-1 p-0 m-0 overflow-visible">
 						<ul className="flex flex-1 flex-col py-2 px-0 m-0 justify-end flex-nowrap">
@@ -116,9 +117,31 @@ export function MenuItem({
 						</div>
 					</div>
 					{children && opened && (
-						<div className="absolute -top-2 right-0 transform -translate-y-px">
-							{children}
-						</div>
+						<Anchor
+							className="z-50 transform translate-y-[calc(-0.5rem-1px)]"
+							preventOverlap={true}
+							anchorOrigin={{
+								horizontal: [
+									HorizontalAlign.RIGHT,
+									HorizontalAlign.LEFT,
+								],
+								vertical: [VerticalAlign.TOP],
+							}}
+							transformOrigin={{
+								horizontal: [
+									HorizontalAlign.LEFT,
+									HorizontalAlign.RIGHT,
+								],
+								vertical: [
+									VerticalAlign.TOP,
+									VerticalAlign.BOTTOM,
+								],
+							}}
+						>
+							{({ transformRef }) => (
+								<div ref={transformRef as any}>{children}</div>
+							)}
+						</Anchor>
 					)}
 				</li>
 			)}

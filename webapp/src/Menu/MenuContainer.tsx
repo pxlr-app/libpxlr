@@ -33,7 +33,7 @@ export type AccessibleMenuContainerProps = {
 };
 
 export type MenuData = AccessibleMenuData & {
-	direction: "horizontal" | "vertical";
+	orientation: "horizontal" | "vertical";
 
 	selected: string | null;
 	opened: string | null;
@@ -52,11 +52,13 @@ export const MenuContext = createContext<
 >(undefined);
 
 export type MenuContainerProps = {
-	direction: "horizontal" | "vertical";
+	orientation: "horizontal" | "vertical";
 	children: (context: MenuData) => React.ReactNode;
 };
 
 export type MenuItemData = AccessibleMenuData & {
+	orientation: "horizontal" | "vertical";
+
 	selected: boolean;
 	opened: boolean;
 	setSelected: React.Dispatch<React.SetStateAction<string | null>>;
@@ -80,7 +82,7 @@ export type MenuItemContainerProps = {
 	children: (context: MenuItemData) => React.ReactNode;
 };
 
-export function MenuContainer({ children, direction }: MenuContainerProps) {
+export function MenuContainer({ children, orientation }: MenuContainerProps) {
 	const {
 		showAccessKey,
 		setShowAccessKey,
@@ -109,7 +111,7 @@ export function MenuContainer({ children, direction }: MenuContainerProps) {
 
 	const data = useMemo<MenuData>(
 		() => ({
-			direction,
+			orientation,
 			showAccessKey,
 			navigationMethod,
 			selected,
@@ -161,9 +163,9 @@ export function MenuContainer({ children, direction }: MenuContainerProps) {
 						);
 
 						if (
-							(direction === "vertical" &&
+							(orientation === "vertical" &&
 								e.code === "ArrowDown") ||
-							(direction === "horizontal" &&
+							(orientation === "horizontal" &&
 								e.code === "ArrowRight")
 						) {
 							e.preventDefault();
@@ -172,9 +174,9 @@ export function MenuContainer({ children, direction }: MenuContainerProps) {
 							setNavigationMethod("keyboard");
 							setSelected(menuitems[selectedIdx].id);
 						} else if (
-							(direction === "vertical" &&
+							(orientation === "vertical" &&
 								e.code === "ArrowUp") ||
-							(direction === "horizontal" &&
+							(orientation === "horizontal" &&
 								e.code === "ArrowLeft")
 						) {
 							e.preventDefault();
@@ -189,9 +191,10 @@ export function MenuContainer({ children, direction }: MenuContainerProps) {
 							setNavigationMethod("keyboard");
 							setSelected(menuitems[selectedIdx].id);
 						} else if (
-							(direction === "vertical" &&
+							(orientation === "vertical" &&
 								e.code === "ArrowLeft") ||
-							(direction === "horizontal" && e.code === "ArrowUp")
+							(orientation === "horizontal" &&
+								e.code === "ArrowUp")
 						) {
 							setNavigationMethod("keyboard");
 							setSelected(null);
@@ -218,8 +221,9 @@ export function MenuContainer({ children, direction }: MenuContainerProps) {
 							}
 						}
 					} else if (
-						(direction === "vertical" && e.code === "ArrowLeft") ||
-						(direction === "horizontal" && e.code === "ArrowUp")
+						(orientation === "vertical" &&
+							e.code === "ArrowLeft") ||
+						(orientation === "horizontal" && e.code === "ArrowUp")
 					) {
 						e.preventDefault();
 						e.stopPropagation();
@@ -229,7 +233,7 @@ export function MenuContainer({ children, direction }: MenuContainerProps) {
 				},
 			},
 		}),
-		[direction, showAccessKey, navigationMethod, selected, opened],
+		[orientation, showAccessKey, navigationMethod, selected, opened],
 	);
 
 	return useMemo(
@@ -263,7 +267,13 @@ export function MenuItemContainer({
 		setNavigationMethod,
 	} = useContext(AccessibleMenuContext);
 
-	const { direction, selected, opened, setSelected, setOpened } = menuContext;
+	const {
+		orientation,
+		selected,
+		opened,
+		setSelected,
+		setOpened,
+	} = menuContext;
 	const elementRef = useRef<HTMLElement>();
 
 	const data = useMemo<MenuItemData>(() => {
@@ -291,6 +301,7 @@ export function MenuItemContainer({
 			}
 		}
 		return {
+			orientation,
 			showAccessKey,
 			navigationMethod,
 			selected: selected === id,
@@ -342,8 +353,9 @@ export function MenuItemContainer({
 					} else if (
 						e.code === "Space" ||
 						e.code === "Enter" ||
-						(direction === "vertical" && e.code === "ArrowRight") ||
-						(direction === "horizontal" && e.code === "ArrowDown")
+						(orientation === "vertical" &&
+							e.code === "ArrowRight") ||
+						(orientation === "horizontal" && e.code === "ArrowDown")
 					) {
 						setNavigationMethod("keyboard");
 						onClick(e);
@@ -353,7 +365,7 @@ export function MenuItemContainer({
 		};
 	}, [
 		id,
-		direction,
+		orientation,
 		showAccessKey,
 		navigationMethod,
 		selected === id,

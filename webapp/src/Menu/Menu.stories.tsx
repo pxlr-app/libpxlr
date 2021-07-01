@@ -132,7 +132,7 @@ const Template = () => (
 export const Default: Story<{}> = (args) => <Template />;
 
 export const Accessible: Story<{}> = (args) => (
-	<AccessibleMenuContainer container={document as any}>
+	<AccessibleMenuContainer container={document.body}>
 		<Template />
 	</AccessibleMenuContainer>
 );

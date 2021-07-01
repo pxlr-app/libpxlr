@@ -13,7 +13,7 @@ export function Menubar({
 	...props
 }: PropsWithChildren<MenubarProps>) {
 	return (
-		<MenuContainer direction="horizontal">
+		<MenuContainer orientation="horizontal">
 			{({ elementRef, props }) => (
 				<nav
 					{...props}

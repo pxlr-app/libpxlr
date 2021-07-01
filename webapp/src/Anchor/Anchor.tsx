@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 
 export enum VerticalAlign {
 	TOP,
@@ -19,9 +19,12 @@ export type Alignement = {
 
 export type AnchorData = {
 	transformRef: React.MutableRefObject<HTMLElement | undefined>;
+	// anchorOrigin: Alignement;
+	// transformOrigin: Alignement;
 };
 
 export type AnchorContainerProps = {
+	className?: string;
 	constraintElement?: HTMLElement | (() => HTMLElement);
 	preventOverlap?: boolean;
 	anchorOrigin: Alignement;
@@ -41,8 +44,15 @@ function rectContains(a: DOMRect, b: DOMRect): boolean {
 		b.bottom <= a.bottom
 	);
 }
+function rectOverlaps(a: DOMRect, b: DOMRect): boolean {
+	return (
+		Math.max(a.left, b.left) < Math.min(a.right, b.right) &&
+		Math.max(a.top, b.top) < Math.min(a.bottom, b.bottom)
+	);
+}
 
 export function Anchor({
+	className,
 	constraintElement,
 	preventOverlap,
 	anchorOrigin,
@@ -64,15 +74,20 @@ export function Anchor({
 			if (anchorRef.current && transformRef.current) {
 				const transformBounds = transformRef.current.getBoundingClientRect();
 				const anchorParentBounds = anchorRef.current.parentElement!.getBoundingClientRect();
-				const constraints = getOrRetrieve(
-					constraintElement ?? document.body,
-				);
+
+				const constraints = constraintElement
+					? getOrRetrieve(constraintElement)
+					: document.body.parentElement!;
 				const constraintsBounds = constraints.getBoundingClientRect();
 
-				let hAnchorOrigin = HorizontalAlign.CENTER;
-				let vAnchorOrigin = VerticalAlign.MIDDLE;
-				let hTransformOrigin = HorizontalAlign.CENTER;
-				let vTransformOrigin = VerticalAlign.MIDDLE;
+				let hAnchorOrigin =
+					anchorOrigin.horizontal[0] ?? HorizontalAlign.CENTER;
+				let vAnchorOrigin =
+					anchorOrigin.vertical[0] ?? VerticalAlign.MIDDLE;
+				let hTransformOrigin =
+					transformOrigin.horizontal[0] ?? HorizontalAlign.CENTER;
+				let vTransformOrigin =
+					transformOrigin.vertical[0] ?? VerticalAlign.MIDDLE;
 
 				const anchorHorizontals = anchorOrigin.horizontal;
 				const anchorVerticals = anchorOrigin.vertical;
@@ -131,13 +146,32 @@ export function Anchor({
 									y = anchorY - h;
 								}
 								const prospectBounds = new DOMRect(x, y, w, h);
+								console.log(
+									hanchor,
+									vanchor,
+									htrans,
+									vtrans,
+									constraints,
+									constraintsBounds,
+									anchorParentBounds,
+									prospectBounds,
+									rectContains(
+										constraintsBounds,
+										prospectBounds,
+									),
+									preventOverlap !== true ||
+										!rectOverlaps(
+											anchorParentBounds,
+											prospectBounds,
+										),
+								);
 								if (
 									rectContains(
 										constraintsBounds,
 										prospectBounds,
 									) &&
-									(!preventOverlap ||
-										!rectContains(
+									(preventOverlap !== true ||
+										!rectOverlaps(
 											anchorParentBounds,
 											prospectBounds,
 										))
@@ -219,11 +253,18 @@ export function Anchor({
 
 	useEffect(() => {
 		window.addEventListener("resize", recalcTransformPosition);
-		recalcTransformPosition();
 		return () => {
 			window.removeEventListener("resize", recalcTransformPosition);
 		};
 	}, [recalcTransformPosition]);
 
-	return <div ref={anchorRef}>{children(context)}</div>;
+	useLayoutEffect(() => {
+		recalcTransformPosition();
+	}, [recalcTransformPosition]);
+
+	return (
+		<div ref={anchorRef} className={className}>
+			{children(context)}
+		</div>
+	);
 }
