@@ -4,7 +4,7 @@ import { AccessibleMenuContainer } from "./MenuContainer";
 import { Menu, MenuItem, Separator } from "./Menu";
 
 export default {
-	title: "Layout/Menu",
+	title: "Components/Menu",
 	component: Menu,
 	argTypes: {
 		//   backgroundColor: { control: 'color' },

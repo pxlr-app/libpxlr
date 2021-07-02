@@ -5,10 +5,8 @@ import {
 	Anchor,
 	VerticalAlign,
 	Alignement,
-	AnchorContainerProps,
 	Constraints,
 } from "./Anchor";
-import { faArrowAltSquareRight } from "@fortawesome/pro-light-svg-icons";
 
 const LEFT = HorizontalAlign.LEFT;
 const CENTER = HorizontalAlign.CENTER;
@@ -18,7 +16,7 @@ const MIDDLE = VerticalAlign.MIDDLE;
 const BOTTOM = VerticalAlign.BOTTOM;
 
 export default {
-	title: "Layout/Anchor",
+	title: "Utilities/Anchor",
 	component: Anchor,
 	parameters: { docs: { source: { type: "code" } } },
 	argTypes: {

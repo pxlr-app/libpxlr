@@ -5,7 +5,7 @@ import { Menu, MenuItem, Separator } from "./Menu";
 import { Menubar, MenubarItem } from "./Menubar";
 
 export default {
-	title: "Layout/Menubar",
+	title: "Components/Menubar",
 	component: Menubar,
 	argTypes: {
 		//   backgroundColor: { control: 'color' },
