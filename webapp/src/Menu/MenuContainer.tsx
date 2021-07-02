@@ -8,6 +8,15 @@ import React, {
 	useRef,
 	useState,
 } from "react";
+import { Alignement, HorizontalAlign, VerticalAlign } from "../Anchor";
+
+export type MenuAlignment = {
+	alignment: Alignement;
+};
+
+export const MenuAlignmentContext = createContext<MenuAlignment | undefined>(
+	undefined,
+);
 
 export type AccessibleMenuData = {
 	showAccessKey: boolean;
@@ -83,6 +92,7 @@ export type MenuItemContainerProps = {
 };
 
 export function MenuContainer({ children, orientation }: MenuContainerProps) {
+	const alignmentContext = useContext(MenuAlignmentContext);
 	const {
 		showAccessKey,
 		setShowAccessKey,
@@ -233,7 +243,14 @@ export function MenuContainer({ children, orientation }: MenuContainerProps) {
 				},
 			},
 		}),
-		[orientation, showAccessKey, navigationMethod, selected, opened],
+		[
+			alignmentContext,
+			orientation,
+			showAccessKey,
+			navigationMethod,
+			selected,
+			opened,
+		],
 	);
 
 	return useMemo(

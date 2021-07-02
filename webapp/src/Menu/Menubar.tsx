@@ -1,5 +1,10 @@
 import React, { PropsWithChildren, useContext, useEffect, useRef } from "react";
-import { MenuContainer, MenuItemContainer } from "./MenuContainer";
+import { Anchor, Constraints, HorizontalAlign, VerticalAlign } from "../Anchor";
+import {
+	MenuAlignmentContext,
+	MenuContainer,
+	MenuItemContainer,
+} from "./MenuContainer";
 
 export type MenubarProps = {
 	/**
@@ -104,12 +109,47 @@ export function MenubarItem({
 						)}
 					</div>
 					{children && opened && (
-						<div className="absolute bottom-0 left-0">
-							{children}
-						</div>
+						<Anchor
+							className="z-50"
+							constraints={MENUBAR_CONSTRAINTS}
+						>
+							{({ transformRef, transformOrigin }) => (
+								<div ref={transformRef as any}>
+									<MenuAlignmentContext.Provider
+										value={{
+											alignment: transformOrigin,
+										}}
+									>
+										{children}
+									</MenuAlignmentContext.Provider>
+								</div>
+							)}
+						</Anchor>
 					)}
 				</li>
 			)}
 		</MenuItemContainer>
 	);
 }
+
+const MENUBAR_CONSTRAINTS: Constraints = {
+	preventOverlap: true,
+	origins: [
+		{
+			anchor: [HorizontalAlign.LEFT, VerticalAlign.BOTTOM],
+			transform: [HorizontalAlign.LEFT, VerticalAlign.TOP],
+		},
+		{
+			anchor: [HorizontalAlign.LEFT, VerticalAlign.TOP],
+			transform: [HorizontalAlign.LEFT, VerticalAlign.BOTTOM],
+		},
+		{
+			anchor: [HorizontalAlign.RIGHT, VerticalAlign.BOTTOM],
+			transform: [HorizontalAlign.RIGHT, VerticalAlign.TOP],
+		},
+		{
+			anchor: [HorizontalAlign.RIGHT, VerticalAlign.TOP],
+			transform: [HorizontalAlign.RIGHT, VerticalAlign.BOTTOM],
+		},
+	],
+};

@@ -1,8 +1,12 @@
 import React, { PropsWithChildren, useContext, useEffect, useRef } from "react";
-import { MenuContainer, MenuItemContainer } from "./MenuContainer";
+import {
+	MenuAlignmentContext,
+	MenuContainer,
+	MenuItemContainer,
+} from "./MenuContainer";
 import { faCheck, faChevronRight } from "@fortawesome/pro-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Anchor, HorizontalAlign, VerticalAlign } from "../Anchor";
+import { Anchor, Constraints, HorizontalAlign, VerticalAlign } from "../Anchor";
 
 export type MenuProps = {
 	/**
@@ -117,29 +121,26 @@ export function MenuItem({
 						</div>
 					</div>
 					{children && opened && (
-						<Anchor
-							className="z-50 transform translate-y-[calc(-0.5rem-1px)]"
-							preventOverlap={true}
-							anchorOrigin={{
-								horizontal: [
-									HorizontalAlign.RIGHT,
-									HorizontalAlign.LEFT,
-								],
-								vertical: [VerticalAlign.TOP],
-							}}
-							transformOrigin={{
-								horizontal: [
-									HorizontalAlign.LEFT,
-									HorizontalAlign.RIGHT,
-								],
-								vertical: [
-									VerticalAlign.TOP,
-									VerticalAlign.BOTTOM,
-								],
-							}}
-						>
-							{({ transformRef }) => (
-								<div ref={transformRef as any}>{children}</div>
+						<Anchor className="z-50" constraints={MENU_CONSTRAINTS}>
+							{({ transformRef, transformOrigin }) => (
+								<div ref={transformRef as any}>
+									<div
+										className={`transform ${
+											transformOrigin[1] ===
+											VerticalAlign.TOP
+												? "translate-y-[calc(-0.5rem-1px)]"
+												: "translate-y-[calc(0.5rem+1px)]"
+										}`}
+									>
+										<MenuAlignmentContext.Provider
+											value={{
+												alignment: transformOrigin,
+											}}
+										>
+											{children}
+										</MenuAlignmentContext.Provider>
+									</div>
+								</div>
 							)}
 						</Anchor>
 					)}
@@ -148,6 +149,28 @@ export function MenuItem({
 		</MenuItemContainer>
 	);
 }
+
+const MENU_CONSTRAINTS: Constraints = {
+	preventOverlap: true,
+	origins: [
+		{
+			anchor: [HorizontalAlign.RIGHT, VerticalAlign.TOP],
+			transform: [HorizontalAlign.LEFT, VerticalAlign.TOP],
+		},
+		{
+			anchor: [HorizontalAlign.LEFT, VerticalAlign.TOP],
+			transform: [HorizontalAlign.RIGHT, VerticalAlign.TOP],
+		},
+		{
+			anchor: [HorizontalAlign.RIGHT, VerticalAlign.BOTTOM],
+			transform: [HorizontalAlign.LEFT, VerticalAlign.BOTTOM],
+		},
+		{
+			anchor: [HorizontalAlign.LEFT, VerticalAlign.BOTTOM],
+			transform: [HorizontalAlign.RIGHT, VerticalAlign.BOTTOM],
+		},
+	],
+};
 
 export function Separator() {
 	return (

@@ -1,34 +1,50 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import React, {
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 
 export enum VerticalAlign {
-	TOP,
-	MIDDLE,
-	BOTTOM,
+	TOP = "TOP",
+	MIDDLE = "MIDDLE",
+	BOTTOM = "BOTTOM",
 }
 
 export enum HorizontalAlign {
-	LEFT,
-	CENTER,
-	RIGHT,
+	LEFT = "LEFT",
+	CENTER = "CENTER",
+	RIGHT = "RIGHT",
 }
 
-export type Alignement = {
-	horizontal: HorizontalAlign[];
-	vertical: VerticalAlign[];
+const LEFT = HorizontalAlign.LEFT;
+const CENTER = HorizontalAlign.CENTER;
+const RIGHT = HorizontalAlign.RIGHT;
+const TOP = VerticalAlign.TOP;
+const MIDDLE = VerticalAlign.MIDDLE;
+const BOTTOM = VerticalAlign.BOTTOM;
+
+export type Alignement = [HorizontalAlign, VerticalAlign];
+
+export type Constraints = {
+	element?: HTMLElement | (() => HTMLElement);
+	preventOverlap?: boolean;
+	origins: { anchor: Alignement; transform: Alignement }[];
 };
 
 export type AnchorData = {
 	transformRef: React.MutableRefObject<HTMLElement | undefined>;
-	// anchorOrigin: Alignement;
-	// transformOrigin: Alignement;
+	anchorOrigin: Alignement;
+	transformOrigin: Alignement;
 };
 
 export type AnchorContainerProps = {
+	anchorOrigin?: Alignement;
+	transformOrigin?: Alignement;
+	constraints?: Constraints;
+
 	className?: string;
-	constraintElement?: HTMLElement | (() => HTMLElement);
-	preventOverlap?: boolean;
-	anchorOrigin: Alignement;
-	transformOrigin: Alignement;
 	children: (context: AnchorData) => React.ReactNode;
 };
 
@@ -51,148 +67,151 @@ function rectOverlaps(a: DOMRect, b: DOMRect): boolean {
 	);
 }
 
+function rectIntersection(a: DOMRect, b: DOMRect): DOMRect {
+	const left = Math.max(a.left, b.left);
+	const right = Math.min(a.right, b.right);
+	const top = Math.max(a.top, b.top);
+	const bottom = Math.min(a.bottom, b.bottom);
+	return new DOMRect(left, top, right - left, bottom - top);
+}
+
 export function Anchor({
 	className,
-	constraintElement,
-	preventOverlap,
+	constraints,
 	anchorOrigin,
 	transformOrigin,
 	children,
 }: AnchorContainerProps) {
+	if (!constraints && (!anchorOrigin || !transformOrigin)) {
+		throw new Error(
+			"Need to specify either `constraints` attribute, or both `anchorOrigin` and `transformOrigin` attributes.",
+		);
+	}
+
+	if (constraints && (anchorOrigin || transformOrigin)) {
+		throw new Error(
+			"Can not specify `constraints` attribute along side `anchorOrigin` and `transformOrigin`.",
+		);
+	}
+
+	if (constraints && constraints.origins.length === 0) {
+		throw new Error("Needs at least one constraints.origins.");
+	}
+
 	const anchorRef = useRef<HTMLDivElement>(null);
 	const transformRef = useRef<HTMLElement>();
-
-	const context = useMemo<AnchorData>(
-		() => ({
-			transformRef,
-		}),
-		[],
-	);
+	const [currentAnchorOrigin, setCurrentAnchorOrigin] = useState<Alignement>([
+		CENTER,
+		MIDDLE,
+	]);
+	const [
+		currentTransformOrigin,
+		setCurrentTransformOrigin,
+	] = useState<Alignement>([CENTER, MIDDLE]);
 
 	const recalcTransformPosition = useMemo(
 		() => () => {
 			if (anchorRef.current && transformRef.current) {
-				const transformBounds = transformRef.current.getBoundingClientRect();
-				const anchorParentBounds = anchorRef.current.parentElement!.getBoundingClientRect();
+				let hAnchorOrigin: HorizontalAlign = CENTER;
+				let vAnchorOrigin: VerticalAlign = MIDDLE;
+				let hTransformOrigin: HorizontalAlign = CENTER;
+				let vTransformOrigin: VerticalAlign = MIDDLE;
 
-				const constraints = constraintElement
-					? getOrRetrieve(constraintElement)
-					: document.body.parentElement!;
-				const constraintsBounds = constraints.getBoundingClientRect();
+				// Use specified origins
+				if (anchorOrigin && transformOrigin) {
+					hAnchorOrigin = anchorOrigin[0];
+					vAnchorOrigin = anchorOrigin[1];
+					hTransformOrigin = transformOrigin[0];
+					vTransformOrigin = transformOrigin[1];
+				}
+				// Use constraints
+				else if (constraints) {
+					const transformBounds = transformRef.current.getBoundingClientRect();
+					const anchorParentBounds = anchorRef.current.parentElement!.getBoundingClientRect();
 
-				let hAnchorOrigin =
-					anchorOrigin.horizontal[0] ?? HorizontalAlign.CENTER;
-				let vAnchorOrigin =
-					anchorOrigin.vertical[0] ?? VerticalAlign.MIDDLE;
-				let hTransformOrigin =
-					transformOrigin.horizontal[0] ?? HorizontalAlign.CENTER;
-				let vTransformOrigin =
-					transformOrigin.vertical[0] ?? VerticalAlign.MIDDLE;
+					const constraintElement = constraints?.element
+						? getOrRetrieve(constraints.element)
+						: document.body.parentElement!;
+					const constraintsBounds = constraintElement.getBoundingClientRect();
 
-				const anchorHorizontals = anchorOrigin.horizontal;
-				const anchorVerticals = anchorOrigin.vertical;
-				const transformHorizontals = transformOrigin.horizontal;
-				const transformVerticals = transformOrigin.vertical;
+					const w = transformBounds.width;
+					const h = transformBounds.height;
 
-				const w = transformBounds.width;
-				const h = transformBounds.height;
+					hAnchorOrigin = constraints.origins[0].anchor[0];
+					vAnchorOrigin = constraints.origins[0].anchor[1];
+					hTransformOrigin = constraints.origins[0].transform[0];
+					vTransformOrigin = constraints.origins[0].transform[1];
 
-				auto: for (const hanchor of anchorHorizontals) {
-					let anchorX = 0;
-					if (hanchor === HorizontalAlign.LEFT) {
-						anchorX = anchorParentBounds.left;
-					}
-					if (hanchor === HorizontalAlign.CENTER) {
-						anchorX =
-							anchorParentBounds.left +
-							anchorParentBounds.width / 2;
-					}
-					if (hanchor === HorizontalAlign.RIGHT) {
-						anchorX = anchorParentBounds.right;
-					}
-					for (const vanchor of anchorVerticals) {
-						let anchorY = 0;
-						if (vanchor === VerticalAlign.TOP) {
-							anchorY = anchorParentBounds.top;
+					for (const {
+						anchor: anchorOrigin,
+						transform: transformOrigin,
+					} of constraints.origins) {
+						let anchorX = anchorParentBounds.left;
+						if (anchorOrigin[0] === CENTER) {
+							anchorX =
+								anchorParentBounds.left +
+								anchorParentBounds.width / 2;
+						} else if (anchorOrigin[0] === RIGHT) {
+							anchorX = anchorParentBounds.right;
 						}
-						if (vanchor === VerticalAlign.MIDDLE) {
+						let anchorY = anchorParentBounds.top;
+						if (anchorOrigin[1] === MIDDLE) {
 							anchorY =
 								anchorParentBounds.top +
 								anchorParentBounds.height / 2;
+						} else if (anchorOrigin[1] === BOTTOM) {
+							anchorX = anchorParentBounds.bottom;
 						}
-						if (vanchor === VerticalAlign.BOTTOM) {
-							anchorY = anchorParentBounds.bottom;
+						let x = anchorX;
+						if (transformOrigin[0] === CENTER) {
+							x = anchorX - w / 2;
+						} else if (transformOrigin[0] === RIGHT) {
+							x = anchorX - w;
 						}
-						for (const htrans of transformHorizontals) {
-							let x = 0;
-							if (htrans === HorizontalAlign.LEFT) {
-								x = anchorX;
-							}
-							if (htrans === HorizontalAlign.CENTER) {
-								x = anchorX - w / 2;
-							}
-							if (htrans === HorizontalAlign.RIGHT) {
-								x = anchorX - w;
-							}
-							for (const vtrans of transformVerticals) {
-								let y = 0;
-								if (vtrans === VerticalAlign.TOP) {
-									y = anchorY;
-								}
-								if (vtrans === VerticalAlign.MIDDLE) {
-									y = anchorY - h / 2;
-								}
-								if (vtrans === VerticalAlign.BOTTOM) {
-									y = anchorY - h;
-								}
-								const prospectBounds = new DOMRect(x, y, w, h);
-								console.log(
-									hanchor,
-									vanchor,
-									htrans,
-									vtrans,
-									constraints,
-									constraintsBounds,
+						let y = anchorY;
+						if (transformOrigin[1] === MIDDLE) {
+							y = anchorY - h / 2;
+						} else if (transformOrigin[1] === BOTTOM) {
+							y = anchorY - h;
+						}
+						const prospectBounds = new DOMRect(x, y, w, h);
+						if (
+							rectContains(constraintsBounds, prospectBounds) &&
+							(constraints.preventOverlap !== true ||
+								!rectOverlaps(
 									anchorParentBounds,
 									prospectBounds,
-									rectContains(
-										constraintsBounds,
-										prospectBounds,
-									),
-									preventOverlap !== true ||
-										!rectOverlaps(
-											anchorParentBounds,
-											prospectBounds,
-										),
-								);
-								if (
-									rectContains(
-										constraintsBounds,
-										prospectBounds,
-									) &&
-									(preventOverlap !== true ||
-										!rectOverlaps(
-											anchorParentBounds,
-											prospectBounds,
-										))
-								) {
-									hAnchorOrigin = hanchor;
-									vAnchorOrigin = vanchor;
-									hTransformOrigin = htrans;
-									vTransformOrigin = vtrans;
-									break auto;
-								}
-							}
+								))
+						) {
+							console.log(
+								constraintsBounds,
+								prospectBounds,
+								rectIntersection(
+									constraintsBounds,
+									prospectBounds,
+								),
+							);
+							hAnchorOrigin = anchorOrigin[0];
+							vAnchorOrigin = anchorOrigin[1];
+							hTransformOrigin = transformOrigin[0];
+							vTransformOrigin = transformOrigin[1];
+							break;
 						}
 					}
 				}
 
+				setCurrentAnchorOrigin([hAnchorOrigin!, vAnchorOrigin!]);
+				setCurrentTransformOrigin([
+					hTransformOrigin!,
+					vTransformOrigin!,
+				]);
+
 				anchorRef.current.style.position = "absolute";
 
-				if (hAnchorOrigin === HorizontalAlign.LEFT) {
+				if (hAnchorOrigin === LEFT) {
 					anchorRef.current.style.left = "0";
 					anchorRef.current.style.right = "auto";
-				} else if (hAnchorOrigin === HorizontalAlign.CENTER) {
+				} else if (hAnchorOrigin === CENTER) {
 					anchorRef.current.style.left = "50%";
 					anchorRef.current.style.right = "auto";
 				} else {
@@ -200,10 +219,10 @@ export function Anchor({
 					anchorRef.current.style.right = "0";
 				}
 
-				if (vAnchorOrigin === VerticalAlign.TOP) {
+				if (vAnchorOrigin === TOP) {
 					anchorRef.current.style.top = "0";
 					anchorRef.current.style.bottom = "auto";
-				} else if (vAnchorOrigin === VerticalAlign.MIDDLE) {
+				} else if (vAnchorOrigin === MIDDLE) {
 					anchorRef.current.style.top = "50%";
 					anchorRef.current.style.bottom = "auto";
 				} else {
@@ -214,10 +233,10 @@ export function Anchor({
 				transformRef.current.style.position = "absolute";
 				const transform = ["0", "0"];
 
-				if (hTransformOrigin === HorizontalAlign.LEFT) {
+				if (hTransformOrigin === LEFT) {
 					transformRef.current.style.left = "0";
 					transformRef.current.style.right = "auto";
-				} else if (hTransformOrigin === HorizontalAlign.CENTER) {
+				} else if (hTransformOrigin === CENTER) {
 					transformRef.current.style.left = "50%";
 					transformRef.current.style.right = "auto";
 					transform[0] = "-50%";
@@ -226,10 +245,10 @@ export function Anchor({
 					transformRef.current.style.right = "0";
 				}
 
-				if (vTransformOrigin === VerticalAlign.TOP) {
+				if (vTransformOrigin === TOP) {
 					transformRef.current.style.top = "0";
 					transformRef.current.style.bottom = "auto";
-				} else if (vTransformOrigin === VerticalAlign.MIDDLE) {
+				} else if (vTransformOrigin === MIDDLE) {
 					transformRef.current.style.top = "0";
 					transformRef.current.style.bottom = "auto";
 					transform[1] = "-50%";
@@ -245,9 +264,11 @@ export function Anchor({
 		[
 			anchorOrigin,
 			transformOrigin,
+			constraints?.element,
+			constraints?.preventOverlap,
+			constraints?.origins,
 			anchorRef.current,
 			transformRef.current,
-			constraintElement,
 		],
 	);
 
@@ -261,6 +282,15 @@ export function Anchor({
 	useLayoutEffect(() => {
 		recalcTransformPosition();
 	}, [recalcTransformPosition]);
+
+	const context = useMemo<AnchorData>(
+		() => ({
+			transformRef,
+			anchorOrigin: currentAnchorOrigin,
+			transformOrigin: currentTransformOrigin,
+		}),
+		[currentAnchorOrigin, currentTransformOrigin],
+	);
 
 	return (
 		<div ref={anchorRef} className={className}>

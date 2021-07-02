@@ -1,6 +1,14 @@
 import React, { useState } from "react";
 import { Story, Meta } from "@storybook/react";
-import { HorizontalAlign, Anchor, VerticalAlign, Alignement } from "./Anchor";
+import {
+	HorizontalAlign,
+	Anchor,
+	VerticalAlign,
+	Alignement,
+	AnchorContainerProps,
+	Constraints,
+} from "./Anchor";
+import { faArrowAltSquareRight } from "@fortawesome/pro-light-svg-icons";
 
 const LEFT = HorizontalAlign.LEFT;
 const CENTER = HorizontalAlign.CENTER;
@@ -12,169 +20,149 @@ const BOTTOM = VerticalAlign.BOTTOM;
 export default {
 	title: "Layout/Anchor",
 	component: Anchor,
+	parameters: { docs: { source: { type: "code" } } },
 	argTypes: {
-		preventOverlap: {
-			description: "Prevent overlap",
-			defaultValue: false,
-			control: { type: "boolean" },
-		},
-		parentHorizontal: {
-			description: "Parent horizontal",
-			defaultValue: "Left",
+		alignment: {
+			description: "Alignment",
+			defaultValue: "TopLeft",
 			control: { type: "select" },
-			options: ["Left", "Center", "Right"],
+			options: [
+				"TopLeft",
+				"TopCenter",
+				"TopRight",
+				"MiddleLeft",
+				"MiddleCenter",
+				"MiddleRight",
+				"BottomLeft",
+				"BottomCenter",
+				"BottomRight",
+			],
 		},
-		parentVertical: {
-			description: "Parent vertical",
-			defaultValue: "Top",
+		anchorOrigin: {
+			description: "Anchor Origin",
+			defaultValue: "TopLeft",
 			control: { type: "select" },
-			options: ["Top", "Middle", "Bottom"],
+			options: [
+				"TopLeft",
+				"TopCenter",
+				"TopRight",
+				"MiddleLeft",
+				"MiddleCenter",
+				"MiddleRight",
+				"BottomLeft",
+				"BottomCenter",
+				"BottomRight",
+			],
 		},
-		anchorHorizontal: {
-			description: "Anchor horizontal",
-			defaultValue: "Left",
-			control: { type: "inline-check" },
-			options: ["Left", "Center", "Right"],
+		transformOrigin: {
+			description: "Transform Origin",
+			defaultValue: "TopLeft",
+			control: { type: "select" },
+			options: [
+				"TopLeft",
+				"TopCenter",
+				"TopRight",
+				"MiddleLeft",
+				"MiddleCenter",
+				"MiddleRight",
+				"BottomLeft",
+				"BottomCenter",
+				"BottomRight",
+			],
 		},
-		anchorVertical: {
-			description: "Anchor vertical",
-			defaultValue: "Top",
-			control: { type: "inline-check" },
-			options: ["Top", "Middle", "Bottom"],
-		},
-		transformHorizontal: {
-			description: "Transform horizontal",
-			defaultValue: "Left",
-			control: { type: "inline-check" },
-			options: ["Left", "Center", "Right"],
-		},
-		transformVertical: {
-			description: "Transform vertical",
-			defaultValue: "Top",
-			control: { type: "inline-check" },
-			options: ["Top", "Middle", "Bottom"],
+		constraints: {
+			table: {
+				disable: true,
+			},
 		},
 	},
 } as Meta;
 
-function mapHorizontal(value: string) {
+function mapStringToAlignment(value: string): Alignement {
 	switch (value) {
-		case "Center":
-			return CENTER;
-		case "Right":
-			return RIGHT;
+		case "TopLeft":
+			return [LEFT, TOP];
+		case "TopCenter":
+			return [CENTER, TOP];
+		case "TopRight":
+			return [RIGHT, TOP];
+		case "MiddleLeft":
+			return [LEFT, MIDDLE];
+		case "MiddleCenter":
+			return [CENTER, MIDDLE];
+		case "MiddleRight":
+			return [RIGHT, MIDDLE];
+		case "BottomLeft":
+			return [LEFT, BOTTOM];
+		case "BottomCenter":
+			return [CENTER, BOTTOM];
+		case "BottomRight":
+			return [RIGHT, BOTTOM];
+		default:
+			throw new Error(`Unknown alignment ${value}.`);
 	}
-	return LEFT;
 }
-
-function mapVertical(value: string) {
-	switch (value) {
-		case "Middle":
-			return MIDDLE;
-		case "Bottom":
-			return BOTTOM;
-	}
-	return TOP;
-}
-
-const Template = ({
-	constraintElement,
-	preventOverlap,
-	anchorOrigin,
-	transformOrigin,
-}: {
-	constraintElement?: HTMLElement;
-	preventOverlap: boolean;
-	anchorOrigin: Alignement;
-	transformOrigin: Alignement;
-}) => (
-	<div
-		style={{
-			display: "inline-block",
-			position: "relative",
-			background: "#c0c0c0",
-			padding: "4px",
-		}}
-	>
-		Parent
-		<Anchor
-			constraintElement={constraintElement}
-			preventOverlap={preventOverlap}
-			anchorOrigin={anchorOrigin}
-			transformOrigin={transformOrigin}
-		>
-			{({ transformRef }) => (
-				<div
-					ref={transformRef as any}
-					style={{
-						display: "inline-block",
-						position: "absolute",
-						background: "#f0c0c0a0",
-						padding: "4px",
-					}}
-				>
-					Child
-				</div>
-			)}
-		</Anchor>
-	</div>
-);
 
 export const Default: Story<{
-	preventOverlap: boolean;
-	anchorHorizontal: string[];
-	anchorVertical: string[];
-	transformHorizontal: string[];
-	transformVertical: string[];
+	alignment: string;
+	anchorOrigin: string;
+	transformOrigin: string;
 }> = (args) => {
-	const anchorOrigin = {
-		horizontal: args.anchorHorizontal.map((s) => mapHorizontal(s)),
-		vertical: args.anchorVertical.map((s) => mapVertical(s)),
-	};
-	const transformOrigin = {
-		horizontal: args.transformHorizontal.map((s) => mapHorizontal(s)),
-		vertical: args.transformVertical.map((s) => mapVertical(s)),
-	};
-
+	const anchorOrigin = mapStringToAlignment(args.anchorOrigin);
+	const transformOrigin = mapStringToAlignment(args.transformOrigin);
 	return (
-		<Template
-			preventOverlap={args.preventOverlap}
-			anchorOrigin={anchorOrigin}
-			transformOrigin={transformOrigin}
-		/>
+		<div
+			style={{
+				display: "inline-block",
+				position: "relative",
+				background: "#c0c0c0",
+				padding: "4px",
+			}}
+		>
+			Parent
+			<Anchor
+				anchorOrigin={anchorOrigin}
+				transformOrigin={transformOrigin}
+			>
+				{({ transformRef }) => (
+					<div
+						ref={transformRef as any}
+						style={{
+							display: "inline-block",
+							position: "absolute",
+							background: "#f0c0c0a0",
+							padding: "4px",
+						}}
+					>
+						Child
+					</div>
+				)}
+			</Anchor>
+		</div>
 	);
 };
 Default.args = {
-	preventOverlap: false,
-	anchorHorizontal: ["Right"],
-	anchorVertical: ["Top"],
-	transformHorizontal: ["Left"],
-	transformVertical: ["Top"],
+	alignment: "TopLeft",
+	anchorOrigin: "TopRight",
+	transformOrigin: "TopLeft",
 };
 
 export const Constrained: Story<{
-	preventOverlap: boolean;
-	parentHorizontal: string;
-	parentVertical: string;
-	anchorHorizontal: string[];
-	anchorVertical: string[];
-	transformHorizontal: string[];
-	transformVertical: string[];
+	alignment: string;
+	constraints: Constraints;
 }> = (args) => {
-	const anchorOrigin = {
-		horizontal: args.anchorHorizontal.map((s) => mapHorizontal(s)),
-		vertical: args.anchorVertical.map((s) => mapVertical(s)),
-	};
-	const transformOrigin = {
-		horizontal: args.transformHorizontal.map((s) => mapHorizontal(s)),
-		vertical: args.transformVertical.map((s) => mapVertical(s)),
-	};
+	const alignment = mapStringToAlignment(args.alignment);
 	const [constraintElement, setConstraint] = useState<HTMLElement>();
 
-	const halign = args.parentHorizontal === "Right" ? "right" : "left";
-	const hvalue = args.parentHorizontal === "Center" ? "-50%" : "0";
-	const valign = args.parentVertical === "Bottom" ? "bottom" : "top";
-	const vvalue = args.parentVertical === "Middle" ? "-50%" : "0";
+	const halign = alignment[0] === RIGHT ? "right" : "left";
+	const hvalue = alignment[0] === CENTER ? "-50%" : "0";
+	const valign = alignment[1] === BOTTOM ? "bottom" : "top";
+	const vvalue = alignment[1] === MIDDLE ? "-50%" : "0";
+
+	let constraints: Constraints | undefined;
+	if (args.constraints) {
+		constraints = { ...args.constraints, element: constraintElement };
+	}
 
 	return (
 		<div
@@ -191,27 +179,61 @@ export const Constrained: Story<{
 				style={{
 					display: "inline-block",
 					position: "absolute",
-					[halign]: args.parentHorizontal === "Center" ? "50%" : "0",
-					[valign]: args.parentVertical === "Middle" ? "50%" : "0",
+					[halign]: alignment[0] === CENTER ? "50%" : "0",
+					[valign]: alignment[1] === MIDDLE ? "50%" : "0",
 					transform: `translate(${hvalue}, ${vvalue})`,
 				}}
 			>
-				<Template
-					constraintElement={constraintElement}
-					preventOverlap={args.preventOverlap}
-					anchorOrigin={anchorOrigin}
-					transformOrigin={transformOrigin}
-				/>
+				<div
+					style={{
+						display: "inline-block",
+						position: "relative",
+						background: "#c0c0c0",
+						padding: "4px",
+					}}
+				>
+					Parent
+					<Anchor key={alignment.join("-")} constraints={constraints}>
+						{({ transformRef }) => (
+							<div
+								ref={transformRef as any}
+								style={{
+									display: "inline-block",
+									position: "absolute",
+									background: "#f0c0c0a0",
+									padding: "4px",
+								}}
+							>
+								Child
+							</div>
+						)}
+					</Anchor>
+				</div>
 			</div>
 		</div>
 	);
 };
 Constrained.args = {
-	preventOverlap: true,
-	parentHorizontal: "Left",
-	parentVertical: "Top",
-	anchorHorizontal: ["Left", "Right"],
-	anchorVertical: ["Top"],
-	transformHorizontal: ["Left", "Right"],
-	transformVertical: ["Top"],
+	alignment: "TopLeft",
+	constraints: {
+		preventOverlap: true,
+		origins: [
+			{
+				anchor: [RIGHT, TOP],
+				transform: [LEFT, TOP],
+			},
+			{
+				anchor: [LEFT, TOP],
+				transform: [RIGHT, TOP],
+			},
+			{
+				anchor: [RIGHT, BOTTOM],
+				transform: [LEFT, BOTTOM],
+			},
+			{
+				anchor: [LEFT, BOTTOM],
+				transform: [RIGHT, BOTTOM],
+			},
+		],
+	},
 };
