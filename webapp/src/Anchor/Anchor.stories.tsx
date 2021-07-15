@@ -1,7 +1,8 @@
-import { Component, createMemo, createSignal, JSX } from "solid-js";
+import { Component, createMemo, createSignal, JSX, useContext } from "solid-js";
 import {
 	Alignement,
 	Anchor,
+	AnchorContext,
 	AnchorProps,
 	Constraints,
 	HorizontalAlign,
@@ -176,15 +177,25 @@ export const Constrained = (props: any) => {
 				>
 					Parent
 					<Anchor constraints={constraints()}>
-						<div
-							style={{
-								display: "inline-block",
-								background: "#f0c0c0a0",
-								padding: "4px",
-							}}
-						>
-							Child
-						</div>
+						{() => {
+							const ctx = useContext(AnchorContext)();
+							return (
+								<div
+									style={{
+										display: "inline-block",
+										background: "#f0c0c0a0",
+										padding: "4px",
+									}}
+								>
+									{ctx?.anchor
+										.map((a) => a.substr(0, 1))
+										.join("")}
+									{ctx?.transform
+										.map((a) => a.substr(0, 1))
+										.join("")}
+								</div>
+							);
+						}}
 					</Anchor>
 				</div>
 			</div>

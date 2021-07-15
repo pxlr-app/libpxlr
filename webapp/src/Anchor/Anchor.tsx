@@ -6,6 +6,9 @@ import {
 	createMemo,
 	onCleanup,
 	onMount,
+	createContext,
+	createSignal,
+	Accessor,
 } from "solid-js";
 
 export enum VerticalAlign {
@@ -26,6 +29,16 @@ export type Constraints = {
 	element?: HTMLElement | (() => HTMLElement);
 	origins: { anchor: Alignement; transform: Alignement }[];
 };
+
+export const AnchorContext = createContext<
+	Accessor<
+		| {
+				anchor: Alignement;
+				transform: Alignement;
+		  }
+		| undefined
+	>
+>(() => undefined);
 
 export type AnchorProps =
 	| {
@@ -73,6 +86,13 @@ function rectIntersection(a: DOMRect, b: DOMRect): DOMRect {
 export const Anchor: Component<PropsWithChildren<AnchorProps>> = (props) => {
 	let anchor: HTMLDivElement | undefined;
 	let transform: HTMLDivElement | undefined;
+	const [alignment, setAlignment] = createSignal<
+		| {
+				anchor: Alignement;
+				transform: Alignement;
+		  }
+		| undefined
+	>(undefined);
 
 	const recalc = createMemo(() => () => {
 		if (anchor && transform) {
@@ -159,57 +179,73 @@ export const Anchor: Component<PropsWithChildren<AnchorProps>> = (props) => {
 			}
 
 			if (newAnchorOrigin && newTransformOrigin) {
-				anchor.style.position = "absolute";
+				const align = alignment();
+				if (
+					!align ||
+					newAnchorOrigin[0] !== align.anchor[0] ||
+					newAnchorOrigin[1] !== align.anchor[1] ||
+					newTransformOrigin[0] !== align.transform[0] ||
+					newTransformOrigin[1] !== align.transform[1]
+				) {
+					anchor.style.position = "absolute";
 
-				if (newAnchorOrigin[0] === HorizontalAlign.LEFT) {
-					anchor.style.left = "0";
-					anchor.style.right = "auto";
-				} else if (newAnchorOrigin[0] === HorizontalAlign.CENTER) {
-					anchor.style.left = "50%";
-					anchor.style.right = "auto";
-				} else {
-					anchor.style.left = "auto";
-					anchor.style.right = "0";
+					if (newAnchorOrigin[0] === HorizontalAlign.LEFT) {
+						anchor.style.left = "0";
+						anchor.style.right = "auto";
+					} else if (newAnchorOrigin[0] === HorizontalAlign.CENTER) {
+						anchor.style.left = "50%";
+						anchor.style.right = "auto";
+					} else {
+						anchor.style.left = "auto";
+						anchor.style.right = "0";
+					}
+
+					if (newAnchorOrigin[1] === VerticalAlign.TOP) {
+						anchor.style.top = "0";
+						anchor.style.bottom = "auto";
+					} else if (newAnchorOrigin[1] === VerticalAlign.MIDDLE) {
+						anchor.style.top = "50%";
+						anchor.style.bottom = "auto";
+					} else {
+						anchor.style.top = "auto";
+						anchor.style.bottom = "0";
+					}
+
+					transform.style.position = "absolute";
+					const t = ["0", "0"];
+
+					if (newTransformOrigin[0] === HorizontalAlign.LEFT) {
+						transform.style.left = "0";
+						transform.style.right = "auto";
+					} else if (
+						newTransformOrigin[0] === HorizontalAlign.CENTER
+					) {
+						transform.style.left = "50%";
+						transform.style.right = "auto";
+						t[0] = "-50%";
+					} else {
+						transform.style.left = "auto";
+						transform.style.right = "0";
+					}
+
+					if (newTransformOrigin[1] === VerticalAlign.TOP) {
+						transform.style.top = "0";
+						transform.style.bottom = "auto";
+					} else if (newTransformOrigin[1] === VerticalAlign.MIDDLE) {
+						transform.style.top = "0";
+						transform.style.bottom = "auto";
+						t[1] = "-50%";
+					} else {
+						transform.style.top = "auto";
+						transform.style.bottom = "0";
+					}
+					transform.style.transform = `translate(${t[0]},${t[1]})`;
+
+					setAlignment({
+						anchor: newAnchorOrigin,
+						transform: newTransformOrigin,
+					});
 				}
-
-				if (newAnchorOrigin[1] === VerticalAlign.TOP) {
-					anchor.style.top = "0";
-					anchor.style.bottom = "auto";
-				} else if (newAnchorOrigin[1] === VerticalAlign.MIDDLE) {
-					anchor.style.top = "50%";
-					anchor.style.bottom = "auto";
-				} else {
-					anchor.style.top = "auto";
-					anchor.style.bottom = "0";
-				}
-
-				transform.style.position = "absolute";
-				const t = ["0", "0"];
-
-				if (newTransformOrigin[0] === HorizontalAlign.LEFT) {
-					transform.style.left = "0";
-					transform.style.right = "auto";
-				} else if (newTransformOrigin[0] === HorizontalAlign.CENTER) {
-					transform.style.left = "50%";
-					transform.style.right = "auto";
-					t[0] = "-50%";
-				} else {
-					transform.style.left = "auto";
-					transform.style.right = "0";
-				}
-
-				if (newTransformOrigin[1] === VerticalAlign.TOP) {
-					transform.style.top = "0";
-					transform.style.bottom = "auto";
-				} else if (newTransformOrigin[1] === VerticalAlign.MIDDLE) {
-					transform.style.top = "0";
-					transform.style.bottom = "auto";
-					t[1] = "-50%";
-				} else {
-					transform.style.top = "auto";
-					transform.style.bottom = "0";
-				}
-				transform.style.transform = `translate(${t[0]},${t[1]})`;
 			}
 		}
 	});
@@ -227,7 +263,9 @@ export const Anchor: Component<PropsWithChildren<AnchorProps>> = (props) => {
 	return (
 		<div data-role="anchor-origin" ref={anchor}>
 			<div data-role="anchor-transform" ref={transform}>
-				{props.children}
+				<AnchorContext.Provider value={alignment}>
+					{props.children}
+				</AnchorContext.Provider>
 			</div>
 		</div>
 	);
