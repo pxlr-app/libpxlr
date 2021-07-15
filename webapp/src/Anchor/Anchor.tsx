@@ -1,11 +1,9 @@
 import {
 	Component,
 	PropsWithChildren,
-	JSX,
 	createEffect,
 	createMemo,
 	onCleanup,
-	onMount,
 	createContext,
 	createSignal,
 	Accessor,
@@ -55,14 +53,6 @@ function getOrRetrieve<T>(value: T | (() => T)): T {
 	return value instanceof Function ? value() : value;
 }
 
-function rectContains(a: DOMRect, b: DOMRect): boolean {
-	return (
-		a.left <= b.left &&
-		b.right <= a.right &&
-		a.top <= b.top &&
-		b.bottom <= a.bottom
-	);
-}
 function rectOverlaps(a: DOMRect, b: DOMRect): boolean {
 	return (
 		Math.max(a.left, b.left) < Math.min(a.right, b.right) &&
