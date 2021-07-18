@@ -1,0 +1,7 @@
+.shadow-hard {
+	box-shadow: #000 0px 2px 4px;
+}
+
+.text-2xs {
+	font-size: 0.625rem;
+}
