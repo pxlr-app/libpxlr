@@ -7,6 +7,7 @@ import {
 	createContext,
 	createSignal,
 	Accessor,
+	onMount,
 } from "solid-js";
 
 export enum VerticalAlign {
@@ -49,30 +50,6 @@ export type AnchorProps =
 			class?: string;
 	  };
 
-function getOrRetrieve<T>(value: T | (() => T)): T {
-	return value instanceof Function ? value() : value;
-}
-
-function rectOverlaps(a: DOMRect, b: DOMRect): boolean {
-	return (
-		Math.max(a.left, b.left) < Math.min(a.right, b.right) &&
-		Math.max(a.top, b.top) < Math.min(a.bottom, b.bottom)
-	);
-}
-
-function rectIntersection(a: DOMRect, b: DOMRect): DOMRect {
-	const left = Math.max(a.left, b.left);
-	const right = Math.min(a.right, b.right);
-	const top = Math.max(a.top, b.top);
-	const bottom = Math.min(a.bottom, b.bottom);
-	return new DOMRect(
-		Math.min(left, right),
-		Math.min(top, bottom),
-		Math.max(left, right) - Math.min(left, right),
-		Math.max(top, bottom) - Math.min(top, bottom),
-	);
-}
-
 export const Anchor: Component<PropsWithChildren<AnchorProps>> = (props) => {
 	let anchor: HTMLDivElement | undefined;
 	let transform: HTMLDivElement | undefined;
@@ -84,7 +61,7 @@ export const Anchor: Component<PropsWithChildren<AnchorProps>> = (props) => {
 		| undefined
 	>(undefined);
 
-	const recalc = createMemo(() => () => {
+	const recalc = () => {
 		if (anchor && transform) {
 			let newAnchorOrigin: Alignement | undefined = undefined;
 			let newTransformOrigin: Alignement | undefined = undefined;
@@ -238,16 +215,17 @@ export const Anchor: Component<PropsWithChildren<AnchorProps>> = (props) => {
 				}
 			}
 		}
-	});
+	};
 
-	window.addEventListener("resize", recalc);
-
-	onCleanup(() => {
-		window.removeEventListener("resize", recalc);
+	onMount(() => {
+		window.addEventListener("resize", recalc);
+		onCleanup(() => {
+			window.removeEventListener("resize", recalc);
+		});
 	});
 
 	createEffect(() => {
-		recalc()();
+		recalc();
 	});
 
 	return (
@@ -260,3 +238,29 @@ export const Anchor: Component<PropsWithChildren<AnchorProps>> = (props) => {
 		</div>
 	);
 };
+
+function getOrRetrieve<T>(value: T | (() => T)): T {
+	return value instanceof Function ? value() : value;
+}
+
+const { max, min } = Math;
+
+function rectOverlaps(a: DOMRect, b: DOMRect): boolean {
+	return (
+		max(a.left, b.left) < min(a.right, b.right) &&
+		max(a.top, b.top) < min(a.bottom, b.bottom)
+	);
+}
+
+function rectIntersection(a: DOMRect, b: DOMRect): DOMRect {
+	const left = max(a.left, b.left);
+	const right = min(a.right, b.right);
+	const top = max(a.top, b.top);
+	const bottom = min(a.bottom, b.bottom);
+	return new DOMRect(
+		min(left, right),
+		min(top, bottom),
+		max(left, right) - min(left, right),
+		max(top, bottom) - min(top, bottom),
+	);
+}
