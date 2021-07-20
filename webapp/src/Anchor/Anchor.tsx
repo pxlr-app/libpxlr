@@ -8,6 +8,7 @@ import {
 	createSignal,
 	Accessor,
 	onMount,
+	JSX,
 } from "solid-js";
 
 export enum VerticalAlign {
@@ -44,13 +45,21 @@ export type AnchorProps =
 			anchorOrigin: Alignement;
 			transformOrigin: Alignement;
 			class?: string;
+			className?: string;
+			classList?: {
+				[k: string]: boolean | undefined;
+			};
 	  }
 	| {
 			constraints: Constraints;
 			class?: string;
+			className?: string;
+			classList?: {
+				[k: string]: boolean | undefined;
+			};
 	  };
 
-export const Anchor: Component<PropsWithChildren<AnchorProps>> = (props) => {
+export const Anchor: Component<AnchorProps> = (props) => {
 	let anchor: HTMLDivElement | undefined;
 	let transform: HTMLDivElement | undefined;
 	const [alignment, setAlignment] = createSignal<
@@ -229,8 +238,13 @@ export const Anchor: Component<PropsWithChildren<AnchorProps>> = (props) => {
 	});
 
 	return (
-		<div data-role="anchor-origin" ref={anchor}>
-			<div data-role="anchor-transform" ref={transform}>
+		<div
+			ref={anchor}
+			class={props.class}
+			className={props.className}
+			classList={props.classList ?? {}}
+		>
+			<div ref={transform}>
 				<AnchorContext.Provider value={alignment}>
 					{props.children}
 				</AnchorContext.Provider>
