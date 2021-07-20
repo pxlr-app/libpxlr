@@ -21,11 +21,16 @@ import {
 } from "../Anchor";
 
 export type MenuProps = {
+	/**
+	 * A unique identifier for this menu item
+	 */
+	id: string;
+
 	ref?: HTMLElement | ((e: HTMLElement) => void);
 };
 
 export const Menu: Component<PropsWithChildren<MenuProps>> = (props) => {
-	const menu = createMenu({ orientation: "vertical" });
+	const menu = createMenu({ id: props.id, orientation: "vertical" });
 
 	return (
 		<nav
@@ -84,7 +89,7 @@ export const MenuItem: Component<MenuItemProps> = (props) => {
 			{...menuitem.attributes}
 			class="pointer-events-auto relative w-80 flex flex-1 pt-0.5 pb-1 px-1 mx-px cursor-pointer outline-none"
 			classList={{
-				"bg-gray-800 text-blue-300": menuitem.selected() === props.id,
+				"bg-gray-800 text-blue-300": false,
 			}}
 		>
 			<div className="pointer-events-none flex flex-1 flex-nowrap whitespace-nowrap ">
@@ -99,7 +104,7 @@ export const MenuItem: Component<MenuItemProps> = (props) => {
 							{props.label.split(props.accessKey).shift()}
 							<span
 								classList={{
-									"underline uppercase": menuitem.showAccessKey(),
+									"underline uppercase": false,
 								}}
 							>
 								{props.accessKey}
@@ -118,7 +123,7 @@ export const MenuItem: Component<MenuItemProps> = (props) => {
 					</Show>
 				</div>
 			</div>
-			<Show when={hasChildren && menuitem.opened() === props.id}>
+			<Show when={hasChildren && false}>
 				<Anchor constraints={anchorConstraints} class="z-50">
 					{() => {
 						const ctx = useContext(AnchorContext)();

@@ -5,7 +5,7 @@ export default {
 };
 
 export const Uncontrolled = () => (
-	<Menu>
+	<Menu id="file">
 		<MenuItem
 			id="newfile"
 			label="New File"
@@ -34,7 +34,7 @@ export const Uncontrolled = () => (
 			accessKey="R"
 			keybind="Ctrl+Shift+O"
 		>
-			<Menu>
+			<Menu id="openrecent">
 				<MenuItem
 					id="reopen"
 					label="Reopen Closed File"
@@ -43,7 +43,7 @@ export const Uncontrolled = () => (
 					action={() => alert("reopen")}
 				/>
 				<MenuItem id="recentfiles" label="Recent Files" accessKey="F">
-					<Menu>
+					<Menu id="recentfiles">
 						<MenuItem
 							id="filea"
 							label="File A"
@@ -97,7 +97,7 @@ export const Uncontrolled = () => (
 		/>
 		<Separator />
 		<MenuItem id="preferences" label="Preferences" accessKey="P">
-			<Menu>
+			<Menu id="preferences">
 				<MenuItem
 					id="settings"
 					label="Settings"
