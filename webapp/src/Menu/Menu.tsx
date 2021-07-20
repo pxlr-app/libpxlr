@@ -8,7 +8,6 @@ import {
 	Show,
 	useContext,
 } from "solid-js";
-import { UnstyledMenu, UnstyledMenuItem } from "./UnstyledMenu";
 import { faCheck, faChevronRight } from "@fortawesome/pro-regular-svg-icons";
 import FontAwesomeIcon from "../shims/FontAwesomeIcon";
 import "./Menu.css";

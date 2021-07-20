@@ -22,26 +22,21 @@ export type AddMenuItem = {
 	action?: () => void;
 };
 
-export type MenuContextData = {
-	orientation: Orientation;
+export type GlobalMenuContextData = {
 	showAccessKey: Accessor<boolean>;
 	setShowAccessKey: Setter<boolean>;
 	navigationInput: Accessor<NavigationDevice>;
 	setNavigationInput: Setter<NavigationDevice>;
+};
+
+export type MenuContextData = GlobalMenuContextData & {
+	orientation: Orientation;
 	selected: Accessor<string | undefined>;
 	select: Setter<string | undefined>;
 	opened: Accessor<string | undefined>;
 	open: Setter<string | undefined>;
 	addMenuItem: (item: AddMenuItem) => void;
 };
-
-type AccessibilityData = Pick<
-	MenuContextData,
-	| "showAccessKey"
-	| "setShowAccessKey"
-	| "navigationInput"
-	| "setNavigationInput"
->;
 
 const MenuContext = createContext<MenuContextData | undefined>(undefined);
 
@@ -58,7 +53,7 @@ export function createMenu({
 	orientation,
 	accessibilityContainer,
 }: CreateMenuParams) {
-	const accessible: AccessibilityData =
+	const global: GlobalMenuContextData =
 		useContext(MenuContext) ??
 		(() => {
 			const [showAccessKey, setShowAccessKey] = createSignal(false);
@@ -102,7 +97,7 @@ export function createMenu({
 	onMount(() => {
 		const onLeave = (e: MouseEvent | KeyboardEvent) => {
 			batch(() => {
-				accessible.setNavigationInput("pointer");
+				global.setNavigationInput("pointer");
 				select(undefined);
 				open(undefined);
 			});
@@ -118,7 +113,7 @@ export function createMenu({
 	});
 
 	const menu: MenuContextData = {
-		...accessible,
+		...global,
 		orientation,
 		selected,
 		select,
@@ -128,6 +123,10 @@ export function createMenu({
 			items.push(item);
 		},
 	};
+
+	onMount(() => {
+		console.log(items);
+	});
 
 	const NestedContextProvider: Component = (props) => {
 		return (
