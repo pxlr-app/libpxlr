@@ -5,14 +5,8 @@ export default {
 };
 
 export const Uncontrolled = () => (
-	<Menu id="file">
-		<MenuItem
-			id="newfile"
-			label="New File"
-			accessKey="N"
-			keybind="Ctrl+N"
-			action={() => alert("newfile")}
-		/>
+	<Menu>
+		<MenuItem id="newfile" label="New File" accessKey="N" keybind="Ctrl+N" action={() => alert("newfile")} />
 		<MenuItem
 			id="newwindow"
 			label="New Window"
@@ -21,20 +15,9 @@ export const Uncontrolled = () => (
 			action={() => alert("newwindow")}
 		/>
 		<Separator />
-		<MenuItem
-			id="openfile"
-			label="Open File…"
-			accessKey="O"
-			keybind="Ctrl+O"
-			action={() => alert("openfile")}
-		/>
-		<MenuItem
-			id="openrecent"
-			label="Open Recent"
-			accessKey="R"
-			keybind="Ctrl+Shift+O"
-		>
-			<Menu id="openrecent">
+		<MenuItem id="openfile" label="Open File…" accessKey="O" keybind="Ctrl+O" action={() => alert("openfile")} />
+		<MenuItem id="openrecent" label="Open Recent" accessKey="R" keybind="Ctrl+Shift+O">
+			<Menu>
 				<MenuItem
 					id="reopen"
 					label="Reopen Closed File"
@@ -43,25 +26,10 @@ export const Uncontrolled = () => (
 					action={() => alert("reopen")}
 				/>
 				<MenuItem id="recentfiles" label="Recent Files" accessKey="F">
-					<Menu id="recentfiles">
-						<MenuItem
-							id="filea"
-							label="File A"
-							accessKey="A"
-							action={() => alert("filea")}
-						/>
-						<MenuItem
-							id="fileb"
-							label="File B"
-							accessKey="B"
-							action={() => alert("fileb")}
-						/>
-						<MenuItem
-							id="filec"
-							label="File C"
-							accessKey="C"
-							action={() => alert("filec")}
-						/>
+					<Menu>
+						<MenuItem id="filea" label="File A" accessKey="A" action={() => alert("filea")} />
+						<MenuItem id="fileb" label="File B" accessKey="B" action={() => alert("fileb")} />
+						<MenuItem id="filec" label="File C" accessKey="C" action={() => alert("filec")} />
 					</Menu>
 				</MenuItem>
 
@@ -74,30 +42,12 @@ export const Uncontrolled = () => (
 			</Menu>
 		</MenuItem>
 		<Separator />
-		<MenuItem
-			id="save"
-			label="Save"
-			accessKey="S"
-			keybind="Ctrl+S"
-			action={() => alert("save")}
-		/>
-		<MenuItem
-			id="saveas"
-			label="Save As…"
-			accessKey="A"
-			keybind="Ctrl+Shift+S"
-			action={() => alert("saveas")}
-		/>
-		<MenuItem
-			id="autosave"
-			label="Auto Save"
-			accessKey="t"
-			checked
-			action={() => alert("autosave")}
-		/>
+		<MenuItem id="save" label="Save" accessKey="S" keybind="Ctrl+S" action={() => alert("save")} />
+		<MenuItem id="saveas" label="Save As…" accessKey="A" keybind="Ctrl+Shift+S" action={() => alert("saveas")} />
+		<MenuItem id="autosave" label="Auto Save" accessKey="t" checked action={() => alert("autosave")} />
 		<Separator />
 		<MenuItem id="preferences" label="Preferences" accessKey="P">
-			<Menu id="preferences">
+			<Menu>
 				<MenuItem
 					id="settings"
 					label="Settings"
@@ -113,11 +63,6 @@ export const Uncontrolled = () => (
 				/>
 			</Menu>
 		</MenuItem>
-		<MenuItem
-			id="useraccount"
-			label="User Account"
-			accessKey="U"
-			action={() => alert("useraccount")}
-		/>
+		<MenuItem id="useraccount" label="User Account" accessKey="U" action={() => alert("useraccount")} />
 	</Menu>
 );
