@@ -46,8 +46,7 @@ export const MenuItem: Component<MenuItemProps> = (props) => {
 	return (
 		<UnstyledMenuItem id={props.id} accessKey={props.accessKey} action={props.action}>
 			{({ selected, opened, showAccessKey, props: innerProps }) => {
-				const submenu = children(() => props.children) as () => JSX.Element;
-				const hasChildren = () => !!submenu();
+				const hasChildren = "children" in props;
 				return (
 					<li
 						{...innerProps}
@@ -79,35 +78,36 @@ export const MenuItem: Component<MenuItemProps> = (props) => {
 							</div>
 							<div className="px-1 text-gray-500">{props.keybind}</div>
 							<div className="w-4 text-center text-2xs">
-								<Show when={hasChildren()}>
+								<Show when={hasChildren}>
 									<FontAwesomeIcon icon={faChevronRight} />
 								</Show>
 							</div>
 						</div>
-						<Show when={hasChildren() && opened()}>
+						<Show when={hasChildren && opened()}>
 							<Anchor constraints={anchorConstraints} class="z-50">
-								{() => {
-									const ctx = useContext(AnchorContext)();
-									const transform = ctx?.transform ?? [HorizontalAlign.LEFT, VerticalAlign.TOP];
-									console.log(transform);
-									return (
-										<div
-											class="transform"
-											classList={{
-												"translate-y-[calc(-0.5rem-1px)]": transform[1] === VerticalAlign.TOP,
-												"translate-y-[calc(0.5rem+1px)]": transform[1] === VerticalAlign.BOTTOM,
-											}}
-										>
-											{submenu()}
-										</div>
-									);
-								}}
+								<NestedMenu>{props.children}</NestedMenu>
 							</Anchor>
 						</Show>
 					</li>
 				);
 			}}
 		</UnstyledMenuItem>
+	);
+};
+
+const NestedMenu: Component = (props) => {
+	const ctx = useContext(AnchorContext);
+	const transform = () => ctx()?.transform ?? [HorizontalAlign.LEFT, VerticalAlign.TOP];
+	return (
+		<div
+			class="transform"
+			classList={{
+				"translate-y-[calc(-0.5rem-1px)]": transform()[1] === VerticalAlign.TOP,
+				"translate-y-[calc(0.5rem+1px)]": transform()[1] === VerticalAlign.BOTTOM,
+			}}
+		>
+			{props.children}
+		</div>
 	);
 };
 

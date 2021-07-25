@@ -101,17 +101,13 @@ export const Anchor: Component<AnchorProps> = (props) => {
 				for (const origin of props.constraints.origins) {
 					let anchorX = anchorParentBounds.left;
 					if (origin.anchor[0] === HorizontalAlign.CENTER) {
-						anchorX =
-							anchorParentBounds.left +
-							anchorParentBounds.width / 2;
+						anchorX = anchorParentBounds.left + anchorParentBounds.width / 2;
 					} else if (origin.anchor[0] === HorizontalAlign.RIGHT) {
 						anchorX = anchorParentBounds.right;
 					}
 					let anchorY = anchorParentBounds.top;
 					if (origin.anchor[1] === VerticalAlign.MIDDLE) {
-						anchorY =
-							anchorParentBounds.top +
-							anchorParentBounds.height / 2;
+						anchorY = anchorParentBounds.top + anchorParentBounds.height / 2;
 					} else if (origin.anchor[1] === VerticalAlign.BOTTOM) {
 						anchorY = anchorParentBounds.bottom;
 					}
@@ -128,14 +124,8 @@ export const Anchor: Component<AnchorProps> = (props) => {
 						y = anchorY - h;
 					}
 					const prospectBounds = new DOMRect(x, y, w, h);
-					const prospectOverlaps = rectOverlaps(
-						constraintsBounds,
-						prospectBounds,
-					);
-					const overflowBounds = rectIntersection(
-						constraintsBounds,
-						prospectBounds,
-					);
+					const prospectOverlaps = rectOverlaps(constraintsBounds, prospectBounds);
+					const overflowBounds = rectIntersection(constraintsBounds, prospectBounds);
 
 					const overflow = prospectOverlaps
 						? (overflowBounds.width * overflowBounds.height) /
@@ -193,9 +183,7 @@ export const Anchor: Component<AnchorProps> = (props) => {
 					if (newTransformOrigin[0] === HorizontalAlign.LEFT) {
 						transform.style.left = "0";
 						transform.style.right = "auto";
-					} else if (
-						newTransformOrigin[0] === HorizontalAlign.CENTER
-					) {
+					} else if (newTransformOrigin[0] === HorizontalAlign.CENTER) {
 						transform.style.left = "50%";
 						transform.style.right = "auto";
 						t[0] = "-50%";
@@ -238,16 +226,9 @@ export const Anchor: Component<AnchorProps> = (props) => {
 	});
 
 	return (
-		<div
-			ref={anchor}
-			class={props.class}
-			className={props.className}
-			classList={props.classList ?? {}}
-		>
+		<div ref={anchor} class={props.class} className={props.className} classList={props.classList ?? {}}>
 			<div ref={transform}>
-				<AnchorContext.Provider value={alignment}>
-					{props.children}
-				</AnchorContext.Provider>
+				<AnchorContext.Provider value={alignment}>{props.children}</AnchorContext.Provider>
 			</div>
 		</div>
 	);
@@ -260,10 +241,7 @@ function getOrRetrieve<T>(value: T | (() => T)): T {
 const { max, min } = Math;
 
 function rectOverlaps(a: DOMRect, b: DOMRect): boolean {
-	return (
-		max(a.left, b.left) < min(a.right, b.right) &&
-		max(a.top, b.top) < min(a.bottom, b.bottom)
-	);
+	return max(a.left, b.left) < min(a.right, b.right) && max(a.top, b.top) < min(a.bottom, b.bottom);
 }
 
 function rectIntersection(a: DOMRect, b: DOMRect): DOMRect {

@@ -3,17 +3,20 @@ import {
 	batch,
 	createContext,
 	createEffect,
+	createRenderEffect,
 	createSignal,
 	JSX,
 	onCleanup,
 	onMount,
 	useContext,
 } from "solid-js";
-import { AnchorContext } from "../Anchor";
+import { Alignement, AnchorContext, VerticalAlign } from "../Anchor";
 
 export type Orientation = "horizontal" | "vertical";
 
 export type NavigationDevice = "pointer" | "keyboard";
+
+export type AutoSelectItem = "first" | "last" | "off";
 
 export type Setter<T> = (v: T | ((prev: T) => T)) => T;
 
@@ -23,19 +26,25 @@ export type MenuItemDeclaration = {
 	action?: () => void;
 };
 
-export type MenuContextData = {
+export type RootMenuContextData = {
 	showAccessKey: Accessor<boolean>;
 	setShowAccessKey: Setter<boolean>;
 	navigationInput: Accessor<NavigationDevice>;
 	setNavigationInput: Setter<NavigationDevice>;
+	autoSelectItem: Accessor<boolean>;
+	setAutoSelectItem: Setter<boolean>;
+};
+
+export type MenuContextData = {
 	selected: Accessor<string | undefined>;
 	select: Setter<string | undefined>;
 	opened: Accessor<string | undefined>;
 	open: Setter<string | undefined>;
-	// tree: Accessor<Map<string, MenuItemDeclaration>>;
+	items: MenuItemDeclaration[];
 	createMenuItem: (path: string[], item: MenuItemDeclaration) => void;
 };
 
+const RootMenuContext = createContext<RootMenuContextData | undefined>(undefined);
 const MenuContext = createContext<MenuContextData | undefined>(undefined);
 
 const PathContext = createContext<string[]>([]);
@@ -74,16 +83,28 @@ export type UnstyledMenuProps = {
 
 export const UnstyledMenu = (props: UnstyledMenuProps) => {
 	const path = useContext(PathContext);
-	const isRoot = !useContext(MenuContext);
-	const menu: Map<string, MenuItemDeclaration> = new Map();
+	const fullpath = ("/" + path.join("/") + "/").replace(/^\/+/, "/");
+	const items: MenuItemDeclaration[] = [];
+	const [selected, select] = createSignal<string | undefined>(undefined);
+	const [opened, open] = createSignal<string | undefined>(undefined);
 
-	const context =
-		useContext(MenuContext) ??
+	const menuContext: MenuContextData = {
+		selected,
+		select,
+		opened,
+		open,
+		items,
+		createMenuItem(path, item) {
+			items.push(item);
+		},
+	};
+
+	const rootContext =
+		useContext(RootMenuContext) ??
 		(() => {
 			const [showAccessKey, setShowAccessKey] = createSignal(false);
 			const [navigationInput, setNavigationInput] = createSignal<NavigationDevice>("pointer");
-			const [selected, select] = createSignal<string | undefined>(undefined);
-			const [opened, open] = createSignal<string | undefined>(undefined);
+			const [autoSelectItem, setAutoSelectItem] = createSignal(false);
 
 			onMount(() => {
 				const onKeyDown = (e: KeyboardEvent) => {
@@ -107,10 +128,11 @@ export const UnstyledMenu = (props: UnstyledMenuProps) => {
 
 			onMount(() => {
 				const onLeave = (e: MouseEvent | KeyboardEvent) => {
+					console.log("onLeave root");
 					batch(() => {
-						setNavigationInput("pointer");
-						select(undefined);
-						open(undefined);
+						rootContext.setNavigationInput("pointer");
+						rootContext.setShowAccessKey(false);
+						rootContext.setAutoSelectItem(false);
 					});
 				};
 
@@ -123,110 +145,137 @@ export const UnstyledMenu = (props: UnstyledMenuProps) => {
 				});
 			});
 
-			const data: MenuContextData = {
+			const data: RootMenuContextData = {
 				showAccessKey,
 				setShowAccessKey,
 				navigationInput,
 				setNavigationInput,
-				selected,
-				select,
-				opened,
-				open,
-				createMenuItem(path, item) {
-					menu.set("/" + path.join("/") + "/", item);
-				},
+				autoSelectItem,
+				setAutoSelectItem,
 			};
 
 			return data;
 		})();
 
+	const anchorContext = useContext(AnchorContext);
+
+	onMount(() => {
+		console.log("onMount", fullpath);
+	});
+	onCleanup(() => {
+		console.log("onCleanup", fullpath);
+	});
+
+	onMount(() => {
+		const onLeave = (e: MouseEvent | KeyboardEvent) => {
+			console.log("onLeave", fullpath);
+			batch(() => {
+				menuContext.select(undefined);
+				menuContext.open(undefined);
+			});
+		};
+
+		document.addEventListener("click", onLeave);
+		document.addEventListener("keydown", onLeave);
+
+		onCleanup(() => {
+			document.removeEventListener("click", onLeave);
+			document.removeEventListener("keydown", onLeave);
+		});
+	});
+
+	createEffect(() => {
+		if (rootContext.navigationInput() === "keyboard" && rootContext.autoSelectItem() && !menuContext.opened()) {
+			const verticalAlign = anchorContext()?.transform?.[1] ?? VerticalAlign.TOP;
+			console.log("autoselect", verticalAlign, items);
+			if (verticalAlign === VerticalAlign.BOTTOM) {
+				menuContext.select(items[items.length - 1].id);
+			} else {
+				menuContext.select(items[0].id);
+			}
+		}
+	});
+
 	const data: UnstyledMenuData = {
-		showAccessKey: context.showAccessKey,
-		setShowAccessKey: context.setShowAccessKey,
-		navigationInput: context.navigationInput,
-		setNavigationInput: context.setNavigationInput,
-		selected: context.selected,
-		select: context.select,
-		opened: context.opened,
-		open: context.open,
+		showAccessKey: rootContext.showAccessKey,
+		setShowAccessKey: rootContext.setShowAccessKey,
+		navigationInput: rootContext.navigationInput,
+		setNavigationInput: rootContext.setNavigationInput,
+		selected: menuContext.selected,
+		select: menuContext.select,
+		opened: menuContext.opened,
+		open: menuContext.open,
 
 		props: {
 			tabIndex: 0,
 			onKeyDown(e: KeyboardEvent) {
-				if (isRoot) {
-					const opened = context.opened() ?? "/";
-					const selected = context.selected() ?? "/";
-					const items = Array.from(menu.keys())
-						.filter((k) => k.substr(0, opened.length) === opened)
-						.filter((k) => k.substr(opened.length).split("/").length === 2);
-					let selectedIdx = items.findIndex((k) => k === selected);
+				const selected = menuContext.selected();
+				let selectedIdx = items.findIndex((p) => p.id === selected);
 
-					// Down
-					if (
-						(props.orientation === "vertical" && e.code === "ArrowDown") ||
-						(props.orientation === "horizontal" && e.code === "ArrowRight")
-					) {
+				// Down
+				if (
+					(props.orientation === "vertical" && e.code === "ArrowDown") ||
+					(props.orientation === "horizontal" && e.code === "ArrowRight")
+				) {
+					e.preventDefault();
+					e.stopImmediatePropagation();
+					selectedIdx = (selectedIdx + 1) % items.length;
+					batch(() => {
+						rootContext.setNavigationInput("keyboard");
+						rootContext.setAutoSelectItem(false);
+						menuContext.select(items[selectedIdx].id);
+					});
+				}
+				// Up
+				else if (
+					(props.orientation === "vertical" && e.code === "ArrowUp") ||
+					(props.orientation === "horizontal" && e.code === "ArrowLeft")
+				) {
+					e.preventDefault();
+					e.stopImmediatePropagation();
+					if (selectedIdx === -1) {
+						selectedIdx = items.length - 1;
+					} else {
+						selectedIdx = (items.length + (selectedIdx - 1)) % items.length;
+					}
+					batch(() => {
+						rootContext.setNavigationInput("keyboard");
+						rootContext.setAutoSelectItem(false);
+						menuContext.select(items[selectedIdx].id);
+					});
+				}
+				// Forward
+				else if (
+					(props.orientation === "vertical" && e.code === "ArrowRight") ||
+					(props.orientation === "horizontal" && e.code === "ArrowDown")
+				) {
+					const selectedItem = items[selectedIdx];
+					if (selectedItem.action) {
+						selectedItem.action();
+					} else {
 						e.preventDefault();
 						e.stopImmediatePropagation();
-						selectedIdx = (selectedIdx + 1) % items.length;
 						batch(() => {
-							context.setNavigationInput("keyboard");
-							context.select(items[selectedIdx]);
+							rootContext.setNavigationInput("keyboard");
+							rootContext.setAutoSelectItem(true);
+							menuContext.open(selectedItem.id);
+							// context.select(nextItems[0]);
 						});
 					}
-					// Up
-					else if (
-						(props.orientation === "vertical" && e.code === "ArrowUp") ||
-						(props.orientation === "horizontal" && e.code === "ArrowLeft")
-					) {
-						e.preventDefault();
-						e.stopImmediatePropagation();
-						if (selectedIdx === -1) {
-							selectedIdx = items.length - 1;
-						} else {
-							selectedIdx = (items.length + (selectedIdx - 1)) % items.length;
-						}
-						batch(() => {
-							context.setNavigationInput("keyboard");
-							context.select(items[selectedIdx]);
-						});
-					}
-					// Forward
-					else if (
-						(props.orientation === "vertical" && e.code === "ArrowRight") ||
-						(props.orientation === "horizontal" && e.code === "ArrowDown")
-					) {
-						const nextItems = Array.from(menu.keys()).filter(
-							(k) => k.substr(0, selected.length) === selected && k !== selected,
-						);
-						if (nextItems.length) {
-							e.preventDefault();
-							e.stopImmediatePropagation();
-							batch(() => {
-								context.setNavigationInput("keyboard");
-								context.open(selected);
-								context.select(nextItems[0]);
-							});
-						} else {
-							const selectedItem = menu.get(selected);
-							if (selectedItem?.action) {
-								selectedItem.action();
-							}
-						}
-					}
-					// Back
-					else if (
-						(props.orientation === "vertical" && e.code === "ArrowLeft") ||
-						(props.orientation === "horizontal" && e.code === "ArrowUp")
-					) {
+				}
+				// Back
+				else if (
+					(props.orientation === "vertical" && e.code === "ArrowLeft") ||
+					(props.orientation === "horizontal" && e.code === "ArrowUp")
+				) {
+					if (menuContext.opened()) {
 						e.preventDefault();
 						e.stopImmediatePropagation();
 						batch(() => {
-							context.setNavigationInput("keyboard");
-							const prevOpened = opened.split("/").slice(0, -2);
-							const prevSelected = selected.split("/").slice(0, -2);
-							context.select(prevSelected.length ? prevSelected.join("/") + "/" : undefined);
-							context.open(prevOpened.length ? prevOpened.join("/") + "/" : undefined);
+							rootContext.setNavigationInput("keyboard");
+							rootContext.setAutoSelectItem(false);
+							menuContext.select(selected);
+							menuContext.open(undefined);
 						});
 					}
 				}
@@ -234,7 +283,11 @@ export const UnstyledMenu = (props: UnstyledMenuProps) => {
 		},
 	};
 
-	return <MenuContext.Provider value={context}>{props.children(data)}</MenuContext.Provider>;
+	return (
+		<RootMenuContext.Provider value={rootContext}>
+			<MenuContext.Provider value={menuContext}>{props.children(data)}</MenuContext.Provider>
+		</RootMenuContext.Provider>
+	);
 };
 
 export type UnstyledMenuItemData = {
@@ -274,33 +327,38 @@ export type UnstyledMenuItemProps = {
 export const UnstyledMenuItem = (props: UnstyledMenuItemProps) => {
 	const path = useContext(PathContext).concat([props.id]);
 	const fullpath = "/" + path.join("/") + "/";
-	const context = useContext(MenuContext);
-	const anchor = useContext(AnchorContext);
 
-	if (!context) {
+	const rootContext = useContext(RootMenuContext);
+	if (!rootContext) {
+		throw new Error(
+			"UnstyledMenuItem requires a RootMenuContext somewhere in the DOM. Did you forget to wrap your component in RootMenuContext?",
+		);
+	}
+
+	const menuContext = useContext(MenuContext);
+	if (!menuContext) {
 		throw new Error(
 			"UnstyledMenuItem requires a MenuContext somewhere in the DOM. Did you forget to wrap your component in MenuContext?",
 		);
 	}
 
-	context.createMenuItem(path, { id: props.id, accessKey: props.accessKey, action: props.action });
+	menuContext.createMenuItem(path, { id: props.id, accessKey: props.accessKey, action: props.action });
 
 	const data: UnstyledMenuItemData = {
-		showAccessKey: context.showAccessKey,
-		navigationInput: context.navigationInput,
+		showAccessKey: rootContext.showAccessKey,
+		navigationInput: rootContext.navigationInput,
 		selected() {
-			const selected = context.selected();
-			return !!selected && selected.substr(0, fullpath.length) === fullpath;
+			return menuContext.selected() === props.id;
 		},
 		opened() {
-			const opened = context.opened();
-			return !!opened && opened.substr(0, fullpath.length) === fullpath;
+			return menuContext.opened() === props.id;
 		},
 		props: {
 			tabIndex: -1,
 			ref(elem) {
 				createEffect(() => {
-					if (context.selected() === fullpath) {
+					const _ = menuContext.opened(); // track change on opened
+					if (menuContext.selected() === props.id) {
 						elem.focus();
 						setTimeout(() => elem.focus(), 0); // Wait till element is visible?
 					} else if (elem === document.activeElement) {
@@ -310,10 +368,10 @@ export const UnstyledMenuItem = (props: UnstyledMenuItemProps) => {
 			},
 			onMouseEnter(e) {
 				batch(() => {
-					context.setNavigationInput("pointer");
-					context.select(fullpath);
-					if (context.selected() !== fullpath) {
-						context.open(fullpath.split("/").slice(0, -2).join("/") + "/");
+					rootContext.setNavigationInput("pointer");
+					menuContext.select(props.id);
+					if (menuContext.selected() !== props.id) {
+						menuContext.open(undefined);
 					}
 				});
 			},
@@ -324,8 +382,8 @@ export const UnstyledMenuItem = (props: UnstyledMenuItemProps) => {
 					batch(() => {
 						e.preventDefault();
 						e.stopImmediatePropagation();
-						context.setNavigationInput("pointer");
-						context.open(fullpath);
+						rootContext.setNavigationInput("pointer");
+						menuContext.open(props.id);
 					});
 				}
 			},
