@@ -4,7 +4,7 @@ export default {
 	title: "Components/Menu",
 };
 
-export const Uncontrolled = () => (
+export const Default = () => (
 	<Menu>
 		<MenuItem
 			id="newfile"

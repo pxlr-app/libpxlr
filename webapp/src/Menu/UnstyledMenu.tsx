@@ -247,6 +247,9 @@ export const UnstyledMenu = (props: UnstyledMenuProps) => {
 						);
 						if (accessedItem) {
 							if (accessedItem.action) {
+								if (document.activeElement) {
+									(document.activeElement as HTMLElement).blur();
+								}
 								accessedItem.action();
 							} else {
 								e.preventDefault();
