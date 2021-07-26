@@ -1,0 +1,27 @@
+.menubar {
+	@apply pointer-events-auto cursor-default inline-flex p-0 m-0 border border-transparent outline-none overflow-visible bg-gray-900 text-gray-200 text-xs select-none focus:border-blue-500;
+}
+
+.menubar__list {
+	@apply flex flex-row p-0 m-0 justify-end flex-nowrap;
+}
+
+.menubaritem {
+	@apply pointer-events-auto relative outline-none focus:bg-gray-700 focus-within:bg-gray-700;
+}
+
+.menubaritem--selected {
+	@apply bg-gray-700;
+}
+
+.menubaritem__label {
+	@apply pointer-events-none flex flex-nowrap px-3 py-1 whitespace-nowrap;
+}
+
+.menubaritem__label--accesskey {
+	@apply underline uppercase;
+}
+
+.menubaritem__anchor {
+	@apply z-50;
+}

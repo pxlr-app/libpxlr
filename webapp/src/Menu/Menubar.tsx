@@ -13,12 +13,8 @@ export const Menubar: Component<PropsWithChildren<MenubarProps>> = (props) => {
 	return (
 		<UnstyledMenu orientation="horizontal">
 			{({ props: innerProps }) => (
-				<nav
-					{...innerProps}
-					ref={props.ref}
-					class="pointer-events-auto cursor-default inline-flex p-0 m-0 border border-transparent outline-none overflow-visible bg-gray-900 text-gray-200 text-xs select-none focus:border-blue-500"
-				>
-					<ul className="flex flex-row p-0 m-0 justify-end flex-nowrap">{props.children}</ul>
+				<nav {...innerProps} ref={props.ref} class="menubar">
+					<ul className="menubar__list">{props.children}</ul>
 				</nav>
 			)}
 		</UnstyledMenu>
@@ -40,18 +36,18 @@ export const MenubarItem: Component<MenubarItemProps> = (props) => {
 				return (
 					<li
 						{...innerProps}
-						class="pointer-events-auto relative outline-none focus:bg-gray-700 focus-within:bg-gray-700"
+						class="menubaritem"
 						classList={{
-							"bg-gray-700": selected(),
+							"menubaritem--selected": selected(),
 						}}
 					>
-						<div className="pointer-events-none flex flex-nowrap px-3 py-1 whitespace-nowrap">
+						<div className="menubaritem__label">
 							<Show when={props.accessKey} fallback={props.label}>
 								<>
 									{props.label.split(props.accessKey).shift()}
 									<span
 										classList={{
-											"underline uppercase": showAccessKey(),
+											"menubaritem__label--accesskey": showAccessKey(),
 										}}
 									>
 										{props.accessKey}
@@ -61,7 +57,7 @@ export const MenubarItem: Component<MenubarItemProps> = (props) => {
 							</Show>
 						</div>
 						<Show when={hasChildren && opened()}>
-							<Anchor constraints={anchorConstraints} class="z-50">
+							<Anchor constraints={anchorConstraints} class="menubaritem__anchor">
 								{props.children}
 							</Anchor>
 						</Show>

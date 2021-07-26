@@ -1,7 +1,57 @@
-.shadow-hard {
+.menu {
+	@apply pointer-events-auto inline-block relative cursor-default border border-transparent outline-none bg-gray-700 text-gray-200 text-xs select-none focus:border-blue-500;
 	box-shadow: #000 0px 2px 4px;
 }
 
-.text-2xs {
+.menu__wrapper {
+	@apply flex flex-1 p-0 m-0 overflow-visible;
+}
+
+.menu__list {
+	@apply flex flex-1 flex-col py-2 px-0 m-0 justify-end flex-nowrap;
+}
+
+.menuitem {
+	@apply pointer-events-auto relative w-80 flex flex-1 pt-0.5 pb-1 px-1 mx-px cursor-pointer outline-none;
+}
+
+.menuitem--selected {
+	@apply bg-gray-800 text-blue-300;
+}
+
+.menuitem__wrapper {
+	@apply pointer-events-none flex flex-1 flex-nowrap whitespace-nowrap;
+}
+
+.menuitem__icon {
+	@apply w-4 text-center;
 	font-size: 0.625rem;
+}
+
+.menuitem__label {
+	@apply px-1 flex-1;
+}
+
+.menuitem__label--accesskey {
+	@apply underline uppercase;
+}
+
+.menuitem__keybind {
+	@apply px-1 text-gray-500;
+}
+
+.menuitem__anchor {
+	@apply z-50;
+}
+
+.menuitem__nested {
+	@apply transform;
+}
+
+.menuitem__nested--top {
+	@apply translate-y-[calc(-0.5rem-1px)];
+}
+
+.menuitem__nested--bottom {
+	@apply translate-y-[calc(0.5rem+1px)];
 }
