@@ -1,13 +1,5 @@
 import { Component, createMemo, createSignal, JSX, useContext } from "solid-js";
-import {
-	Alignement,
-	Anchor,
-	AnchorContext,
-	AnchorProps,
-	Constraints,
-	HorizontalAlign,
-	VerticalAlign,
-} from "./Anchor";
+import { Alignement, Anchor, AnchorContext, AnchorProps, Constraints, HorizontalAlign, VerticalAlign } from "./Anchor";
 
 const LEFT = HorizontalAlign.LEFT;
 const CENTER = HorizontalAlign.CENTER;
@@ -53,24 +45,21 @@ export const AnchorTransform = (props: any) => {
 			style={{
 				display: "inline-block",
 				position: "relative",
-				background: "#c0c0c0",
+				background: "#78E2F0",
 				padding: "4px",
 				margin: "100px 0 0 100px",
 			}}
 		>
-			Parent
-			<Anchor
-				anchorOrigin={anchorOrigin}
-				transformOrigin={transformOrigin}
-			>
+			Anchor
+			<Anchor anchorOrigin={anchorOrigin} transformOrigin={transformOrigin}>
 				<div
 					style={{
 						display: "inline-block",
-						background: "#f0c0c0a0",
+						background: "#F0984E",
 						padding: "4px",
 					}}
 				>
-					Child
+					Content
 				</div>
 			</Anchor>
 		</div>
@@ -171,11 +160,11 @@ export const Constrained = (props: any) => {
 					style={{
 						display: "inline-block",
 						position: "relative",
-						background: "#c0c0c0",
+						background: "#78E2F0",
 						padding: "4px",
 					}}
 				>
-					Parent
+					Anchor
 					<Anchor constraints={constraints()}>
 						{() => {
 							const ctx = useContext(AnchorContext)();
@@ -183,16 +172,12 @@ export const Constrained = (props: any) => {
 								<div
 									style={{
 										display: "inline-block",
-										background: "#f0c0c0a0",
+										background: "#F0984E",
 										padding: "4px",
 									}}
 								>
-									{ctx?.anchor
-										.map((a) => a.substr(0, 1))
-										.join("")}
-									{ctx?.transform
-										.map((a) => a.substr(0, 1))
-										.join("")}
+									{ctx?.anchor.map((a) => a.substr(0, 1)).join("")}
+									{ctx?.transform.map((a) => a.substr(0, 1)).join("")}
 								</div>
 							);
 						}}
