@@ -1,9 +1,9 @@
-import { Accessor, children, Component, JSX, mergeProps, PropsWithChildren, Show, useContext } from "solid-js";
+import { Component, PropsWithChildren, Show, useContext } from "solid-js";
 import { faCheck, faChevronRight } from "@fortawesome/pro-regular-svg-icons";
 import FontAwesomeIcon from "../shims/FontAwesomeIcon";
-import "./Menu.css";
 import { UnstyledMenu, UnstyledMenuItem, UnstyledMenuItemProps } from "./UnstyledMenu";
 import { Anchor, AnchorContext, Constraints, HorizontalAlign, VerticalAlign } from "../Anchor";
+import "./Menu.css";
 
 export type MenuProps = {
 	ref?: HTMLElement | ((e: HTMLElement) => void);
