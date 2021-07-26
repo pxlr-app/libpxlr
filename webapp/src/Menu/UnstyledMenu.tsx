@@ -107,28 +107,7 @@ export const UnstyledMenu = (props: UnstyledMenuProps) => {
 			const [autoSelectItem, setAutoSelectItem] = createSignal(false);
 
 			onMount(() => {
-				const onKeyDown = (e: KeyboardEvent) => {
-					if (e.code === "AltLeft") {
-						e.preventDefault();
-						e.stopImmediatePropagation();
-						batch(() => {
-							setShowAccessKey((state) => !state);
-							setNavigationInput("keyboard");
-						});
-					}
-				};
-
-				const a11yContainer = props.accessibilityContainer ?? document.body;
-				a11yContainer.addEventListener("keydown", onKeyDown);
-
-				onCleanup(() => {
-					a11yContainer.removeEventListener("keydown", onKeyDown);
-				});
-			});
-
-			onMount(() => {
 				const onLeave = (e: MouseEvent | KeyboardEvent) => {
-					console.log("onLeave root");
 					batch(() => {
 						rootContext.setNavigationInput("pointer");
 						rootContext.setShowAccessKey(false);
@@ -160,15 +139,7 @@ export const UnstyledMenu = (props: UnstyledMenuProps) => {
 	const anchorContext = useContext(AnchorContext);
 
 	onMount(() => {
-		console.log("onMount", fullpath);
-	});
-	onCleanup(() => {
-		console.log("onCleanup", fullpath);
-	});
-
-	onMount(() => {
 		const onLeave = (e: MouseEvent | KeyboardEvent) => {
-			console.log("onLeave", fullpath);
 			batch(() => {
 				menuContext.select(undefined);
 				menuContext.open(undefined);
@@ -187,7 +158,6 @@ export const UnstyledMenu = (props: UnstyledMenuProps) => {
 	createEffect(() => {
 		if (rootContext.navigationInput() === "keyboard" && rootContext.autoSelectItem() && !menuContext.opened()) {
 			const verticalAlign = anchorContext()?.transform?.[1] ?? VerticalAlign.TOP;
-			console.log("autoselect", verticalAlign, items);
 			if (verticalAlign === VerticalAlign.BOTTOM) {
 				menuContext.select(items[items.length - 1].id);
 			} else {
@@ -209,58 +179,86 @@ export const UnstyledMenu = (props: UnstyledMenuProps) => {
 		props: {
 			tabIndex: 0,
 			onKeyDown(e: KeyboardEvent) {
-				const selected = menuContext.selected();
-				let selectedIdx = items.findIndex((p) => p.id === selected);
+				if (e.code === "AltLeft") {
+					e.preventDefault();
+					e.stopImmediatePropagation();
+					batch(() => {
+						rootContext.setShowAccessKey((state) => !state);
+						rootContext.setNavigationInput("keyboard");
+					});
+				} else if (!menuContext.opened()) {
+					const selected = menuContext.selected();
+					let selectedIdx = items.findIndex((p) => p.id === selected);
 
-				// Down
-				if (
-					(props.orientation === "vertical" && e.code === "ArrowDown") ||
-					(props.orientation === "horizontal" && e.code === "ArrowRight")
-				) {
-					e.preventDefault();
-					e.stopImmediatePropagation();
-					selectedIdx = (selectedIdx + 1) % items.length;
-					batch(() => {
-						rootContext.setNavigationInput("keyboard");
-						rootContext.setAutoSelectItem(false);
-						menuContext.select(items[selectedIdx].id);
-					});
-				}
-				// Up
-				else if (
-					(props.orientation === "vertical" && e.code === "ArrowUp") ||
-					(props.orientation === "horizontal" && e.code === "ArrowLeft")
-				) {
-					e.preventDefault();
-					e.stopImmediatePropagation();
-					if (selectedIdx === -1) {
-						selectedIdx = items.length - 1;
-					} else {
-						selectedIdx = (items.length + (selectedIdx - 1)) % items.length;
-					}
-					batch(() => {
-						rootContext.setNavigationInput("keyboard");
-						rootContext.setAutoSelectItem(false);
-						menuContext.select(items[selectedIdx].id);
-					});
-				}
-				// Forward
-				else if (
-					(props.orientation === "vertical" && e.code === "ArrowRight") ||
-					(props.orientation === "horizontal" && e.code === "ArrowDown")
-				) {
-					const selectedItem = items[selectedIdx];
-					if (selectedItem.action) {
-						selectedItem.action();
-					} else {
+					// Down
+					if (
+						(props.orientation === "vertical" && e.code === "ArrowDown") ||
+						(props.orientation === "horizontal" && e.code === "ArrowRight")
+					) {
 						e.preventDefault();
 						e.stopImmediatePropagation();
+						selectedIdx = (selectedIdx + 1) % items.length;
 						batch(() => {
 							rootContext.setNavigationInput("keyboard");
-							rootContext.setAutoSelectItem(true);
-							menuContext.open(selectedItem.id);
-							// context.select(nextItems[0]);
+							rootContext.setAutoSelectItem(false);
+							menuContext.select(items[selectedIdx].id);
 						});
+					}
+					// Up
+					else if (
+						(props.orientation === "vertical" && e.code === "ArrowUp") ||
+						(props.orientation === "horizontal" && e.code === "ArrowLeft")
+					) {
+						e.preventDefault();
+						e.stopImmediatePropagation();
+						if (selectedIdx === -1) {
+							selectedIdx = items.length - 1;
+						} else {
+							selectedIdx = (items.length + (selectedIdx - 1)) % items.length;
+						}
+						batch(() => {
+							rootContext.setNavigationInput("keyboard");
+							rootContext.setAutoSelectItem(false);
+							menuContext.select(items[selectedIdx].id);
+						});
+					}
+					// Forward
+					else if (
+						(props.orientation === "vertical" && e.code === "ArrowRight") ||
+						(props.orientation === "horizontal" && e.code === "ArrowDown")
+					) {
+						const selectedItem = items[selectedIdx];
+						if (selectedItem.action) {
+							selectedItem.action();
+						} else {
+							e.preventDefault();
+							e.stopImmediatePropagation();
+							batch(() => {
+								rootContext.setNavigationInput("keyboard");
+								rootContext.setAutoSelectItem(true);
+								menuContext.open(selectedItem.id);
+							});
+						}
+					}
+					// AccessKey
+					else if (rootContext.showAccessKey()) {
+						const accessedItem = items.find(
+							({ id, accessKey }) => `Key${accessKey.toUpperCase()}` === e.code,
+						);
+						if (accessedItem) {
+							if (accessedItem.action) {
+								accessedItem.action();
+							} else {
+								e.preventDefault();
+								e.stopImmediatePropagation();
+								batch(() => {
+									rootContext.setNavigationInput("keyboard");
+									rootContext.setAutoSelectItem(true);
+									menuContext.select(accessedItem.id);
+									menuContext.open(accessedItem.id);
+								});
+							}
+						}
 					}
 				}
 				// Back
@@ -376,15 +374,17 @@ export const UnstyledMenuItem = (props: UnstyledMenuItemProps) => {
 				});
 			},
 			onClick(e) {
-				if (props.action) {
-					props.action();
-				} else {
-					batch(() => {
+				if (e.target === e.currentTarget) {
+					if (props.action) {
+						props.action();
+					} else {
 						e.preventDefault();
 						e.stopImmediatePropagation();
-						rootContext.setNavigationInput("pointer");
-						menuContext.open(props.id);
-					});
+						batch(() => {
+							rootContext.setNavigationInput("pointer");
+							menuContext.open(props.id);
+						});
+					}
 				}
 			},
 		},
