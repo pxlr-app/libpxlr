@@ -11,47 +11,51 @@
 	@apply flex flex-1 flex-col py-2 px-0 m-0 justify-end flex-nowrap;
 }
 
-.menuitem {
+.menu-item {
 	@apply pointer-events-auto relative w-80 flex flex-1 pt-0.5 pb-1 px-1 mx-px cursor-pointer outline-none;
 }
 
-.menuitem--selected {
+.menu-item--selected {
 	@apply bg-gray-800 text-blue-300;
 }
 
-.menuitem__wrapper {
+.menu-item__wrapper {
 	@apply pointer-events-none flex flex-1 flex-nowrap whitespace-nowrap;
 }
 
-.menuitem__icon {
+.menu-item__icon {
 	@apply w-4 text-center;
 	font-size: 0.625rem;
 }
 
-.menuitem__label {
+.menu-item__label {
 	@apply px-1 flex-1;
 }
 
-.menuitem__label--accesskey {
+.menu-item__label--accesskey {
 	@apply underline uppercase;
 }
 
-.menuitem__keybind {
+.menu-item__keybind {
 	@apply px-1 text-gray-500;
 }
 
-.menuitem__anchor {
+.menu-item__anchor {
 	@apply z-50;
 }
 
-.menuitem__nested {
+.menu-item__nested {
 	@apply transform;
 }
 
-.menuitem__nested--top {
+.menu-item__nested--top {
 	@apply translate-y-[calc(-0.5rem-1px)];
 }
 
-.menuitem__nested--bottom {
+.menu-item__nested--bottom {
 	@apply translate-y-[calc(0.5rem+1px)];
+}
+
+.menu-separator {
+	@apply flex p-0 pt-1 mt-0 mr-2 mb-1 ml-2 border-b border-gray-600;
 }

@@ -36,18 +36,18 @@ export const MenubarItem: Component<MenubarItemProps> = (props) => {
 				return (
 					<li
 						{...innerProps}
-						class="menubaritem"
+						class="menubar-item"
 						classList={{
-							"menubaritem--selected": selected(),
+							"menubar-item--selected": selected(),
 						}}
 					>
-						<div className="menubaritem__label">
+						<div className="menubar-item__label">
 							<Show when={props.accessKey} fallback={props.label}>
 								<>
 									{props.label.split(props.accessKey).shift()}
 									<span
 										classList={{
-											"menubaritem__label--accesskey": showAccessKey(),
+											"menubar-item__label--accesskey": showAccessKey(),
 										}}
 									>
 										{props.accessKey}
@@ -57,7 +57,7 @@ export const MenubarItem: Component<MenubarItemProps> = (props) => {
 							</Show>
 						</div>
 						<Show when={hasChildren && opened()}>
-							<Anchor constraints={anchorConstraints} class="menubaritem__anchor">
+							<Anchor constraints={anchorConstraints} class="menubar-item__anchor">
 								{props.children}
 							</Anchor>
 						</Show>

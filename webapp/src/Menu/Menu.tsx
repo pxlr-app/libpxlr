@@ -46,24 +46,24 @@ export const MenuItem: Component<MenuItemProps> = (props) => {
 				return (
 					<li
 						{...innerProps}
-						class="menuitem"
+						class="menu-item"
 						classList={{
-							"menuitem--selected": selected(),
+							"menu-item--selected": selected(),
 						}}
 					>
-						<div className="menuitem__wrapper">
-							<div className="menuitem__icon">
+						<div className="menu-item__wrapper">
+							<div className="menu-item__icon">
 								<Show when={props.checked}>
 									<FontAwesomeIcon icon={faCheck} />
 								</Show>
 							</div>
-							<div className="menuitem__label">
+							<div className="menu-item__label">
 								<Show when={props.accessKey} fallback={props.label}>
 									<>
 										{props.label.split(props.accessKey).shift()}
 										<span
 											classList={{
-												"menuitem__label--accesskey": showAccessKey(),
+												"menu-item__label--accesskey": showAccessKey(),
 											}}
 										>
 											{props.accessKey}
@@ -72,15 +72,15 @@ export const MenuItem: Component<MenuItemProps> = (props) => {
 									</>
 								</Show>
 							</div>
-							<div className="menuitem__keybind">{props.keybind}</div>
-							<div className="menuitem__icon">
+							<div className="menu-item__keybind">{props.keybind}</div>
+							<div className="menu-item__icon">
 								<Show when={hasChildren}>
 									<FontAwesomeIcon icon={faChevronRight} />
 								</Show>
 							</div>
 						</div>
 						<Show when={hasChildren && opened()}>
-							<Anchor constraints={anchorConstraints} class="menuitem__anchor">
+							<Anchor constraints={anchorConstraints} class="menu-item__anchor">
 								<NestedMenu>{props.children}</NestedMenu>
 							</Anchor>
 						</Show>
@@ -96,10 +96,10 @@ const NestedMenu: Component = (props) => {
 	const transform = () => ctx()?.transform ?? [HorizontalAlign.LEFT, VerticalAlign.TOP];
 	return (
 		<div
-			class="menuitem__nested"
+			class="menu-item__nested"
 			classList={{
-				"menuitem__nested--top": transform()[1] === VerticalAlign.TOP,
-				"menuitem__nested--bottom": transform()[1] === VerticalAlign.BOTTOM,
+				"menu-item__nested--top": transform()[1] === VerticalAlign.TOP,
+				"menu-item__nested--bottom": transform()[1] === VerticalAlign.BOTTOM,
 			}}
 		>
 			{props.children}
@@ -129,5 +129,5 @@ const anchorConstraints: Constraints = {
 };
 
 export const Separator = () => {
-	return <li tabIndex={-1} className="flex p-0 pt-1 mt-0 mr-2 mb-1 ml-2 border-b border-gray-600" />;
+	return <li tabIndex={-1} className="menu-separator" />;
 };
